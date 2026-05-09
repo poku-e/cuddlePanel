@@ -142,6 +142,42 @@ body {
     white-space: pre-wrap;
 }
 
+.setup-section h2 {
+    font-size: 1rem;
+    margin-bottom: 12px;
+}
+
+.setup-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.setup-dependency-list {
+    display: grid;
+    gap: 10px;
+}
+
+.setup-dependency {
+    border: 1px solid var(--cp-line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #fff;
+}
+
+.setup-dependency.is-present {
+    border-left: 4px solid #198754;
+}
+
+.setup-dependency.is-missing {
+    border-left: 4px solid #ffc107;
+}
+
+.setup-dependency-name {
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
 .cp-label {
     display: grid;
     gap: 6px;
@@ -528,6 +564,10 @@ body {
 
     .user-card-head {
         flex-direction: column;
+    }
+
+    .setup-grid {
+        grid-template-columns: 1fr;
     }
 
     .service-grid {

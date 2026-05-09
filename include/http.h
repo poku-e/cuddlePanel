@@ -3,6 +3,7 @@
 #include "deploy_runner.h"
 #include "nginx_store.h"
 #include "service_store.h"
+#include "setup.h"
 #include "system_admin.h"
 #include "terminal_manager.h"
 #include "user_store.h"
@@ -77,6 +78,7 @@ private:
     HttpResponse redirect(const std::string& location) const;
     std::optional<std::string> current_user(const HttpRequest& request) const;
     HttpResponse api_page(const HttpRequest& request, const std::string& page_name) const;
+    HttpResponse api_setup_status(const HttpRequest& request) const;
     HttpResponse api_users(const HttpRequest& request) const;
     HttpResponse api_user_permissions(const HttpRequest& request, const std::string& username) const;
     HttpResponse api_delete_user(const HttpRequest& request, const std::string& username) const;

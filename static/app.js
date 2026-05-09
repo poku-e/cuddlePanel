@@ -1,4 +1,4 @@
-import {bindAuthForm, bootTotpSetup} from "./js/auth.js";
+import {bindAuthForm, bootOnboardingSetup, bootTotpSetup} from "./js/auth.js";
 import {bootDashboard} from "./js/dashboard.js";
 import {initToasts} from "./js/core/toast.js";
 
@@ -9,7 +9,7 @@ function bootCurrentView() {
         return;
     }
     if (view === "onboarding") {
-        bindAuthForm("onboardingForm", "/api/onboarding", "/login");
+        bootOnboardingSetup();
         return;
     }
     if (view === "totp-setup") {

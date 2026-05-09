@@ -9,20 +9,85 @@
     <link href="/static/app.css" rel="stylesheet">
 </head>
 <body class="auth-body" data-view="onboarding">
-    <main class="auth-card">
+    <main class="auth-card auth-card-wide">
         <div class="auth-brand">
             <img src="/static/cuddle_logo.png" alt="cuddlePanel logo" class="brand-logo brand-logo-auth">
             <h1>cuddlePanel</h1>
         </div>
-        <p class="text-secondary">Create the first superuser to lock onboarding and open the dashboard.</p>
-        <form id="onboardingForm" class="vstack gap-3">
-            <label class="cp-label">Username
-                <input class="cp-input" name="username" autocomplete="username" required minlength="3" maxlength="64">
-            </label>
-            <label class="cp-label">Password
-                <input class="cp-input" name="password" type="password" autocomplete="new-password" required minlength="14">
-            </label>
-            <button class="btn btn-primary" type="submit">Create superuser</button>
+        <p class="text-secondary">Complete first-run setup, save the runtime environment, and create the first superuser.</p>
+        <section class="totp-secret-block">
+            <div class="section-header mb-2">
+                <div class="small text-secondary">Dependency status</div>
+                <div id="setupDependencySummary" class="small text-secondary">Checking...</div>
+            </div>
+            <div id="setupDependencyList" class="setup-dependency-list"></div>
+        </section>
+        <form id="onboardingForm" class="vstack gap-4 mt-3">
+            <section class="setup-section">
+                <h2>Environment</h2>
+                <div class="setup-grid">
+                    <label class="cp-label">Port
+                        <input class="cp-input" name="port" inputmode="numeric" required>
+                    </label>
+                    <label class="cp-label">Secure cookies
+                        <select class="cp-input cp-select" name="secure_cookies">
+                            <option value="0">Disabled</option>
+                            <option value="1">Enabled</option>
+                        </select>
+                    </label>
+                    <label class="cp-label">Deploy helper
+                        <input class="cp-input" name="deploy_site_bin" required>
+                    </label>
+                    <label class="cp-label">Nginx binary
+                        <input class="cp-input" name="nginx_bin" required>
+                    </label>
+                    <label class="cp-label">Nginx available dir
+                        <input class="cp-input" name="nginx_available_dir" required>
+                    </label>
+                    <label class="cp-label">Nginx enabled dir
+                        <input class="cp-input" name="nginx_enabled_dir" required>
+                    </label>
+                    <label class="cp-label">Nginx reload service
+                        <input class="cp-input" name="nginx_reload_service" required>
+                    </label>
+                    <label class="cp-label">Allowed system roots
+                        <input class="cp-input" name="system_allowed_roots" required>
+                    </label>
+                    <label class="cp-label">Terminal shell
+                        <input class="cp-input" name="terminal_shell" required>
+                    </label>
+                    <label class="cp-label">Terminal run user
+                        <input class="cp-input" name="terminal_run_as_user" required>
+                    </label>
+                    <label class="cp-label">Terminal run group
+                        <input class="cp-input" name="terminal_run_as_group" required>
+                    </label>
+                    <label class="cp-label">Terminal workdir
+                        <input class="cp-input" name="terminal_workdir" required>
+                    </label>
+                    <label class="cp-label">Terminal max sessions
+                        <input class="cp-input" name="terminal_max_sessions_per_user" inputmode="numeric" required>
+                    </label>
+                    <label class="cp-label">Terminal idle timeout
+                        <input class="cp-input" name="terminal_idle_timeout_seconds" inputmode="numeric" required>
+                    </label>
+                    <label class="cp-label">Terminal max runtime
+                        <input class="cp-input" name="terminal_max_session_seconds" inputmode="numeric" required>
+                    </label>
+                </div>
+            </section>
+            <section class="setup-section">
+                <h2>Superadmin</h2>
+                <div class="setup-grid">
+                    <label class="cp-label">Username
+                        <input class="cp-input" name="username" autocomplete="username" required minlength="3" maxlength="64">
+                    </label>
+                    <label class="cp-label">Password
+                        <input class="cp-input" name="password" type="password" autocomplete="new-password" required minlength="14">
+                    </label>
+                </div>
+            </section>
+            <button class="btn btn-primary" type="submit">Complete first-run setup</button>
             <div id="message" class="small text-danger" role="alert"></div>
         </form>
     </main>

@@ -117,6 +117,47 @@ std::string users_json(const std::vector<User>& users) {
     return out.str();
 }
 
+std::string setup_status_json() {
+    const auto config = current_first_run_config();
+    const auto dependencies = first_run_dependency_status(config);
+    std::ostringstream out;
+    out << "{"
+        << "\"config\":{"
+        << "\"port\":\"" << json_escape(config.port) << "\","
+        << "\"secure_cookies\":" << (config.secure_cookies ? "true" : "false") << ","
+        << "\"deploy_site_bin\":\"" << json_escape(config.deploy_site_bin) << "\","
+        << "\"nginx_available_dir\":\"" << json_escape(config.nginx_available_dir) << "\","
+        << "\"nginx_enabled_dir\":\"" << json_escape(config.nginx_enabled_dir) << "\","
+        << "\"nginx_bin\":\"" << json_escape(config.nginx_bin) << "\","
+        << "\"nginx_reload_service\":\"" << json_escape(config.nginx_reload_service) << "\","
+        << "\"system_allowed_roots\":\"" << json_escape(config.system_allowed_roots) << "\","
+        << "\"terminal_shell\":\"" << json_escape(config.terminal_shell) << "\","
+        << "\"terminal_run_as_user\":\"" << json_escape(config.terminal_run_as_user) << "\","
+        << "\"terminal_run_as_group\":\"" << json_escape(config.terminal_run_as_group) << "\","
+        << "\"terminal_workdir\":\"" << json_escape(config.terminal_workdir) << "\","
+        << "\"terminal_max_sessions_per_user\":\"" << json_escape(config.terminal_max_sessions_per_user) << "\","
+        << "\"terminal_idle_timeout_seconds\":\"" << json_escape(config.terminal_idle_timeout_seconds) << "\","
+        << "\"terminal_max_session_seconds\":\"" << json_escape(config.terminal_max_session_seconds) << "\""
+        << "},"
+        << "\"dependencies\":[";
+    bool first = true;
+    for (const auto& dependency : dependencies) {
+        if (!first) {
+            out << ",";
+        }
+        first = false;
+        out << "{"
+            << "\"name\":\"" << json_escape(dependency.name) << "\","
+            << "\"path\":\"" << json_escape(dependency.path) << "\","
+            << "\"present\":" << (dependency.present ? "true" : "false") << ","
+            << "\"required\":" << (dependency.required ? "true" : "false") << ","
+            << "\"details\":\"" << json_escape(dependency.details) << "\""
+            << "}";
+    }
+    out << "]}";
+    return out.str();
+}
+
 std::string services_json(const std::vector<ServiceEntry>& services) {
     std::ostringstream out;
     out << "{\"services\":[";
@@ -390,11 +431,23 @@ HttpResponse App::handle(const HttpRequest& request) {
         response.body = *body;
         return response;
     }
+    if (request.method == "GET" && request.path == "/api/setup/status") {
+        return api_setup_status(request);
+    }
     if (request.method == "POST" && request.path == "/api/onboarding") {
         if (users_.has_users()) {
             return json(409, "{\"error\":\"onboarding already completed\"}");
         }
         auto form = parse_form(request.body);
+        std::string setup_error;
+        auto config = first_run_config_from_form(form, &setup_error);
+        if (!config) {
+            return json(400, "{\"error\":\"" + json_escape(setup_error.empty() ? "invalid setup configuration" : setup_error) + "\"}");
+        }
+        if (!write_first_run_env_file(*config, ".env", &setup_error)) {
+            return json(500, "{\"error\":\"" + json_escape(setup_error.empty() ? "unable to write .env" : setup_error) + "\"}");
+        }
+        apply_first_run_config(*config);
         if (!users_.create_superuser(form["username"], form["password"])) {
             return json(400, "{\"error\":\"invalid username or password\"}");
         }
@@ -672,6 +725,14 @@ HttpResponse App::api_page(const HttpRequest& request, const std::string& page_n
         return json(404, "{\"error\":\"unknown page\"}");
     }
     return response;
+}
+
+HttpResponse App::api_setup_status(const HttpRequest& request) const {
+    (void)request;
+    if (users_.has_users()) {
+        return json(403, "{\"error\":\"onboarding already completed\"}");
+    }
+    return json(200, setup_status_json());
 }
 
 HttpResponse App::api_users(const HttpRequest& request) const {

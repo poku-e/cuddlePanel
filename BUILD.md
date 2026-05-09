@@ -122,6 +122,12 @@
 - Updated the server startup path to auto-load `.env` from the current working directory before reading runtime configuration.
 - Kept shell-exported environment variables higher priority than `.env` values so explicit operator overrides still win.
 
+## First-Run Setup
+
+- Expanded onboarding into a first-run setup workflow that loads dependency status, configures essential runtime environment values, and creates the first superadmin in one screen.
+- Added setup config parsing and `.env` writing helpers so onboarding can validate and persist the essential runtime configuration before completing.
+- Documented the bootstrap workflow and dependency checks in `docs/first-run-setup.md`.
+
 ## README
 
 - Added a top-level `README.md` with the `cuddle_logo.png` branding at the top, a concise feature overview, project layout, build/run commands, and configuration notes.

@@ -30,6 +30,7 @@ add_library(cuddle_core
     src/http.cpp
     src/nginx_store.cpp
     src/service_store.cpp
+    src/setup.cpp
     src/system_admin.cpp
     src/terminal_manager.cpp
     src/template.cpp
@@ -95,3 +96,7 @@ add_test(NAME terminal_tests COMMAND terminal_tests)
 add_executable(system_admin_tests tests/system_admin_tests.cpp)
 target_link_libraries(system_admin_tests PRIVATE cuddle_core)
 add_test(NAME system_admin_tests COMMAND system_admin_tests)
+
+add_executable(setup_tests tests/setup_tests.cpp)
+target_link_libraries(setup_tests PRIVATE cuddle_core)
+add_test(NAME setup_tests COMMAND setup_tests)

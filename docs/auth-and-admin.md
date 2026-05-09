@@ -5,6 +5,7 @@ Purpose: define the first cuddlePanel security boundary for all administrator pa
 Routes and access:
 - `GET /`: redirects to `/onboarding` until the first superuser exists, otherwise `/login`.
 - `GET /onboarding`: public only while no user exists.
+- `GET /api/setup/status`: public only while no user exists.
 - `POST /api/onboarding`: creates the first superuser and disables onboarding.
 - `GET /login` and `POST /api/login`: public login flow.
 - `GET /2fa/setup`: requires a signed-in session that still needs TOTP setup.
@@ -42,6 +43,7 @@ Routes and access:
 
 Workflow:
 - First boot shows onboarding because `data/users.db` has no users.
+- Onboarding now acts as a first-run setup screen that loads essential runtime environment values plus dependency checks before the first account is created.
 - The first account is created as `superuser` with `dashboard:manage`, then immediately enters TOTP setup.
 - Passwords are hashed with libsodium Argon2id (`crypto_pwhash_STRPREFIX`) and verified with libsodium.
 - Login issues an opaque random session id stored server-side and returned as an `HttpOnly`, `SameSite=Strict` cookie.
@@ -77,7 +79,7 @@ Hidden dependencies and configuration:
 - Requires libsodium development headers and library at build time.
 - Requires OpenSSL libcrypto for HMAC-SHA1 TOTP generation and verification.
 - Uses a locally vendored compiled Bootstrap CSS asset at `static/vendor/bootstrap/5.3.8/bootstrap.min.css` so dashboard styling does not depend on a CSS CDN at runtime.
-- A checked-in repo `.env` file now lists every runtime environment variable and is auto-loaded by the server from the current working directory when present.
+- A checked-in repo `.env` file now lists every runtime environment variable, is auto-loaded by the server from the current working directory when present, and is written during first-run setup.
 - Dashboard shell templates live under `templates/`, and page-specific AJAX content templates live under `templates/pages/`.
 - Frontend behavior is split between `static/js/core/` helpers, `static/js/pages/` page modules, and the top-level `static/app.js` bootstrap entrypoint.
 - Shared frontend notifications live in `static/js/core/toast.js` and are mounted dynamically into the active page body.
