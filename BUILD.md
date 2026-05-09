@@ -131,3 +131,12 @@
 ## README
 
 - Added a top-level `README.md` with the `cuddle_logo.png` branding at the top, a concise feature overview, project layout, build/run commands, and configuration notes.
+
+## Host Bootstrap Script
+
+- Added `scripts/install-deps.sh` for Ubuntu/Debian hosts to install common build and runtime dependencies, prepare runtime directories, and seed `.env` if missing.
+- Documented the relationship between the host bootstrap script and the browser-based first-run setup in the README and first-run setup doc.
+
+## AGENTS README Rule
+
+- Appended `AGENTS.md` to require checking `README.md` as part of required context and updating it whenever a change affects project overview, setup, configuration, structure, or major features.

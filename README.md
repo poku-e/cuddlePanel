@@ -1,9 +1,10 @@
-<p align="center">
-  <img src="static/cuddle_logo.png" alt="cuddlePanel logo" width="120">
-</p>
+
 
 # cuddlePanel
 
+<p align="center">
+  <img src="static/cuddle_logo.png" alt="cuddlePanel logo" width="120">
+</p>
 cuddlePanel is an internal server administration panel built in C++ with a Bootstrap-based frontend and AJAX-driven dashboard workflows.
 
 ## What It Does
@@ -36,6 +37,12 @@ cuddlePanel is an internal server administration panel built in C++ with a Boots
 - `tests/` - focused native test binaries
 
 ## Running
+
+Host bootstrap for Ubuntu/Debian:
+
+```bash
+sudo ./scripts/install-deps.sh
+```
 
 Build:
 
@@ -74,3 +81,4 @@ The repo includes a tracked `.env` file documenting the runtime environment vari
 - The terminal uses PTY sessions rather than raw command passthrough.
 - System file actions are constrained by allowlisted roots.
 - `make build` uses the hardened release profile and will pack `bin/server` with UPX when `upx` is available.
+- `scripts/install-deps.sh` is a host bootstrap helper for Ubuntu/Debian systems; it does not replace the browser-based first-run setup.

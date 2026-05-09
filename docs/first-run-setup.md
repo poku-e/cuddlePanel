@@ -38,6 +38,7 @@ Environment scope in this phase:
 
 Dependency status behavior:
 - The first-run page reports whether key host binaries are present and executable.
+- For Ubuntu/Debian hosts, `scripts/install-deps.sh` provides a companion bootstrap path for installing the common packages these checks expect.
 - Required in this phase:
   - terminal shell path
 - Checked as optional feature dependencies:
@@ -53,5 +54,6 @@ Safety rules:
 
 Gotchas and debugging:
 - Dependency status is informative in this phase; it does not attempt distro-specific package installation.
+- The repo ships a distro-specific helper at `scripts/install-deps.sh`, but the onboarding page itself still only reports dependency state and writes `.env`.
 - If `.env` cannot be written, onboarding fails before the superadmin is created.
 - Changes saved during onboarding apply immediately to the current server process for the completion response and future runtime behavior.
