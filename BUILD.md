@@ -121,3 +121,7 @@
 
 - Updated the server startup path to auto-load `.env` from the current working directory before reading runtime configuration.
 - Kept shell-exported environment variables higher priority than `.env` values so explicit operator overrides still win.
+
+## README
+
+- Added a top-level `README.md` with the `cuddle_logo.png` branding at the top, a concise feature overview, project layout, build/run commands, and configuration notes.
