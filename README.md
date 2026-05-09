@@ -2,10 +2,11 @@
 
 # cuddlePanel
 
-<p align="center">
-  <img src="static/cuddle_logo.png" alt="cuddlePanel logo" width="120">
-</p>
 cuddlePanel is an internal server administration panel built in C++ with a Bootstrap-based frontend and AJAX-driven dashboard workflows.
+
+<p align="center">
+  <img src="static/cuddle_logo.png" alt="cuddlePanel logo" height="240" width="240">
+</p>
 
 ## What It Does
 
