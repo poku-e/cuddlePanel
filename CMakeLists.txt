@@ -26,8 +26,11 @@ endif()
 
 add_library(cuddle_core
     src/auth.cpp
+    src/codex_chat.cpp
+    src/codex_runner.cpp
     src/deploy_runner.cpp
     src/http.cpp
+    src/log.cpp
     src/nginx_store.cpp
     src/service_store.cpp
     src/setup.cpp
@@ -88,6 +91,14 @@ add_test(NAME nginx_tests COMMAND nginx_tests)
 add_executable(deploy_tests tests/deploy_tests.cpp)
 target_link_libraries(deploy_tests PRIVATE cuddle_core)
 add_test(NAME deploy_tests COMMAND deploy_tests)
+
+add_executable(codex_tests tests/codex_tests.cpp)
+target_link_libraries(codex_tests PRIVATE cuddle_core)
+add_test(NAME codex_tests COMMAND codex_tests)
+
+add_executable(codex_chat_tests tests/codex_chat_tests.cpp)
+target_link_libraries(codex_chat_tests PRIVATE cuddle_core)
+add_test(NAME codex_chat_tests COMMAND codex_chat_tests)
 
 add_executable(terminal_tests tests/terminal_tests.cpp)
 target_link_libraries(terminal_tests PRIVATE cuddle_core)

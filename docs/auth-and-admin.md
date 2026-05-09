@@ -33,6 +33,14 @@ Routes and access:
 - `POST /api/nginx/sites`: requires `nginx:manage`.
 - `POST /api/nginx/sites/<name>`: requires `nginx:manage`.
 - `POST /api/nginx/sites/<name>/action`: requires `nginx:manage`.
+- `GET /api/codex/projects`: requires `codex:view`.
+- `POST /api/codex/projects`: requires `codex:manage`.
+- `GET /api/codex/conversations`: requires `codex:view`.
+- `POST /api/codex/conversations`: requires `codex:manage`.
+- `POST /api/codex/conversations/<id>/read`: requires `codex:view`.
+- `POST /api/codex/conversations/<id>/send`: requires `codex:manage`.
+- `POST /api/codex/conversations/<id>/close`: requires `codex:manage`.
+- `POST /api/codex/run`: requires `codex:manage`.
 - `POST /api/deploy/run`: requires `deploy:manage`.
 - `POST /api/terminal/session`: requires `terminal:manage` and a fresh terminal OTP verification.
 - `POST /api/terminal/session/<id>/read`: requires `terminal:manage` and a fresh terminal OTP verification.
@@ -59,6 +67,7 @@ Workflow:
 - The System page also provides an `authorized_keys` editor for login users, with the target file derived from each account's home directory on the server.
 - The Nginx page loads allowlisted site configs through `/api/nginx/sites` and performs file updates, enable/disable, config tests, and reloads through AJAX.
 - The Deploy page mirrors the host deploy helper through `/api/deploy/run` and always executes it in non-interactive mode.
+- The Codex page now manages project-scoped conversations, starts an interactive Codex CLI session in the selected project root or maintenance workdir, and sends approvals or follow-up prompts back through the same conversation thread.
 - The Terminal page requires a fresh TOTP verification every 30 minutes before access is granted.
 - After terminal verification, the Terminal page creates a PTY-backed session and exchanges input/output through explicit session APIs.
 
@@ -90,9 +99,11 @@ Hidden dependencies and configuration:
 - The deploy helper path defaults to `/usr/local/sbin/deploy-site` and can be overridden with `CUDDLEPANEL_DEPLOY_SITE_BIN`.
 - The terminal shell defaults to `/bin/bash` and can be overridden with `CUDDLEPANEL_TERMINAL_SHELL`.
 - Terminal sessions drop to `nobody:nogroup` by default, run from `/tmp`, and support configurable session count plus idle/runtime limits.
+- The Codex runner defaults to `/usr/bin/codex`, uses the configured `CUDDLEPANEL_CODEX_WORKDIR` as the maintenance-mode workdir, and can set an optional model plus timeout through environment variables.
 - Cookie `Secure` is enabled when `CUDDLEPANEL_SECURE_COOKIES=1`.
 - The listen port defaults to `8080` and can be overridden with `CUDDLEPANEL_PORT`.
 - Shell-exported variables take precedence over values from the auto-loaded `.env` file.
+- The server now writes startup and runtime diagnostics to stderr and appends the same lines to `data/server.log`.
 
 Permissions:
 - `view` means the page can be opened and read.
@@ -117,3 +128,4 @@ Gotchas and debugging:
 - Nginx config editing must normalize paths under configured `sites-available` and `sites-enabled` directories before file access.
 - When adding more user roles later, update both the server-side role allowlist and the permission editor defaults together.
 - If a user record predates TOTP support, treat the missing secret as a first-login setup requirement instead of silently bypassing 2FA.
+- If the process exits during startup, check `data/server.log` first. Port bind failures, invalid port configuration, request parsing failures, and unexpected server exceptions are logged there with UTC timestamps.

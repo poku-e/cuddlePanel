@@ -525,6 +525,60 @@ body {
     min-height: 420px;
 }
 
+.codex-meta {
+    display: grid;
+    gap: 4px;
+}
+
+.codex-output,
+.codex-chat-output {
+    min-height: 160px;
+}
+
+.codex-file-list {
+    margin: 0 0 12px;
+    padding-left: 18px;
+}
+
+.codex-file-list:empty {
+    display: none;
+}
+
+.codex-file-list li {
+    word-break: break-word;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.88rem;
+}
+
+.codex-project-list,
+.codex-conversation-list {
+    display: grid;
+    gap: 12px;
+}
+
+.codex-project-card,
+.codex-conversation-card {
+    border: 1px solid var(--cp-line);
+    border-radius: 8px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    padding: 12px 14px;
+}
+
+.codex-conversation-card {
+    width: 100%;
+    text-align: left;
+}
+
+.codex-conversation-card.active {
+    border-color: var(--cp-accent);
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.18);
+}
+
+.codex-chat-output {
+    min-height: 520px;
+    background: #fbfcfe;
+}
+
 .terminal-host {
     min-height: 520px;
     border: 1px solid var(--cp-line);

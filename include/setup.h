@@ -23,6 +23,10 @@ struct FirstRunConfig {
     std::string terminal_max_sessions_per_user;
     std::string terminal_idle_timeout_seconds;
     std::string terminal_max_session_seconds;
+    std::string codex_bin;
+    std::string codex_workdir;
+    std::string codex_model;
+    std::string codex_timeout_seconds;
 };
 
 struct DependencyStatus {

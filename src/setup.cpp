@@ -1,6 +1,7 @@
 #include "setup.h"
 
 #include "deploy_runner.h"
+#include "codex_runner.h"
 #include "nginx_store.h"
 #include "system_admin.h"
 #include "terminal_manager.h"
@@ -30,6 +31,18 @@ bool valid_basic_token(const std::string& value, std::size_t max_length) {
     }
     for (unsigned char c : value) {
         if (!(std::isalnum(c) || c == '.' || c == '_' || c == '-' || c == '@')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool valid_codex_model_token(const std::string& value) {
+    if (value.empty() || value.size() > 128) {
+        return value.empty();
+    }
+    for (unsigned char c : value) {
+        if (!(std::isalnum(c) || c == '.' || c == '_' || c == '-' || c == ':' || c == '/')) {
             return false;
         }
     }
@@ -163,6 +176,27 @@ bool validate_first_run_config(const FirstRunConfig& config, std::string* error_
     if (!validate_numeric_string(config.terminal_max_session_seconds, 1, 604800, error_message, "terminal max runtime")) {
         return false;
     }
+    if (!valid_absolute_path_field(config.codex_bin, 512)) {
+        if (error_message) {
+            *error_message = "invalid codex binary path";
+        }
+        return false;
+    }
+    if (!valid_absolute_path_field(config.codex_workdir, 512)) {
+        if (error_message) {
+            *error_message = "invalid codex working directory";
+        }
+        return false;
+    }
+    if (!valid_codex_model_token(config.codex_model)) {
+        if (error_message) {
+            *error_message = "invalid codex model";
+        }
+        return false;
+    }
+    if (!validate_numeric_string(config.codex_timeout_seconds, 10, 3600, error_message, "codex timeout")) {
+        return false;
+    }
     return true;
 }
 
@@ -202,6 +236,11 @@ FirstRunConfig current_first_run_config() {
     config.terminal_max_sessions_per_user = std::to_string(terminal.max_sessions_per_user);
     config.terminal_idle_timeout_seconds = std::to_string(terminal.idle_timeout_seconds);
     config.terminal_max_session_seconds = std::to_string(terminal.max_session_seconds);
+    const auto codex = codex_runtime_config();
+    config.codex_bin = codex.binary_path;
+    config.codex_workdir = codex.working_directory;
+    config.codex_model = codex.model;
+    config.codex_timeout_seconds = std::to_string(codex.timeout_seconds);
     return config;
 }
 
@@ -228,6 +267,10 @@ std::optional<FirstRunConfig> first_run_config_from_form(const std::map<std::str
     config.terminal_max_sessions_per_user = get("terminal_max_sessions_per_user");
     config.terminal_idle_timeout_seconds = get("terminal_idle_timeout_seconds");
     config.terminal_max_session_seconds = get("terminal_max_session_seconds");
+    config.codex_bin = get("codex_bin");
+    config.codex_workdir = get("codex_workdir");
+    config.codex_model = get("codex_model");
+    config.codex_timeout_seconds = get("codex_timeout_seconds");
 
     if (!validate_first_run_config(config, error_message)) {
         return std::nullopt;
@@ -273,6 +316,11 @@ bool write_first_run_env_file(const FirstRunConfig& config,
     file << env_line("CUDDLEPANEL_TERMINAL_MAX_SESSIONS_PER_USER", config.terminal_max_sessions_per_user);
     file << env_line("CUDDLEPANEL_TERMINAL_IDLE_TIMEOUT_SECONDS", config.terminal_idle_timeout_seconds);
     file << env_line("CUDDLEPANEL_TERMINAL_MAX_SESSION_SECONDS", config.terminal_max_session_seconds);
+    file << "\n# Codex runner\n";
+    file << env_line("CUDDLEPANEL_CODEX_BIN", config.codex_bin);
+    file << env_line("CUDDLEPANEL_CODEX_WORKDIR", config.codex_workdir);
+    file << env_line("CUDDLEPANEL_CODEX_MODEL", config.codex_model);
+    file << env_line("CUDDLEPANEL_CODEX_TIMEOUT_SECONDS", config.codex_timeout_seconds);
     file.close();
     if (!file) {
         if (error_message) {
@@ -303,6 +351,10 @@ void apply_first_run_config(const FirstRunConfig& config) {
     setenv("CUDDLEPANEL_TERMINAL_MAX_SESSIONS_PER_USER", config.terminal_max_sessions_per_user.c_str(), 1);
     setenv("CUDDLEPANEL_TERMINAL_IDLE_TIMEOUT_SECONDS", config.terminal_idle_timeout_seconds.c_str(), 1);
     setenv("CUDDLEPANEL_TERMINAL_MAX_SESSION_SECONDS", config.terminal_max_session_seconds.c_str(), 1);
+    setenv("CUDDLEPANEL_CODEX_BIN", config.codex_bin.c_str(), 1);
+    setenv("CUDDLEPANEL_CODEX_WORKDIR", config.codex_workdir.c_str(), 1);
+    setenv("CUDDLEPANEL_CODEX_MODEL", config.codex_model.c_str(), 1);
+    setenv("CUDDLEPANEL_CODEX_TIMEOUT_SECONDS", config.codex_timeout_seconds.c_str(), 1);
 }
 
 std::vector<DependencyStatus> first_run_dependency_status(const FirstRunConfig& config) {
@@ -316,6 +368,7 @@ std::vector<DependencyStatus> first_run_dependency_status(const FirstRunConfig& 
     dependencies.push_back(command_dependency("gpasswd", env_or_default("CUDDLEPANEL_GPASSWD_BIN", "/usr/bin/gpasswd"), false));
     dependencies.push_back(command_dependency("chown", env_or_default("CUDDLEPANEL_CHOWN_BIN", "/bin/chown"), false));
     dependencies.push_back(command_dependency("chmod", env_or_default("CUDDLEPANEL_CHMOD_BIN", "/bin/chmod"), false));
+    dependencies.push_back(command_dependency("Codex CLI", config.codex_bin, false));
 
     DependencyStatus systemctl;
     systemctl.name = "systemctl";

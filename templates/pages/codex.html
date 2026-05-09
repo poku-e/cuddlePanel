@@ -1,1 +1,67 @@
-<p class="text-secondary">Prompt submission and change review output will appear here.</p>
+<div class="row g-4">
+    <div class="col-12 col-xl-4">
+        <section class="cp-card">
+            <div id="codexPageState"
+                 data-can-manage="{{can_manage_codex}}"
+                 data-binary="{{codex_binary}}"
+                 data-maintenance-workdir="{{maintenance_workdir}}"
+                 data-model="{{codex_model}}"
+                 data-timeout="{{codex_timeout_seconds}}"></div>
+            <div class="section-header">
+                <h2>Projects</h2>
+                <div class="small text-secondary">Binary: {{codex_binary}}</div>
+            </div>
+            <form id="codexProjectForm" class="vstack gap-3">
+                <label class="cp-label">Project name
+                    <input class="cp-input" name="name" maxlength="120" placeholder="Optional"{{disabled_attr}}>
+                </label>
+                <label class="cp-label">Project root
+                    <input class="cp-input" name="root" required maxlength="512" placeholder="/srv/app"{{disabled_attr}}>
+                </label>
+                <button class="btn btn-outline-primary" type="submit"{{disabled_attr}}>Add project</button>
+                <div id="codexProjectMessage" class="small"></div>
+            </form>
+            <div id="codexProjectList" class="codex-project-list mt-3"></div>
+            {{view_only_note}}
+        </section>
+        <section class="cp-card mt-4">
+            <div class="section-header">
+                <h2>Conversations</h2>
+                <div class="small text-secondary">Approvals and follow-ups stay inside the same thread.</div>
+            </div>
+            <form id="codexConversationForm" class="vstack gap-3">
+                <label class="cp-label">Title
+                    <input class="cp-input" name="title" maxlength="120" placeholder="Optional"{{disabled_attr}}>
+                </label>
+                <label class="cp-label">Project
+                    <select class="cp-input cp-select" name="project_id"{{disabled_attr}}>
+                        <option value="">Server maintenance</option>
+                    </select>
+                </label>
+                <div class="small text-secondary">Maintenance mode workdir: <code>{{maintenance_workdir}}</code></div>
+                <button class="btn btn-primary" type="submit"{{disabled_attr}}>Start conversation</button>
+                <div id="codexConversationMessage" class="small"></div>
+            </form>
+            <div id="codexConversationList" class="codex-conversation-list mt-3"></div>
+        </section>
+    </div>
+    <div class="col-12 col-xl-8">
+        <section class="cp-card">
+            <div class="section-header">
+                <div>
+                    <h2 id="codexConversationTitle">Select a conversation</h2>
+                    <div id="codexConversationMeta" class="small text-secondary">Project-scoped conversations keep Codex context per thread.</div>
+                </div>
+                <button id="codexCloseConversationButton" class="btn btn-outline-danger btn-sm" type="button" disabled>Close</button>
+            </div>
+            <pre id="codexConversationOutput" class="service-output codex-chat-output">Conversation output will appear here.</pre>
+            <form id="codexMessageForm" class="vstack gap-3 mt-3">
+                <label class="cp-label">Message
+                    <textarea class="cp-input cp-textarea" name="message" required maxlength="16000" placeholder="Send a task, follow-up, or approval response." disabled></textarea>
+                </label>
+                <button class="btn btn-primary" type="submit" disabled>Send</button>
+                <div id="codexMessageStatus" class="small"></div>
+            </form>
+        </section>
+    </div>
+</div>

@@ -23,7 +23,11 @@ int main() {
         {"terminal_workdir", "/tmp"},
         {"terminal_max_sessions_per_user", "2"},
         {"terminal_idle_timeout_seconds", "900"},
-        {"terminal_max_session_seconds", "7200"}
+        {"terminal_max_session_seconds", "7200"},
+        {"codex_bin", "/usr/bin/codex"},
+        {"codex_workdir", "/root/cuddlePanel"},
+        {"codex_model", ""},
+        {"codex_timeout_seconds", "180"}
     };
 
     std::string error;
@@ -44,6 +48,7 @@ int main() {
     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     assert(content.find("CUDDLEPANEL_PORT=18080") != std::string::npos);
     assert(content.find("CUDDLEPANEL_SECURE_COOKIES=1") != std::string::npos);
+    assert(content.find("CUDDLEPANEL_CODEX_BIN=/usr/bin/codex") != std::string::npos);
     std::filesystem::remove(path);
 
     cuddle::apply_first_run_config(*config);

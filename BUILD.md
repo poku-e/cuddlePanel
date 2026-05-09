@@ -140,3 +140,21 @@
 ## AGENTS README Rule
 
 - Appended `AGENTS.md` to require checking `README.md` as part of required context and updating it whenever a change affects project overview, setup, configuration, structure, or major features.
+
+## Startup Logging And Error Handling
+
+- Added a shared runtime logger that writes UTC-stamped messages to stderr and appends them to `data/server.log`.
+- Hardened startup and socket bind/listen diagnostics so immediate exits now report the failing step and `errno` detail.
+- Added request-loop exception handling plus safer `Content-Length` parsing so malformed input and unexpected server errors are logged instead of failing silently.
+
+## Codex Page Implementation
+
+- Added a real Codex runner with prompt validation, fixed server-side binary and workspace configuration, timeout handling, captured final agent messages, and git-based change reporting.
+- Implemented `POST /api/codex/run`, a full dashboard Codex page UI, and a dedicated frontend module for prompt submission plus result rendering.
+- Extended onboarding, `.env`, `.env.example`, README, and internal docs to include Codex runtime configuration and operator guidance.
+
+## Project-Scoped Codex Conversations
+
+- Added persistent Codex project metadata plus conversation metadata so the dashboard can start Codex threads in an explicit project root or in maintenance mode when no project is selected.
+- Reworked the Codex page into a live conversation UI backed by PTY-based interactive Codex sessions, with streamed output, follow-up prompts, and in-thread approval responses.
+- Added new Codex project and conversation APIs, updated docs and README, and covered the new PTY conversation manager with focused tests.

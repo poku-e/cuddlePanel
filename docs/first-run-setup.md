@@ -35,6 +35,11 @@ Environment scope in this phase:
   - `CUDDLEPANEL_TERMINAL_MAX_SESSIONS_PER_USER`
   - `CUDDLEPANEL_TERMINAL_IDLE_TIMEOUT_SECONDS`
   - `CUDDLEPANEL_TERMINAL_MAX_SESSION_SECONDS`
+- Codex:
+  - `CUDDLEPANEL_CODEX_BIN`
+  - `CUDDLEPANEL_CODEX_WORKDIR` (maintenance-mode workdir when no project is selected)
+  - `CUDDLEPANEL_CODEX_MODEL`
+  - `CUDDLEPANEL_CODEX_TIMEOUT_SECONDS`
 
 Dependency status behavior:
 - The first-run page reports whether key host binaries are present and executable.
@@ -44,6 +49,7 @@ Dependency status behavior:
 - Checked as optional feature dependencies:
   - deploy helper
   - nginx binary
+  - Codex CLI
   - `systemctl`
   - system administration commands such as `useradd`, `passwd`, `usermod`, `gpasswd`, `chown`, and `chmod`
 
@@ -57,3 +63,4 @@ Gotchas and debugging:
 - The repo ships a distro-specific helper at `scripts/install-deps.sh`, but the onboarding page itself still only reports dependency state and writes `.env`.
 - If `.env` cannot be written, onboarding fails before the superadmin is created.
 - Changes saved during onboarding apply immediately to the current server process for the completion response and future runtime behavior.
+- Server startup and runtime failures are appended to `data/server.log`, which is the first place to look when the process exits immediately after launch.

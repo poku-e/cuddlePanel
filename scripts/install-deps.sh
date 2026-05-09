@@ -81,7 +81,9 @@ if [[ ! -f "${REPO_ROOT}/.env" ]]; then
 # Existing shell-exported environment variables take precedence over values here.
 
 # Network and cookies
-CUDDLEPANEL_PORT=8080
+CUDDLEPANEL_PORT=1337
+
+# A random 32-byte hex string used to sign session cookies. You can generate one with: openssl rand -hex 32
 CUDDLEPANEL_SECURE_COOKIES=
 
 # Deploy helper

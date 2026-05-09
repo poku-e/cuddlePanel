@@ -1,14 +1,19 @@
 #include "http.h"
 
 #include "auth.h"
+#include "codex_runner.h"
 #include "deploy_runner.h"
+#include "log.h"
 #include "nginx_store.h"
 #include "service_store.h"
 #include "template.h"
 #include "totp.h"
 
 #include <arpa/inet.h>
+#include <cerrno>
+#include <cctype>
 #include <ctime>
+#include <exception>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -30,9 +35,33 @@ std::string status_text(int status) {
         case 401: return "Unauthorized";
         case 403: return "Forbidden";
         case 404: return "Not Found";
+        case 408: return "Request Timeout";
         case 409: return "Conflict";
         case 500: return "Internal Server Error";
         default: return "OK";
+    }
+}
+
+std::optional<size_t> parse_content_length_value(const std::string& raw_value) {
+    std::string trimmed = raw_value;
+    while (!trimmed.empty() && (trimmed.front() == ' ' || trimmed.front() == '\t')) {
+        trimmed.erase(trimmed.begin());
+    }
+    while (!trimmed.empty() && (trimmed.back() == '\r' || trimmed.back() == ' ' || trimmed.back() == '\t')) {
+        trimmed.pop_back();
+    }
+    if (trimmed.empty()) {
+        return size_t{0};
+    }
+    for (unsigned char c : trimmed) {
+        if (!std::isdigit(c)) {
+            return std::nullopt;
+        }
+    }
+    try {
+        return static_cast<size_t>(std::stoull(trimmed));
+    } catch (const std::exception&) {
+        return std::nullopt;
     }
 }
 
@@ -137,7 +166,11 @@ std::string setup_status_json() {
         << "\"terminal_workdir\":\"" << json_escape(config.terminal_workdir) << "\","
         << "\"terminal_max_sessions_per_user\":\"" << json_escape(config.terminal_max_sessions_per_user) << "\","
         << "\"terminal_idle_timeout_seconds\":\"" << json_escape(config.terminal_idle_timeout_seconds) << "\","
-        << "\"terminal_max_session_seconds\":\"" << json_escape(config.terminal_max_session_seconds) << "\""
+        << "\"terminal_max_session_seconds\":\"" << json_escape(config.terminal_max_session_seconds) << "\","
+        << "\"codex_bin\":\"" << json_escape(config.codex_bin) << "\","
+        << "\"codex_workdir\":\"" << json_escape(config.codex_workdir) << "\","
+        << "\"codex_model\":\"" << json_escape(config.codex_model) << "\","
+        << "\"codex_timeout_seconds\":\"" << json_escape(config.codex_timeout_seconds) << "\""
         << "},"
         << "\"dependencies\":[";
     bool first = true;
@@ -174,6 +207,26 @@ std::string services_json(const std::vector<ServiceEntry>& services) {
             << "\",\"state\":\"" << json_escape(status.state)
             << "\",\"detail\":\"" << json_escape(status.detail)
             << "\"}";
+    }
+    out << "]}";
+    return out.str();
+}
+
+std::string codex_result_json(const CodexResult& result) {
+    std::ostringstream out;
+    out << "{"
+        << "\"ok\":" << (result.ok ? "true" : "false") << ","
+        << "\"timed_out\":" << (result.timed_out ? "true" : "false") << ","
+        << "\"output\":\"" << json_escape(result.output) << "\","
+        << "\"agent_message\":\"" << json_escape(result.agent_message) << "\","
+        << "\"change_summary\":\"" << json_escape(result.change_summary) << "\","
+        << "\"working_directory\":\"" << json_escape(result.working_directory) << "\","
+        << "\"changed_files\":[";
+    for (size_t i = 0; i < result.changed_files.size(); ++i) {
+        if (i > 0) {
+            out << ",";
+        }
+        out << "\"" << json_escape(result.changed_files[i]) << "\"";
     }
     out << "]}";
     return out.str();
@@ -237,16 +290,75 @@ std::string system_users_json(const SystemAdmin& system_admin) {
     return out.str();
 }
 
+std::string codex_projects_json(const std::vector<CodexProject>& projects) {
+    std::ostringstream out;
+    out << "{\"projects\":[";
+    for (size_t i = 0; i < projects.size(); ++i) {
+        if (i > 0) {
+            out << ",";
+        }
+        out << "{"
+            << "\"id\":\"" << json_escape(projects[i].id) << "\","
+            << "\"name\":\"" << json_escape(projects[i].name) << "\","
+            << "\"root\":\"" << json_escape(projects[i].root) << "\""
+            << "}";
+    }
+    out << "]}";
+    return out.str();
+}
+
+std::string codex_conversations_json(const std::vector<CodexConversationRecord>& conversations) {
+    std::ostringstream out;
+    out << "{\"conversations\":[";
+    for (size_t i = 0; i < conversations.size(); ++i) {
+        const auto& conversation = conversations[i];
+        if (i > 0) {
+            out << ",";
+        }
+        out << "{"
+            << "\"id\":\"" << json_escape(conversation.id) << "\","
+            << "\"title\":\"" << json_escape(conversation.title) << "\","
+            << "\"project_id\":\"" << json_escape(conversation.project_id) << "\","
+            << "\"project_name\":\"" << json_escape(conversation.project_name) << "\","
+            << "\"working_directory\":\"" << json_escape(conversation.working_directory) << "\","
+            << "\"maintenance_mode\":" << (conversation.maintenance_mode ? "true" : "false") << ","
+            << "\"closed\":" << (conversation.closed ? "true" : "false") << ","
+            << "\"created_at\":" << conversation.created_at << ","
+            << "\"updated_at\":" << conversation.updated_at
+            << "}";
+    }
+    out << "]}";
+    return out.str();
+}
+
+std::string codex_conversation_snapshot_json(const CodexConversationSnapshot& snapshot) {
+    std::ostringstream out;
+    out << "{"
+        << "\"ok\":" << (snapshot.ok ? "true" : "false") << ","
+        << "\"closed\":" << (snapshot.closed ? "true" : "false") << ","
+        << "\"truncated\":" << (snapshot.truncated ? "true" : "false") << ","
+        << "\"data\":\"" << json_escape(snapshot.data) << "\","
+        << "\"cursor\":" << snapshot.cursor << ","
+        << "\"exit_code\":" << snapshot.exit_code << ","
+        << "\"title\":\"" << json_escape(snapshot.title) << "\""
+        << "}";
+    return out.str();
+}
+
 std::string read_request(int client) {
     std::string request;
     char buffer[4096];
     while (request.find("\r\n\r\n") == std::string::npos) {
         ssize_t read_count = recv(client, buffer, sizeof(buffer), 0);
         if (read_count <= 0) {
+            if (read_count < 0) {
+                log_errno(LogLevel::Warning, "failed to read request header", errno);
+            }
             return request;
         }
         request.append(buffer, static_cast<size_t>(read_count));
         if (request.size() > 1024 * 1024) {
+            log_message(LogLevel::Warning, "dropping request larger than 1 MiB while reading headers");
             return {};
         }
     }
@@ -255,11 +367,25 @@ std::string read_request(int client) {
     auto length_pos = request.find("Content-Length:");
     size_t content_length = 0;
     if (length_pos != std::string::npos && length_pos < header_end) {
-        content_length = static_cast<size_t>(std::stoul(request.substr(length_pos + 15)));
+        const auto line_end = request.find("\r\n", length_pos);
+        const auto header_value = request.substr(length_pos + 15, line_end == std::string::npos ? std::string::npos : line_end - (length_pos + 15));
+        const auto parsed_length = parse_content_length_value(header_value);
+        if (!parsed_length) {
+            log_message(LogLevel::Warning, "received request with invalid Content-Length header");
+            return {};
+        }
+        content_length = *parsed_length;
+        if (content_length > 1024 * 1024) {
+            log_message(LogLevel::Warning, "dropping request body larger than 1 MiB");
+            return {};
+        }
     }
     while (request.size() < header_end + 4 + content_length) {
         ssize_t read_count = recv(client, buffer, sizeof(buffer), 0);
         if (read_count <= 0) {
+            if (read_count < 0) {
+                log_errno(LogLevel::Warning, "failed to read request body", errno);
+            }
             break;
         }
         request.append(buffer, static_cast<size_t>(read_count));
@@ -381,12 +507,16 @@ App::App(UserStore& users,
          NginxStore& nginx,
          SystemAdmin& system_admin,
          TerminalManager& terminal,
+         CodexProjectStore& codex_projects,
+         CodexConversationManager& codex_conversations,
          SessionStore& sessions)
     : users_(users),
       services_(services),
       nginx_(nginx),
       system_admin_(system_admin),
       terminal_(terminal),
+      codex_projects_(codex_projects),
+      codex_conversations_(codex_conversations),
       sessions_(sessions) {}
 
 HttpResponse App::handle(const HttpRequest& request) {
@@ -512,6 +642,12 @@ HttpResponse App::handle(const HttpRequest& request) {
     if (request.path == "/api/nginx/sites") {
         return api_nginx_sites(request);
     }
+    if (request.path == "/api/codex/projects") {
+        return api_codex_projects(request);
+    }
+    if (request.path == "/api/codex/conversations") {
+        return api_codex_conversations(request);
+    }
     if (request.method == "GET" && request.path == "/api/2fa/setup-info") {
         return api_totp_setup_info(request);
     }
@@ -523,6 +659,9 @@ HttpResponse App::handle(const HttpRequest& request) {
     }
     if (request.method == "POST" && request.path == "/api/terminal/session") {
         return api_terminal_create(request);
+    }
+    if (request.path == "/api/codex/run") {
+        return api_codex_run(request);
     }
     if (request.path == "/api/deploy/run") {
         return api_deploy_run(request);
@@ -593,6 +732,25 @@ HttpResponse App::handle(const HttpRequest& request) {
         if (remainder.size() > close_suffix.size() &&
             remainder.rfind(close_suffix) == remainder.size() - close_suffix.size()) {
             return api_terminal_close(request, url_decode(remainder.substr(0, remainder.size() - close_suffix.size())));
+        }
+    }
+    if (request.path.rfind("/api/codex/conversations/", 0) == 0) {
+        const std::string base = "/api/codex/conversations/";
+        const std::string remainder = request.path.substr(base.size());
+        const auto read_suffix = std::string("/read");
+        const auto send_suffix = std::string("/send");
+        const auto close_suffix = std::string("/close");
+        if (remainder.size() > read_suffix.size() &&
+            remainder.rfind(read_suffix) == remainder.size() - read_suffix.size()) {
+            return api_codex_conversation_read(request, url_decode(remainder.substr(0, remainder.size() - read_suffix.size())));
+        }
+        if (remainder.size() > send_suffix.size() &&
+            remainder.rfind(send_suffix) == remainder.size() - send_suffix.size()) {
+            return api_codex_conversation_send(request, url_decode(remainder.substr(0, remainder.size() - send_suffix.size())));
+        }
+        if (remainder.size() > close_suffix.size() &&
+            remainder.rfind(close_suffix) == remainder.size() - close_suffix.size()) {
+            return api_codex_conversation_close(request, url_decode(remainder.substr(0, remainder.size() - close_suffix.size())));
         }
     }
     return json(404, "{\"error\":\"not found\"}");
@@ -708,7 +866,22 @@ HttpResponse App::api_page(const HttpRequest& request, const std::string& page_n
                                            });
         }
     } else if (page_name == "codex") {
-        response.body = template_panel("Codex", "templates/pages/codex.html");
+        const bool can_manage_codex = users_.has_permission(*username, "codex", PermissionLevel::Manage);
+        const auto codex = codex_runtime_config();
+        response.body = template_panel("Codex",
+                                       "templates/pages/codex.html",
+                                       {
+                                           {"can_manage_codex", can_manage_codex ? "1" : "0"},
+                                           {"disabled_attr", can_manage_codex ? "" : " disabled"},
+                                           {"view_only_note", can_manage_codex
+                                                               ? ""
+                                                               : "<p class=\"small text-secondary mt-3 mb-0\">You have view access to this page, but running Codex requires `codex:manage`.</p>"},
+                                           {"codex_binary", html_escape(codex.binary_path)},
+                                           {"codex_workdir", html_escape(codex.working_directory)},
+                                           {"codex_model", html_escape(codex.model.empty() ? "default" : codex.model)},
+                                           {"codex_timeout_seconds", std::to_string(codex.timeout_seconds)},
+                                           {"maintenance_workdir", html_escape(codex_maintenance_workdir())}
+                                       });
     } else if (page_name == "deploy") {
         const bool can_manage_deploy = users_.has_permission(*username, "deploy", PermissionLevel::Manage);
         response.body = template_panel("Deploy Site",
@@ -1064,6 +1237,141 @@ HttpResponse App::api_nginx_action(const HttpRequest& request, const std::string
     return json(result.ok ? 200 : 400, out.str());
 }
 
+HttpResponse App::api_codex_projects(const HttpRequest& request) const {
+    auto username = current_user(request);
+    if (!username) {
+        return json(401, "{\"error\":\"login required\"}");
+    }
+    if (request.method == "GET") {
+        if (!users_.has_permission(*username, "codex", PermissionLevel::View)) {
+            return json(403, "{\"error\":\"permission denied\"}");
+        }
+        return json(200, codex_projects_json(codex_projects_.projects()));
+    }
+    if (request.method == "POST") {
+        if (!users_.has_permission(*username, "codex", PermissionLevel::Manage)) {
+            return json(403, "{\"error\":\"permission denied\"}");
+        }
+        auto form = parse_form(request.body);
+        std::string error;
+        auto project = codex_projects_.create_project(form["name"], form["root"], &error);
+        if (!project) {
+            return json(400, "{\"error\":\"" + json_escape(error.empty() ? "unable to create project" : error) + "\"}");
+        }
+        return json(200, "{\"ok\":true}");
+    }
+    return json(404, "{\"error\":\"not found\"}");
+}
+
+HttpResponse App::api_codex_conversations(const HttpRequest& request) const {
+    auto username = current_user(request);
+    if (!username) {
+        return json(401, "{\"error\":\"login required\"}");
+    }
+    if (request.method == "GET") {
+        if (!users_.has_permission(*username, "codex", PermissionLevel::View)) {
+            return json(403, "{\"error\":\"permission denied\"}");
+        }
+        return json(200, codex_conversations_json(codex_conversations_.conversations_for(*username)));
+    }
+    if (request.method == "POST") {
+        if (!users_.has_permission(*username, "codex", PermissionLevel::Manage)) {
+            return json(403, "{\"error\":\"permission denied\"}");
+        }
+        auto form = parse_form(request.body);
+        std::string error;
+        auto conversation = codex_conversations_.create_conversation(*username, form["title"], form["project_id"], &error);
+        if (!conversation) {
+            return json(400, "{\"error\":\"" + json_escape(error.empty() ? "unable to create conversation" : error) + "\"}");
+        }
+        return json(200, "{\"ok\":true,\"conversation_id\":\"" + json_escape(conversation->id) + "\"}");
+    }
+    return json(404, "{\"error\":\"not found\"}");
+}
+
+HttpResponse App::api_codex_conversation_read(const HttpRequest& request, const std::string& conversation_id) const {
+    auto username = current_user(request);
+    if (!username) {
+        return json(401, "{\"error\":\"login required\"}");
+    }
+    if (request.method != "POST") {
+        return json(404, "{\"error\":\"not found\"}");
+    }
+    if (!users_.has_permission(*username, "codex", PermissionLevel::View)) {
+        return json(403, "{\"error\":\"permission denied\"}");
+    }
+    auto form = parse_form(request.body);
+    const std::uint64_t cursor = static_cast<std::uint64_t>(std::strtoull(form["cursor"].c_str(), nullptr, 10));
+    auto snapshot = codex_conversations_.read_conversation(conversation_id, *username, cursor);
+    if (!snapshot) {
+        return json(404, "{\"error\":\"conversation not found\"}");
+    }
+    return json(200, codex_conversation_snapshot_json(*snapshot));
+}
+
+HttpResponse App::api_codex_conversation_send(const HttpRequest& request, const std::string& conversation_id) const {
+    auto username = current_user(request);
+    if (!username) {
+        return json(401, "{\"error\":\"login required\"}");
+    }
+    if (request.method != "POST") {
+        return json(404, "{\"error\":\"not found\"}");
+    }
+    if (!users_.has_permission(*username, "codex", PermissionLevel::Manage)) {
+        return json(403, "{\"error\":\"permission denied\"}");
+    }
+    auto form = parse_form(request.body);
+    if (!codex_conversations_.send_message(conversation_id, *username, form["message"])) {
+        return json(400, "{\"error\":\"unable to send message\"}");
+    }
+    return json(200, "{\"ok\":true}");
+}
+
+HttpResponse App::api_codex_conversation_close(const HttpRequest& request, const std::string& conversation_id) const {
+    auto username = current_user(request);
+    if (!username) {
+        return json(401, "{\"error\":\"login required\"}");
+    }
+    if (request.method != "POST") {
+        return json(404, "{\"error\":\"not found\"}");
+    }
+    if (!users_.has_permission(*username, "codex", PermissionLevel::Manage)) {
+        return json(403, "{\"error\":\"permission denied\"}");
+    }
+    if (!codex_conversations_.close_conversation(conversation_id, *username)) {
+        return json(400, "{\"error\":\"unable to close conversation\"}");
+    }
+    return json(200, "{\"ok\":true}");
+}
+
+HttpResponse App::api_codex_run(const HttpRequest& request) const {
+    auto username = current_user(request);
+    if (!username) {
+        return json(401, "{\"error\":\"login required\"}");
+    }
+    if (request.method != "POST") {
+        return json(404, "{\"error\":\"not found\"}");
+    }
+    if (!users_.has_permission(*username, "codex", PermissionLevel::Manage)) {
+        return json(403, "{\"error\":\"permission denied\"}");
+    }
+
+    auto form = parse_form(request.body);
+    std::string error;
+    auto codex_request = codex_request_from_form(form, &error);
+    if (!codex_request) {
+        return json(400, "{\"error\":\"" + json_escape(error.empty() ? "invalid codex prompt" : error) + "\"}");
+    }
+
+    const auto result = run_codex_prompt(*codex_request);
+    if (result.ok) {
+        return json(200, codex_result_json(result));
+    }
+    return json(result.timed_out ? 408 : 400,
+                "{\"error\":\"" + json_escape(result.output.empty() ? "Codex run failed" : result.output) +
+                "\",\"details\":" + codex_result_json(result) + "}");
+}
+
 HttpResponse App::api_deploy_run(const HttpRequest& request) const {
     auto username = current_user(request);
     if (!username) {
@@ -1284,31 +1592,57 @@ bool run_server(App& app, int port) {
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
+        log_errno(LogLevel::Error, "unable to create server socket", errno);
         return false;
     }
     int opt = 1;
-    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+        log_errno(LogLevel::Warning, "unable to set SO_REUSEADDR", errno);
+    }
 
     sockaddr_in address{};
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(static_cast<uint16_t>(port));
 
-    if (bind(server_fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0 || listen(server_fd, 32) < 0) {
+    if (bind(server_fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0) {
+        log_errno(LogLevel::Error, "unable to bind HTTP server to port " + std::to_string(port), errno);
+        close(server_fd);
+        return false;
+    }
+    if (listen(server_fd, 32) < 0) {
+        log_errno(LogLevel::Error, "unable to listen on port " + std::to_string(port), errno);
         close(server_fd);
         return false;
     }
 
-    std::cout << "cuddlePanel listening on http://127.0.0.1:" << port << std::endl;
+    log_message(LogLevel::Info, "cuddlePanel listening on http://127.0.0.1:" + std::to_string(port));
     while (true) {
         int client = accept(server_fd, nullptr, nullptr);
         if (client < 0) {
+            log_errno(LogLevel::Warning, "failed to accept client connection", errno);
             continue;
         }
-        auto raw = read_request(client);
-        auto request = parse_request(raw);
-        auto response = serialize_response(app.handle(request));
-        send(client, response.data(), response.size(), 0);
+        try {
+            auto raw = read_request(client);
+            if (raw.empty()) {
+                close(client);
+                continue;
+            }
+            auto request = parse_request(raw);
+            auto response = serialize_response(app.handle(request));
+            if (send(client, response.data(), response.size(), 0) < 0) {
+                log_errno(LogLevel::Warning, "failed to send HTTP response", errno);
+            }
+        } catch (const std::exception& exception) {
+            log_message(LogLevel::Error, std::string("unhandled server exception: ") + exception.what());
+            const auto response = serialize_response(HttpResponse{500, "application/json; charset=utf-8", {}, "{\"error\":\"internal server error\"}"});
+            send(client, response.data(), response.size(), 0);
+        } catch (...) {
+            log_message(LogLevel::Error, "unhandled non-standard server exception");
+            const auto response = serialize_response(HttpResponse{500, "application/json; charset=utf-8", {}, "{\"error\":\"internal server error\"}"});
+            send(client, response.data(), response.size(), 0);
+        }
         close(client);
     }
 }

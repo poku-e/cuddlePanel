@@ -17,6 +17,7 @@ cuddlePanel is an internal server administration panel built in C++ with a Boots
 - Service registry and systemd control
 - System administration for host users, sudo group membership, constrained `chown` / `chmod`, and `authorized_keys`
 - Nginx site management
+- Project-scoped Codex conversations with maintenance-mode fallback, streamed output, and in-thread approvals
 - Deploy helper form for `deploy-site`
 - PTY-backed browser terminal with fresh OTP verification
 
@@ -64,6 +65,7 @@ Run:
 ```
 
 The server auto-loads `.env` from the current working directory if present. Shell-exported variables still take precedence.
+Startup and runtime diagnostics are written to stderr and appended to `data/server.log`.
 
 ## Configuration
 
@@ -75,6 +77,7 @@ The repo includes a tracked `.env` file documenting the runtime environment vari
 - deploy helper path
 - system administration command and file overrides
 - terminal runtime policy
+- Codex runner path, workspace, model, and timeout
 
 ## Notes
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "deploy_runner.h"
+#include "codex_chat.h"
 #include "nginx_store.h"
 #include "service_store.h"
 #include "setup.h"
@@ -62,6 +63,8 @@ public:
         NginxStore& nginx,
         SystemAdmin& system_admin,
         TerminalManager& terminal,
+        CodexProjectStore& codex_projects,
+        CodexConversationManager& codex_conversations,
         SessionStore& sessions);
     HttpResponse handle(const HttpRequest& request);
 
@@ -71,6 +74,8 @@ private:
     NginxStore& nginx_;
     SystemAdmin& system_admin_;
     TerminalManager& terminal_;
+    CodexProjectStore& codex_projects_;
+    CodexConversationManager& codex_conversations_;
     SessionStore& sessions_;
 
     HttpResponse page(const std::string& file) const;
@@ -92,6 +97,12 @@ private:
     HttpResponse api_nginx_sites(const HttpRequest& request) const;
     HttpResponse api_update_nginx_site(const HttpRequest& request, const std::string& name) const;
     HttpResponse api_nginx_action(const HttpRequest& request, const std::string& name) const;
+    HttpResponse api_codex_projects(const HttpRequest& request) const;
+    HttpResponse api_codex_conversations(const HttpRequest& request) const;
+    HttpResponse api_codex_conversation_read(const HttpRequest& request, const std::string& conversation_id) const;
+    HttpResponse api_codex_conversation_send(const HttpRequest& request, const std::string& conversation_id) const;
+    HttpResponse api_codex_conversation_close(const HttpRequest& request, const std::string& conversation_id) const;
+    HttpResponse api_codex_run(const HttpRequest& request) const;
     HttpResponse api_deploy_run(const HttpRequest& request) const;
     HttpResponse api_totp_setup_info(const HttpRequest& request) const;
     HttpResponse api_totp_confirm(const HttpRequest& request) const;

@@ -1,5 +1,7 @@
 #include "auth.h"
+#include "codex_chat.h"
 #include "http.h"
+#include "log.h"
 #include "nginx_store.h"
 #include "service_store.h"
 #include "system_admin.h"
@@ -69,21 +71,23 @@ void load_dotenv_file(const std::string& path) {
 
 int main() {
     load_dotenv_file(".env");
+    cuddle::init_logging();
+    cuddle::log_message(cuddle::LogLevel::Info, "cuddlePanel startup initialized");
 
     if (!cuddle::init_crypto()) {
-        std::cerr << "failed to initialize crypto" << std::endl;
+        cuddle::log_message(cuddle::LogLevel::Error, "failed to initialize crypto");
         return 1;
     }
 
     cuddle::UserStore users("data/users.db");
     if (!users.load()) {
-        std::cerr << "failed to load users" << std::endl;
+        cuddle::log_message(cuddle::LogLevel::Error, "failed to load users from data/users.db");
         return 1;
     }
 
     cuddle::ServiceStore services("data/services.db");
     if (!services.load()) {
-        std::cerr << "failed to load services" << std::endl;
+        cuddle::log_message(cuddle::LogLevel::Error, "failed to load services from data/services.db");
         return 1;
     }
 
@@ -98,7 +102,7 @@ int main() {
 
     cuddle::NginxStore nginx("data/nginx.db", nginx_available_dir, nginx_enabled_dir);
     if (!nginx.load()) {
-        std::cerr << "failed to load nginx sites" << std::endl;
+        cuddle::log_message(cuddle::LogLevel::Error, "failed to load nginx sites from data/nginx.db");
         return 1;
     }
 
@@ -106,12 +110,33 @@ int main() {
     if (const char* configured = std::getenv("CUDDLEPANEL_PORT")) {
         port = std::atoi(configured);
     }
+    if (port < 1 || port > 65535) {
+        cuddle::log_message(cuddle::LogLevel::Error, "invalid CUDDLEPANEL_PORT value; expected 1-65535");
+        return 1;
+    }
 
     cuddle::SystemAdmin system_admin(cuddle::passwd_file_path(),
                                      cuddle::group_file_path(),
                                      cuddle::shadow_file_path());
     cuddle::TerminalManager terminal;
+    cuddle::CodexProjectStore codex_projects("data/codex_projects.db");
+    if (!codex_projects.load()) {
+        cuddle::log_message(cuddle::LogLevel::Error, "failed to load Codex projects from data/codex_projects.db");
+        return 1;
+    }
+    cuddle::CodexConversationManager codex_conversations(codex_projects, "data/codex_conversations.db");
+    if (!codex_conversations.load()) {
+        cuddle::log_message(cuddle::LogLevel::Error, "failed to load Codex conversations from data/codex_conversations.db");
+        return 1;
+    }
     cuddle::SessionStore sessions;
-    cuddle::App app(users, services, nginx, system_admin, terminal, sessions);
-    return cuddle::run_server(app, port) ? 0 : 1;
+    cuddle::App app(users, services, nginx, system_admin, terminal, codex_projects, codex_conversations, sessions);
+    cuddle::log_message(cuddle::LogLevel::Info, "starting HTTP server on 0.0.0.0:" + std::to_string(port));
+    const bool started = cuddle::run_server(app, port);
+    if (!started) {
+        cuddle::log_message(cuddle::LogLevel::Error, "server stopped during startup");
+        return 1;
+    }
+    cuddle::log_message(cuddle::LogLevel::Warning, "server loop exited unexpectedly");
+    return 1;
 }
