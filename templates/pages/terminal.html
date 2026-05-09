@@ -1,0 +1,13 @@
+<section class="cp-card terminal-shell-wrap">
+    <div class="section-header">
+        <h2>Interactive shell</h2>
+        <div class="user-actions">
+            <button class="btn btn-outline-secondary btn-sm" type="button" id="terminalReconnectButton">Reconnect</button>
+            <button class="btn btn-outline-danger btn-sm" type="button" id="terminalCloseButton">Close session</button>
+        </div>
+    </div>
+    <div class="small text-secondary mb-3">OTP access remains valid for 30 minutes after verification.</div>
+    <div class="small text-secondary mb-3">Running as <code>{{terminal_user}}</code> in <code>{{terminal_workdir}}</code>. Idle timeout: {{terminal_idle_timeout}}s. Max runtime: {{terminal_max_runtime}}s.</div>
+    <div id="terminalHost" class="terminal-host" aria-label="Terminal output"></div>
+    <div id="terminalStatus" class="small mt-3"></div>
+</section>

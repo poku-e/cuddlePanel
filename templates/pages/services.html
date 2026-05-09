@@ -1,0 +1,23 @@
+<div class="row g-4">
+    <div class="col-12 col-xl-4">
+        <section class="cp-card">
+            <div id="servicesPageState" data-can-manage="{{can_manage_services}}"></div>
+            <h2>Register service</h2>
+            <form id="serviceCreateForm" class="vstack gap-3">
+                <label class="cp-label">Panel name<input class="cp-input" name="name" required minlength="3" maxlength="64"{{disabled_attr}}></label>
+                <label class="cp-label">Systemd unit<input class="cp-input" name="unit" placeholder="example.service" required maxlength="128"{{disabled_attr}}></label>
+                <label class="cp-label">Description<textarea class="cp-input cp-textarea" name="description" maxlength="200"{{disabled_attr}}></textarea></label>
+                <button class="btn btn-primary" type="submit"{{disabled_attr}}>Add service</button>
+                <div id="serviceCreateMessage" class="small"></div>
+            </form>
+            {{view_only_note}}
+        </section>
+    </div>
+    <div class="col-12 col-xl-8">
+        <section class="cp-card">
+            <div class="section-header"><h2>Allowlisted services</h2><button class="btn btn-outline-secondary btn-sm" id="refreshServicesButton" type="button">Refresh</button></div>
+            <div id="servicesMessage" class="small text-danger mb-3"></div>
+            <div id="servicesTableHost"></div>
+        </section>
+    </div>
+</div>

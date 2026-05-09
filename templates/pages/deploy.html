@@ -1,0 +1,31 @@
+<div class="row g-4">
+    <div class="col-12 col-xl-5">
+        <section class="cp-card">
+            <div id="deployPageState" data-can-manage="{{can_manage_deploy}}"></div>
+            <h2>Run deploy helper</h2>
+            <form id="deployRunForm" class="vstack gap-3">
+                <label class="cp-label">Domain<input class="cp-input" name="domain" required maxlength="255"{{disabled_attr}}></label>
+                <label class="cp-label">Upstream port<input class="cp-input" name="port" required maxlength="5"{{disabled_attr}}></label>
+                <label class="cp-label">Linux user<input class="cp-input" name="user" required maxlength="64"{{disabled_attr}}></label>
+                <label class="cp-label">Project root<input class="cp-input" name="project_root" required maxlength="512" placeholder="/home/example/app"{{disabled_attr}}></label>
+                <label class="cp-label">Service description<input class="cp-input" name="service_desc" required maxlength="200"{{disabled_attr}}></label>
+                <label class="cp-label">Email<input class="cp-input" name="email" maxlength="255"{{disabled_attr}}></label>
+                <label class="cp-label">Site name<input class="cp-input" name="site_name" maxlength="64"{{disabled_attr}}></label>
+                <label class="cp-label">Upstream host<input class="cp-input" name="upstream_host" value="127.0.0.1" required maxlength="255"{{disabled_attr}}></label>
+                <label class="cp-toggle"><input type="checkbox" name="skip_dns_check"{{disabled_attr}}> <span>Skip DNS check</span></label>
+                <label class="cp-toggle"><input type="checkbox" name="skip_certbot"{{disabled_attr}}> <span>Skip Certbot</span></label>
+                <label class="cp-toggle"><input type="checkbox" name="force_overwrite_site"{{disabled_attr}}> <span>Force overwrite nginx site</span></label>
+                <label class="cp-toggle"><input type="checkbox" name="skip_service_start"{{disabled_attr}}> <span>Skip service start</span></label>
+                <button class="btn btn-primary" type="submit"{{disabled_attr}}>Run deploy</button>
+                <div id="deployRunMessage" class="small"></div>
+            </form>
+            {{view_only_note}}
+        </section>
+    </div>
+    <div class="col-12 col-xl-7">
+        <section class="cp-card">
+            <div class="section-header"><h2>Deploy output</h2><div class="small text-secondary">Script: {{deploy_script_path}}</div></div>
+            <pre id="deployOutput" class="service-output deploy-output">Run output will appear here.</pre>
+        </section>
+    </div>
+</div>

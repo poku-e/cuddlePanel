@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>cuddlePanel Two-Factor Setup</title>
+    <link rel="icon" type="image/png" href="/static/cuddle_logo.png">
+    <link href="/static/vendor/bootstrap/5.3.8/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/app.css" rel="stylesheet">
+</head>
+<body class="auth-body" data-view="totp-setup">
+    <main class="auth-card auth-card-wide">
+        <div class="auth-brand">
+            <img src="/static/cuddle_logo.png" alt="cuddlePanel logo" class="brand-logo brand-logo-auth">
+            <h1>Set up two-factor auth</h1>
+        </div>
+        <p class="text-secondary">Scan this secret in any TOTP app, then enter the current 6-digit code to finish setup.</p>
+        <div class="totp-secret-block">
+            <div class="small text-secondary">Secret</div>
+            <code id="totpSecret">Loading...</code>
+        </div>
+        <div class="totp-secret-block">
+            <div class="small text-secondary">OTP URI</div>
+            <code id="totpUri">Loading...</code>
+        </div>
+        <form id="totpSetupForm" class="vstack gap-3 mt-3">
+            <label class="cp-label">Authenticator code
+                <input class="cp-input" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+            </label>
+            <button class="btn btn-primary" type="submit">Confirm 2FA</button>
+            <div id="message" class="small text-danger" role="alert"></div>
+        </form>
+    </main>
+    <script type="module" src="/static/app.js"></script>
+</body>
+</html>

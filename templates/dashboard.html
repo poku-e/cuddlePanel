@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>cuddlePanel Dashboard</title>
+    <link rel="icon" type="image/png" href="/static/cuddle_logo.png">
+    <link href="/static/vendor/bootstrap/5.3.8/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/css/xterm.min.css" rel="stylesheet">
+    <link href="/static/app.css" rel="stylesheet">
+</head>
+<body data-view="dashboard">
+    <div class="app-shell">
+        <aside id="sidebar"></aside>
+        <div class="app-main">
+            <header id="header"></header>
+            <main id="content" class="content-region" aria-live="polite"></main>
+            <footer id="footer"></footer>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.11.0/lib/addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>cuddlePanel Onboarding</title>
+    <link rel="icon" type="image/png" href="/static/cuddle_logo.png">
+    <link href="/static/vendor/bootstrap/5.3.8/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/app.css" rel="stylesheet">
+</head>
+<body class="auth-body" data-view="onboarding">
+    <main class="auth-card">
+        <div class="auth-brand">
+            <img src="/static/cuddle_logo.png" alt="cuddlePanel logo" class="brand-logo brand-logo-auth">
+            <h1>cuddlePanel</h1>
+        </div>
+        <p class="text-secondary">Create the first superuser to lock onboarding and open the dashboard.</p>
+        <form id="onboardingForm" class="vstack gap-3">
+            <label class="cp-label">Username
+                <input class="cp-input" name="username" autocomplete="username" required minlength="3" maxlength="64">
+            </label>
+            <label class="cp-label">Password
+                <input class="cp-input" name="password" type="password" autocomplete="new-password" required minlength="14">
+            </label>
+            <button class="btn btn-primary" type="submit">Create superuser</button>
+            <div id="message" class="small text-danger" role="alert"></div>
+        </form>
+    </main>
+    <script type="module" src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+<section class="cp-card terminal-gate">
+    <h2>Verify OTP</h2>
+    <p class="text-secondary">Terminal access requires a fresh TOTP verification every 30 minutes.</p>
+    <form id="terminalOtpForm" class="vstack gap-3">
+        <label class="cp-label">Authenticator code<input class="cp-input" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label>
+        <button class="btn btn-primary" type="submit">Verify access</button>
+        <div id="terminalOtpMessage" class="small"></div>
+    </form>
+</section>

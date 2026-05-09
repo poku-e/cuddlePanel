@@ -1,0 +1,53 @@
+<div class="row g-4">
+    <div class="col-12 col-xl-4">
+        <section class="cp-card">
+            <div id="systemPageState" data-can-manage="{{can_manage_system}}"></div>
+            <h2>Create host account</h2>
+            <form id="systemCreateUserForm" class="vstack gap-3">
+                <label class="cp-label">Username<input class="cp-input" name="username" required minlength="3" maxlength="64"{{disabled_attr}}></label>
+                <label class="cp-label">Shell<input class="cp-input" name="shell" value="/bin/bash" required maxlength="512"{{disabled_attr}}></label>
+                <label class="cp-label">Home directory<input class="cp-input" name="home" value="/home/"{{disabled_attr}}></label>
+                <label class="cp-toggle"><input type="checkbox" name="system_account"{{disabled_attr}}> <span>Create as system account</span></label>
+                <button class="btn btn-primary" type="submit"{{disabled_attr}}>Create account</button>
+                <div id="systemCreateMessage" class="small"></div>
+            </form>
+            {{view_only_note}}
+        </section>
+        <section class="cp-card mt-4">
+            <h2>Ownership and mode</h2>
+            <div class="small text-secondary mb-3">Allowed roots: {{roots_note}}</div>
+            <form id="systemPathActionForm" class="vstack gap-3">
+                <label class="cp-label">Action<select class="cp-input cp-select" name="action"{{disabled_attr}}><option value="chown">chown</option><option value="chmod">chmod</option></select></label>
+                <label class="cp-label">Path<input class="cp-input" name="path" required maxlength="512" placeholder="/srv/example/current"{{disabled_attr}}></label>
+                <label class="cp-label">Owner<input class="cp-input" name="owner" maxlength="64" placeholder="deploy"{{disabled_attr}}></label>
+                <label class="cp-label">Group<input class="cp-input" name="group" maxlength="64" placeholder="www-data"{{disabled_attr}}></label>
+                <label class="cp-label">Mode<input class="cp-input" name="mode" maxlength="4" placeholder="755"{{disabled_attr}}></label>
+                <label class="cp-toggle"><input type="checkbox" name="recursive"{{disabled_attr}}> <span>Apply recursively</span></label>
+                <button class="btn btn-primary" type="submit"{{disabled_attr}}>Run path action</button>
+                <div id="systemPathMessage" class="small"></div>
+            </form>
+            <pre id="systemPathOutput" class="service-output mt-3">Path action output will appear here.</pre>
+        </section>
+        <section class="cp-card mt-4">
+            <h2>SSH authorized_keys</h2>
+            <div class="small text-secondary mb-3">Select a login user from the account list to load or create <code>~/.ssh/authorized_keys</code>.</div>
+            <form id="systemAuthorizedKeysForm" class="vstack gap-3">
+                <label class="cp-label">Login user<input class="cp-input" id="authorizedKeysUsername" name="username" readonly></label>
+                <label class="cp-label">authorized_keys<textarea class="cp-input cp-textarea cp-codearea cp-authorized-keys" id="authorizedKeysContent" name="content"{{disabled_attr}}></textarea></label>
+                <div class="user-actions">
+                    <button class="btn btn-outline-secondary btn-sm" id="loadAuthorizedKeysButton" type="button"{{disabled_attr}}>Reload keys</button>
+                    <button class="btn btn-primary btn-sm" type="submit"{{disabled_attr}}>Save keys</button>
+                </div>
+                <div id="authorizedKeysMessage" class="small"></div>
+            </form>
+        </section>
+    </div>
+    <div class="col-12 col-xl-8">
+        <section class="cp-card">
+            <div class="section-header"><h2>Host accounts</h2><button class="btn btn-outline-secondary btn-sm" id="refreshSystemUsersButton" type="button">Refresh</button></div>
+            <div id="systemAllowedRoots" class="small text-secondary mb-3"></div>
+            <div id="systemUsersMessage" class="small text-danger mb-3"></div>
+            <div id="systemUsersHost"></div>
+        </section>
+    </div>
+</div>

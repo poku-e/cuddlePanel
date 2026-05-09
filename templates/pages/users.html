@@ -1,0 +1,30 @@
+<div class="row g-4">
+    <div class="col-12 col-xl-4">
+        <section class="cp-card">
+            <div id="usersPageState" data-can-manage="{{can_manage_users}}"></div>
+            <h2>Create user</h2>
+            <form id="userCreateForm" class="vstack gap-3">
+                <label class="cp-label">Username<input class="cp-input" name="username" required minlength="3" maxlength="64"{{disabled_attr}}></label>
+                <label class="cp-label">Password<input class="cp-input" name="password" type="password" required minlength="14"{{disabled_attr}}></label>
+                <label class="cp-label">Role<select class="cp-input" name="role"{{disabled_attr}}><option value="operator">Operator</option><option value="admin">Admin</option></select></label>
+                <label class="cp-label">Permission preset
+                    <select class="cp-input" name="permissions"{{disabled_attr}}>
+                        <option value="dashboard:view,users:view,services:view,system:view,nginx:view,terminal:view,codex:view,deploy:view">View all pages</option>
+                        <option value="dashboard:manage,users:manage,services:view,system:view,nginx:view,terminal:view,codex:view,deploy:view">Admin users + view all</option>
+                        <option value="dashboard:manage,users:manage,services:manage,system:manage,nginx:manage,terminal:manage,codex:manage,deploy:manage">Manage all pages</option>
+                    </select>
+                </label>
+                <button class="btn btn-primary" type="submit"{{disabled_attr}}>Create user</button>
+                <div id="userCreateMessage" class="small"></div>
+            </form>
+            {{view_only_note}}
+        </section>
+    </div>
+    <div class="col-12 col-xl-8">
+        <section class="cp-card">
+            <div class="section-header"><h2>Existing users</h2><button class="btn btn-outline-secondary btn-sm" id="refreshUsersButton" type="button">Refresh</button></div>
+            <div id="usersMessage" class="small text-danger mb-3"></div>
+            <div id="usersTableHost"></div>
+        </section>
+    </div>
+</div>
