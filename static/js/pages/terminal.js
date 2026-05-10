@@ -9,6 +9,10 @@ let terminalPollTimer = null;
 let terminalResizeHandler = null;
 let reloadPage = null;
 
+function encodeTerminalBytes(data) {
+    return window.btoa(data);
+}
+
 async function terminalPost(action, payload = {}) {
     if (!terminalSessionId) {
         throw new Error("terminal session not initialized");
@@ -93,7 +97,7 @@ async function createTerminalSession() {
     showSuccessToast("Terminal session connected.");
 
     terminalInstance.onData((data) => {
-        terminalPost("write", {data}).catch((error) => {
+        terminalPost("write", {data_base64: encodeTerminalBytes(data)}).catch((error) => {
             status.textContent = error.message;
             showErrorToast(error.message);
         });
@@ -114,6 +118,9 @@ async function createTerminalSession() {
     const reconnectButton = document.getElementById("terminalReconnectButton");
     if (reconnectButton) {
         reconnectButton.onclick = async () => {
+            if (terminalSessionId && !window.confirm("Start a new terminal session? This closes the current shell.")) {
+                return;
+            }
             if (terminalSessionId) {
                 await terminalPost("close", {}).catch(() => {});
             }

@@ -18,8 +18,17 @@ Environment scope in this phase:
 - Network and cookie mode:
   - `CUDDLEPANEL_PORT`
   - `CUDDLEPANEL_SECURE_COOKIES`
-- Deploy helper:
-  - `CUDDLEPANEL_DEPLOY_SITE_BIN`
+- Native deploy engine:
+  - `CUDDLEPANEL_DEPLOY_SYSTEMD_DIR`
+  - `CUDDLEPANEL_SYSTEMCTL_BIN`
+  - `CUDDLEPANEL_CERTBOT_BIN`
+  - `CUDDLEPANEL_PYTHON3_BIN`
+  - `CUDDLEPANEL_NPM_BIN`
+  - `CUDDLEPANEL_NODE_BIN`
+  - `CUDDLEPANEL_GO_BIN`
+  - `CUDDLEPANEL_CURL_BIN`
+  - `CUDDLEPANEL_CLOUDFLARE_ZONE_ID`
+  - `CUDDLEPANEL_CLOUDFLARE_API_TOKEN`
 - Nginx:
   - `CUDDLEPANEL_NGINX_AVAILABLE_DIR`
   - `CUDDLEPANEL_NGINX_ENABLED_DIR`
@@ -47,10 +56,15 @@ Dependency status behavior:
 - Required in this phase:
   - terminal shell path
 - Checked as optional feature dependencies:
-  - deploy helper
+  - `systemctl`
+  - `certbot`
+  - `python3`
+  - `npm`
+  - `node`
+  - `go`
+  - `curl`
   - nginx binary
   - Codex CLI
-  - `systemctl`
   - system administration commands such as `useradd`, `passwd`, `usermod`, `gpasswd`, `chown`, and `chmod`
 
 Safety rules:

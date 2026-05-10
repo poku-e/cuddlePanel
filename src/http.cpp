@@ -20,6 +20,7 @@
 #include <iterator>
 #include <netinet/in.h>
 #include <signal.h>
+#include <sodium.h>
 #include <sstream>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -116,6 +117,26 @@ std::map<std::string, PermissionLevel> parse_permission_map(const std::string& r
     return permissions;
 }
 
+std::optional<std::string> decode_base64_input(const std::string& encoded) {
+    if (encoded.empty()) {
+        return std::string();
+    }
+    std::string decoded(encoded.size(), '\0');
+    size_t decoded_len = 0;
+    if (sodium_base642bin(reinterpret_cast<unsigned char*>(decoded.data()),
+                          decoded.size(),
+                          encoded.c_str(),
+                          encoded.size(),
+                          nullptr,
+                          &decoded_len,
+                          nullptr,
+                          sodium_base64_VARIANT_ORIGINAL) != 0) {
+        return std::nullopt;
+    }
+    decoded.resize(decoded_len);
+    return decoded;
+}
+
 std::string users_json(const std::vector<User>& users) {
     std::ostringstream out;
     out << "{\"users\":[";
@@ -154,7 +175,16 @@ std::string setup_status_json() {
         << "\"config\":{"
         << "\"port\":\"" << json_escape(config.port) << "\","
         << "\"secure_cookies\":" << (config.secure_cookies ? "true" : "false") << ","
-        << "\"deploy_site_bin\":\"" << json_escape(config.deploy_site_bin) << "\","
+        << "\"deploy_systemd_unit_dir\":\"" << json_escape(config.deploy_systemd_unit_dir) << "\","
+        << "\"systemctl_bin\":\"" << json_escape(config.systemctl_bin) << "\","
+        << "\"certbot_bin\":\"" << json_escape(config.certbot_bin) << "\","
+        << "\"python3_bin\":\"" << json_escape(config.python3_bin) << "\","
+        << "\"npm_bin\":\"" << json_escape(config.npm_bin) << "\","
+        << "\"node_bin\":\"" << json_escape(config.node_bin) << "\","
+        << "\"go_bin\":\"" << json_escape(config.go_bin) << "\","
+        << "\"curl_bin\":\"" << json_escape(config.curl_bin) << "\","
+        << "\"cloudflare_zone_id\":\"" << json_escape(config.cloudflare_zone_id) << "\","
+        << "\"cloudflare_api_token\":\"\","
         << "\"nginx_available_dir\":\"" << json_escape(config.nginx_available_dir) << "\","
         << "\"nginx_enabled_dir\":\"" << json_escape(config.nginx_enabled_dir) << "\","
         << "\"nginx_bin\":\"" << json_escape(config.nginx_bin) << "\","
@@ -321,6 +351,7 @@ std::string codex_conversations_json(const std::vector<CodexConversationRecord>&
             << "\"project_id\":\"" << json_escape(conversation.project_id) << "\","
             << "\"project_name\":\"" << json_escape(conversation.project_name) << "\","
             << "\"working_directory\":\"" << json_escape(conversation.working_directory) << "\","
+            << "\"codex_session_id\":\"" << json_escape(conversation.codex_session_id) << "\","
             << "\"maintenance_mode\":" << (conversation.maintenance_mode ? "true" : "false") << ","
             << "\"closed\":" << (conversation.closed ? "true" : "false") << ","
             << "\"created_at\":" << conversation.created_at << ","
@@ -342,6 +373,23 @@ std::string codex_conversation_snapshot_json(const CodexConversationSnapshot& sn
         << "\"exit_code\":" << snapshot.exit_code << ","
         << "\"title\":\"" << json_escape(snapshot.title) << "\""
         << "}";
+    return out.str();
+}
+
+std::string codex_audit_history_json(const std::vector<CodexAuditEvent>& events) {
+    std::ostringstream out;
+    out << "{\"events\":[";
+    for (size_t i = 0; i < events.size(); ++i) {
+        if (i > 0) {
+            out << ",";
+        }
+        out << "{"
+            << "\"timestamp\":" << events[i].timestamp << ","
+            << "\"kind\":\"" << json_escape(events[i].kind) << "\","
+            << "\"detail\":\"" << json_escape(events[i].detail) << "\""
+            << "}";
+    }
+    out << "]}";
     return out.str();
 }
 
@@ -738,11 +786,21 @@ HttpResponse App::handle(const HttpRequest& request) {
         const std::string base = "/api/codex/conversations/";
         const std::string remainder = request.path.substr(base.size());
         const auto read_suffix = std::string("/read");
+        const auto transcript_suffix = std::string("/transcript");
+        const auto history_suffix = std::string("/history");
         const auto send_suffix = std::string("/send");
         const auto close_suffix = std::string("/close");
         if (remainder.size() > read_suffix.size() &&
             remainder.rfind(read_suffix) == remainder.size() - read_suffix.size()) {
             return api_codex_conversation_read(request, url_decode(remainder.substr(0, remainder.size() - read_suffix.size())));
+        }
+        if (remainder.size() > transcript_suffix.size() &&
+            remainder.rfind(transcript_suffix) == remainder.size() - transcript_suffix.size()) {
+            return api_codex_conversation_transcript(request, url_decode(remainder.substr(0, remainder.size() - transcript_suffix.size())));
+        }
+        if (remainder.size() > history_suffix.size() &&
+            remainder.rfind(history_suffix) == remainder.size() - history_suffix.size()) {
+            return api_codex_conversation_history(request, url_decode(remainder.substr(0, remainder.size() - history_suffix.size())));
         }
         if (remainder.size() > send_suffix.size() &&
             remainder.rfind(send_suffix) == remainder.size() - send_suffix.size()) {
@@ -891,8 +949,7 @@ HttpResponse App::api_page(const HttpRequest& request, const std::string& page_n
                                            {"disabled_attr", can_manage_deploy ? "" : " disabled"},
                                            {"view_only_note", can_manage_deploy
                                                                 ? ""
-                                                                : "<p class=\"small text-secondary mt-3 mb-0\">You have view access to this page, but deploy execution requires `deploy:manage`.</p>"},
-                                           {"deploy_script_path", html_escape(deploy_script_path())}
+                                                                : "<p class=\"small text-secondary mt-3 mb-0\">You have view access to this page, but deploy execution requires `deploy:manage`.</p>"}
                                        });
     } else {
         return json(404, "{\"error\":\"unknown page\"}");
@@ -1309,6 +1366,42 @@ HttpResponse App::api_codex_conversation_read(const HttpRequest& request, const 
     return json(200, codex_conversation_snapshot_json(*snapshot));
 }
 
+HttpResponse App::api_codex_conversation_transcript(const HttpRequest& request, const std::string& conversation_id) const {
+    auto username = current_user(request);
+    if (!username) {
+        return json(401, "{\"error\":\"login required\"}");
+    }
+    if (request.method != "GET") {
+        return json(404, "{\"error\":\"not found\"}");
+    }
+    if (!users_.has_permission(*username, "codex", PermissionLevel::View)) {
+        return json(403, "{\"error\":\"permission denied\"}");
+    }
+    auto transcript = codex_conversations_.transcript_for(conversation_id, *username);
+    if (!transcript) {
+        return json(404, "{\"error\":\"conversation not found\"}");
+    }
+    return json(200, "{\"ok\":true,\"transcript\":\"" + json_escape(*transcript) + "\"}");
+}
+
+HttpResponse App::api_codex_conversation_history(const HttpRequest& request, const std::string& conversation_id) const {
+    auto username = current_user(request);
+    if (!username) {
+        return json(401, "{\"error\":\"login required\"}");
+    }
+    if (request.method != "GET") {
+        return json(404, "{\"error\":\"not found\"}");
+    }
+    if (!users_.has_permission(*username, "codex", PermissionLevel::View)) {
+        return json(403, "{\"error\":\"permission denied\"}");
+    }
+    auto events = codex_conversations_.audit_history_for(conversation_id, *username);
+    if (!events) {
+        return json(404, "{\"error\":\"conversation not found\"}");
+    }
+    return json(200, codex_audit_history_json(*events));
+}
+
 HttpResponse App::api_codex_conversation_send(const HttpRequest& request, const std::string& conversation_id) const {
     auto username = current_user(request);
     if (!username) {
@@ -1535,10 +1628,18 @@ HttpResponse App::api_terminal_write(const HttpRequest& request, const std::stri
         return json(403, "{\"error\":\"terminal otp verification required\"}");
     }
     auto form = parse_form(request.body);
-    if (form["data"].size() > 8192) {
+    std::string input = form["data"];
+    if (!form["data_base64"].empty()) {
+        auto decoded = decode_base64_input(form["data_base64"]);
+        if (!decoded) {
+            return json(400, "{\"error\":\"invalid terminal input encoding\"}");
+        }
+        input = *decoded;
+    }
+    if (input.size() > 8192) {
         return json(400, "{\"error\":\"terminal input too large\"}");
     }
-    if (!terminal_.write_session(session_id, *username, form["data"])) {
+    if (!terminal_.write_session(session_id, *username, input)) {
         return json(400, "{\"error\":\"unable to write to terminal session\"}");
     }
     return json(200, "{\"ok\":true}");
@@ -1694,7 +1795,8 @@ std::string html_escape(const std::string& value) {
 
 std::string json_escape(const std::string& value) {
     std::string out;
-    for (char c : value) {
+    static const char hex_digits[] = "0123456789abcdef";
+    for (unsigned char c : value) {
         switch (c) {
             case '\\': out += "\\\\"; break;
             case '"': out += "\\\""; break;
@@ -1703,7 +1805,15 @@ std::string json_escape(const std::string& value) {
             case '\n': out += "\\n"; break;
             case '\r': out += "\\r"; break;
             case '\t': out += "\\t"; break;
-            default: out += c; break;
+            default:
+                if (c < 0x20) {
+                    out += "\\u00";
+                    out += hex_digits[(c >> 4) & 0x0f];
+                    out += hex_digits[c & 0x0f];
+                } else {
+                    out += static_cast<char>(c);
+                }
+                break;
         }
     }
     return out;

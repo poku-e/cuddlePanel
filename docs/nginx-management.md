@@ -14,9 +14,11 @@ Workflow:
 - Site metadata is stored in `data/nginx.db`.
 - Config content is written to the configured `sites-available` directory.
 - The dashboard reads enabled state by checking for the matching filename in `sites-enabled`.
+- The page lists sites in a compact table, edits config content in a Bootstrap modal, and keeps a shared output panel below the table for enable/disable/test/reload feedback.
 - Editing a site updates the stored metadata and the file content in `sites-available`.
 - Enable creates a symlink in `sites-enabled`; disable removes it.
 - Test runs `nginx -t`; reload runs `systemctl reload nginx`.
+- Unsaved editor drafts are now kept in the browser while operators run enable, disable, test, or reload actions, so inline config edits are not wiped by a routine runtime action.
 
 Validation and safety rules:
 - Site names must be 3-64 characters and may contain letters, numbers, `.`, `_`, and `-`.

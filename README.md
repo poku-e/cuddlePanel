@@ -17,9 +17,10 @@ cuddlePanel is an internal server administration panel built in C++ with a Boots
 - Service registry and systemd control
 - System administration for host users, sudo group membership, constrained `chown` / `chmod`, and `authorized_keys`
 - Nginx site management
-- Project-scoped Codex conversations with maintenance-mode fallback, streamed output, and in-thread approvals
-- Deploy helper form for `deploy-site`
+- Project-scoped Codex conversations with maintenance-mode fallback, streamed output, in-thread approvals, transcript export, and restart-time resume
+- Native stack-aware deploy workflow for Node.js, Golang, Streamlit, and Python + Vite, with optional Cloudflare DNS updates
 - PTY-backed browser terminal with fresh OTP verification
+- Dashboard page state that survives refreshes, plus safer destructive-action prompts on admin workflows
 
 ## Stack
 
@@ -74,7 +75,7 @@ The repo includes a tracked `.env` file documenting the runtime environment vari
 - `CUDDLEPANEL_PORT`
 - `CUDDLEPANEL_SECURE_COOKIES`
 - nginx paths and binary overrides
-- deploy helper path
+- native deploy engine tool paths and optional Cloudflare defaults
 - system administration command and file overrides
 - terminal runtime policy
 - Codex runner path, workspace, model, and timeout

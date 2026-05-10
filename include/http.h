@@ -100,6 +100,8 @@ private:
     HttpResponse api_codex_projects(const HttpRequest& request) const;
     HttpResponse api_codex_conversations(const HttpRequest& request) const;
     HttpResponse api_codex_conversation_read(const HttpRequest& request, const std::string& conversation_id) const;
+    HttpResponse api_codex_conversation_transcript(const HttpRequest& request, const std::string& conversation_id) const;
+    HttpResponse api_codex_conversation_history(const HttpRequest& request, const std::string& conversation_id) const;
     HttpResponse api_codex_conversation_send(const HttpRequest& request, const std::string& conversation_id) const;
     HttpResponse api_codex_conversation_close(const HttpRequest& request, const std::string& conversation_id) const;
     HttpResponse api_codex_run(const HttpRequest& request) const;

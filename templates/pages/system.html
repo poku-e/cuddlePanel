@@ -1,53 +1,162 @@
-<div class="row g-4">
-    <div class="col-12 col-xl-4">
-        <section class="cp-card">
-            <div id="systemPageState" data-can-manage="{{can_manage_system}}"></div>
-            <h2>Create host account</h2>
-            <form id="systemCreateUserForm" class="vstack gap-3">
-                <label class="cp-label">Username<input class="cp-input" name="username" required minlength="3" maxlength="64"{{disabled_attr}}></label>
-                <label class="cp-label">Shell<input class="cp-input" name="shell" value="/bin/bash" required maxlength="512"{{disabled_attr}}></label>
-                <label class="cp-label">Home directory<input class="cp-input" name="home" value="/home/"{{disabled_attr}}></label>
-                <label class="cp-toggle"><input type="checkbox" name="system_account"{{disabled_attr}}> <span>Create as system account</span></label>
-                <button class="btn btn-primary" type="submit"{{disabled_attr}}>Create account</button>
-                <div id="systemCreateMessage" class="small"></div>
-            </form>
-            {{view_only_note}}
-        </section>
-        <section class="cp-card mt-4">
-            <h2>Ownership and mode</h2>
-            <div class="small text-secondary mb-3">Allowed roots: {{roots_note}}</div>
-            <form id="systemPathActionForm" class="vstack gap-3">
-                <label class="cp-label">Action<select class="cp-input cp-select" name="action"{{disabled_attr}}><option value="chown">chown</option><option value="chmod">chmod</option></select></label>
-                <label class="cp-label">Path<input class="cp-input" name="path" required maxlength="512" placeholder="/srv/example/current"{{disabled_attr}}></label>
-                <label class="cp-label">Owner<input class="cp-input" name="owner" maxlength="64" placeholder="deploy"{{disabled_attr}}></label>
-                <label class="cp-label">Group<input class="cp-input" name="group" maxlength="64" placeholder="www-data"{{disabled_attr}}></label>
-                <label class="cp-label">Mode<input class="cp-input" name="mode" maxlength="4" placeholder="755"{{disabled_attr}}></label>
-                <label class="cp-toggle"><input type="checkbox" name="recursive"{{disabled_attr}}> <span>Apply recursively</span></label>
-                <button class="btn btn-primary" type="submit"{{disabled_attr}}>Run path action</button>
-                <div id="systemPathMessage" class="small"></div>
-            </form>
-            <pre id="systemPathOutput" class="service-output mt-3">Path action output will appear here.</pre>
-        </section>
-        <section class="cp-card mt-4">
-            <h2>SSH authorized_keys</h2>
-            <div class="small text-secondary mb-3">Select a login user from the account list to load or create <code>~/.ssh/authorized_keys</code>.</div>
-            <form id="systemAuthorizedKeysForm" class="vstack gap-3">
-                <label class="cp-label">Login user<input class="cp-input" id="authorizedKeysUsername" name="username" readonly></label>
-                <label class="cp-label">authorized_keys<textarea class="cp-input cp-textarea cp-codearea cp-authorized-keys" id="authorizedKeysContent" name="content"{{disabled_attr}}></textarea></label>
-                <div class="user-actions">
-                    <button class="btn btn-outline-secondary btn-sm" id="loadAuthorizedKeysButton" type="button"{{disabled_attr}}>Reload keys</button>
-                    <button class="btn btn-primary btn-sm" type="submit"{{disabled_attr}}>Save keys</button>
-                </div>
-                <div id="authorizedKeysMessage" class="small"></div>
-            </form>
-        </section>
+<div id="systemPageState" data-can-manage="{{can_manage_system}}"></div>
+
+<section class="cp-card">
+    <div class="cp-toolbar">
+        <div>
+            <h2 class="mb-1">System administration</h2>
+            <div id="systemAllowedRoots" class="small text-secondary">Allowed path roots: {{roots_note}}</div>
+        </div>
+        <div class="cp-toolbar-actions">
+            <button class="btn btn-outline-secondary btn-sm" id="refreshSystemUsersButton" type="button">Refresh</button>
+            <button class="btn btn-primary btn-sm" id="openCreateSystemUserModalButton" type="button"{{disabled_attr}}>Create account</button>
+            <button class="btn btn-outline-primary btn-sm" id="openSystemPathModalButton" type="button"{{disabled_attr}}>Path action</button>
+        </div>
     </div>
-    <div class="col-12 col-xl-8">
-        <section class="cp-card">
-            <div class="section-header"><h2>Host accounts</h2><button class="btn btn-outline-secondary btn-sm" id="refreshSystemUsersButton" type="button">Refresh</button></div>
-            <div id="systemAllowedRoots" class="small text-secondary mb-3"></div>
+
+    <ul class="nav nav-tabs cp-nav-tabs mt-3" id="systemTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="system-accounts-tab" data-bs-toggle="tab" data-bs-target="#system-accounts-panel" type="button" role="tab" aria-controls="system-accounts-panel" aria-selected="true">Accounts</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="system-files-tab" data-bs-toggle="tab" data-bs-target="#system-files-panel" type="button" role="tab" aria-controls="system-files-panel" aria-selected="false">Files</button>
+        </li>
+    </ul>
+
+    <div class="tab-content pt-3">
+        <div class="tab-pane fade show active" id="system-accounts-panel" role="tabpanel" aria-labelledby="system-accounts-tab" tabindex="0">
             <div id="systemUsersMessage" class="small text-danger mb-3"></div>
-            <div id="systemUsersHost"></div>
-        </section>
+            {{view_only_note}}
+            <div class="table-responsive cp-table-wrap">
+                <table class="table table-sm table-hover align-middle cp-table mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Username</th>
+                            <th scope="col">UID/GID</th>
+                            <th scope="col">Shell</th>
+                            <th scope="col">Home</th>
+                            <th scope="col">State</th>
+                            <th scope="col" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="systemUsersHost"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="system-files-panel" role="tabpanel" aria-labelledby="system-files-tab" tabindex="0">
+            <div class="row g-3">
+                <div class="col-12 col-xl-6">
+                    <section class="cp-subpanel h-100">
+                        <div class="cp-toolbar">
+                            <div>
+                                <h3 class="h6 mb-1">authorized_keys</h3>
+                                <div class="small text-secondary">Select a login user from Accounts to edit SSH keys.</div>
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm" id="openAuthorizedKeysModalButton" type="button"{{disabled_attr}}>Open editor</button>
+                        </div>
+                        <dl class="cp-summary-list mt-3">
+                            <div><dt>Selected user</dt><dd id="authorizedKeysSelectedUserLabel">No login user selected</dd></div>
+                            <div><dt>Status</dt><dd id="authorizedKeysSummaryMessage">Choose a login user from Accounts.</dd></div>
+                        </dl>
+                    </section>
+                </div>
+                <div class="col-12 col-xl-6">
+                    <section class="cp-subpanel h-100">
+                        <div class="cp-toolbar">
+                            <div>
+                                <h3 class="h6 mb-1">Ownership and mode</h3>
+                                <div class="small text-secondary">Run constrained <code>chown</code> or <code>chmod</code> operations inside allowed roots.</div>
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm" id="openSystemPathModalButtonSecondary" type="button"{{disabled_attr}}>Open action</button>
+                        </div>
+                        <dl class="cp-summary-list mt-3">
+                            <div><dt>Allowed roots</dt><dd id="systemAllowedRootsInline">{{roots_note}}</dd></div>
+                            <div><dt>Last result</dt><dd id="systemPathSummaryMessage">No path action run yet.</dd></div>
+                        </dl>
+                        <pre id="systemPathOutput" class="service-output mt-3">Path action output will appear here.</pre>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="systemCreateUserModal" tabindex="-1" aria-labelledby="systemCreateUserModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title h5 mb-1" id="systemCreateUserModalTitle">Create host account</h3>
+                    <div class="small text-secondary">Create a normal login user or a system account.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="systemCreateUserForm">
+                <div class="modal-body vstack gap-3">
+                    <label class="cp-label">Username<input class="cp-input" name="username" required minlength="3" maxlength="64"{{disabled_attr}}></label>
+                    <label class="cp-label">Shell<input class="cp-input" name="shell" value="/bin/bash" required maxlength="512"{{disabled_attr}}></label>
+                    <label class="cp-label">Home directory<input class="cp-input" name="home" value="/home/"{{disabled_attr}}></label>
+                    <label class="cp-toggle"><input type="checkbox" name="system_account"{{disabled_attr}}> <span>Create as system account</span></label>
+                    <div id="systemCreateMessage" class="small"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit"{{disabled_attr}}>Create account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="systemPathModal" tabindex="-1" aria-labelledby="systemPathModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title h5 mb-1" id="systemPathModalTitle">Ownership and mode</h3>
+                    <div class="small text-secondary">Allowed roots: {{roots_note}}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="systemPathActionForm">
+                <div class="modal-body vstack gap-3">
+                    <label class="cp-label">Action<select class="cp-input cp-select" name="action"{{disabled_attr}}><option value="chown">chown</option><option value="chmod">chmod</option></select></label>
+                    <label class="cp-label">Path<input class="cp-input" name="path" required maxlength="512" placeholder="/srv/example/current"{{disabled_attr}}></label>
+                    <label class="cp-label">Owner<input class="cp-input" name="owner" maxlength="64" placeholder="deploy"{{disabled_attr}}></label>
+                    <label class="cp-label">Group<input class="cp-input" name="group" maxlength="64" placeholder="www-data"{{disabled_attr}}></label>
+                    <label class="cp-label">Mode<input class="cp-input" name="mode" maxlength="4" placeholder="755"{{disabled_attr}}></label>
+                    <label class="cp-toggle"><input type="checkbox" name="recursive"{{disabled_attr}}> <span>Apply recursively</span></label>
+                    <div id="systemPathMessage" class="small"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit"{{disabled_attr}}>Run path action</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="systemAuthorizedKeysModal" tabindex="-1" aria-labelledby="systemAuthorizedKeysModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title h5 mb-1" id="systemAuthorizedKeysModalTitle">SSH authorized_keys</h3>
+                    <div class="small text-secondary">Edit login-user SSH keys without leaving the account list.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="systemAuthorizedKeysForm">
+                <div class="modal-body vstack gap-3">
+                    <label class="cp-label">Login user<input class="cp-input" id="authorizedKeysUsername" name="username" readonly></label>
+                    <label class="cp-label">authorized_keys<textarea class="cp-input cp-textarea cp-codearea cp-authorized-keys" id="authorizedKeysContent" name="content"{{disabled_attr}}></textarea></label>
+                    <div id="authorizedKeysMessage" class="small"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" id="loadAuthorizedKeysButton" type="button"{{disabled_attr}}>Reload keys</button>
+                    <button class="btn btn-primary" type="submit"{{disabled_attr}}>Save keys</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>

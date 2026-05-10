@@ -22,10 +22,17 @@ struct CodexConversationRecord {
     std::string project_id;
     std::string project_name;
     std::string working_directory;
+    std::string codex_session_id;
     bool maintenance_mode = false;
     bool closed = false;
     std::int64_t created_at = 0;
     std::int64_t updated_at = 0;
+};
+
+struct CodexAuditEvent {
+    std::int64_t timestamp = 0;
+    std::string kind;
+    std::string detail;
 };
 
 struct CodexConversationSnapshot {
@@ -73,6 +80,10 @@ public:
     std::optional<CodexConversationSnapshot> read_conversation(const std::string& conversation_id,
                                                                const std::string& owner,
                                                                std::uint64_t cursor);
+    std::optional<std::string> transcript_for(const std::string& conversation_id,
+                                              const std::string& owner) const;
+    std::optional<std::vector<CodexAuditEvent>> audit_history_for(const std::string& conversation_id,
+                                                                  const std::string& owner) const;
     bool send_message(const std::string& conversation_id,
                       const std::string& owner,
                       const std::string& message);
@@ -100,7 +111,14 @@ private:
     std::optional<const CodexConversationRecord*> conversation_locked(const std::string& conversation_id,
                                                                       const std::string& owner) const;
     std::optional<LiveSession*> live_session_locked(const std::string& conversation_id);
+    std::string transcript_path_locked(const std::string& conversation_id) const;
+    std::string audit_log_path_locked(const std::string& conversation_id) const;
+    void append_transcript_locked(const std::string& conversation_id, const std::string& chunk) const;
+    void append_audit_event_locked(const std::string& conversation_id,
+                                   const std::string& kind,
+                                   const std::string& detail) const;
     std::optional<std::string> spawn_session_locked(const CodexConversationRecord& conversation,
+                                                    bool resume_existing,
                                                     std::string* error_message);
     void refresh_session_output_locked(const std::string& conversation_id,
                                        LiveSession& session,

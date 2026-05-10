@@ -1,11 +1,11 @@
 :root {
-    --cp-bg: #f6f7f9;
+    --cp-bg: #f3f5f7;
     --cp-panel: #ffffff;
-    --cp-ink: #1c2430;
-    --cp-muted: #6b7280;
-    --cp-line: #d7dde5;
-    --cp-accent: #2563eb;
-    --cp-sidebar: #172033;
+    --cp-ink: #1f2937;
+    --cp-muted: #667085;
+    --cp-line: #d0d5dd;
+    --cp-accent: #0d6efd;
+    --cp-sidebar: #111827;
 }
 
 body {
@@ -214,7 +214,7 @@ body {
     top: 0;
     display: grid;
     gap: 4px;
-    padding: 18px 14px;
+    padding: 16px 12px;
 }
 
 .brand {
@@ -236,18 +236,19 @@ body {
 }
 
 .sidebar-nav .nav-link {
-    color: rgba(255, 255, 255, 0.78);
+    color: rgba(255, 255, 255, 0.74);
     text-align: left;
     border-radius: 6px;
     border: 0;
     background: transparent;
-    padding: 10px 12px;
+    padding: 9px 12px;
+    font-weight: 500;
 }
 
 .sidebar-nav .nav-link.active,
 .sidebar-nav .nav-link:hover {
     color: #fff;
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .app-main {
@@ -279,11 +280,11 @@ body {
 }
 
 .content-region {
-    padding: 22px;
+    padding: 18px 22px 22px;
 }
 
 .cp-panel {
-    max-width: 1180px;
+    max-width: 1320px;
 }
 
 .cp-panel h1 {
@@ -302,14 +303,14 @@ body {
 
 .cp-card {
     border: 1px solid var(--cp-line);
-    border-radius: 8px;
+    border-radius: 6px;
     background: var(--cp-panel);
-    padding: 18px;
+    padding: 16px;
 }
 
 .cp-card h2 {
-    font-size: 1.1rem;
-    margin-bottom: 14px;
+    font-size: 1.02rem;
+    margin-bottom: 10px;
 }
 
 .section-header {
@@ -320,40 +321,95 @@ body {
     margin-bottom: 12px;
 }
 
-.user-card {
-    border: 1px solid var(--cp-line);
-    border-radius: 8px;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-    padding: 16px;
-}
-
-.user-card + .user-card {
-    margin-top: 14px;
-}
-
-.user-card-head {
-    display: flex;
-    align-items: start;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 14px;
-}
-
-.user-card-head h3 {
-    font-size: 1rem;
-    margin: 0 0 4px;
-}
-
-.user-role {
-    color: var(--cp-muted);
-    font-size: 0.875rem;
-    text-transform: uppercase;
-}
-
 .user-actions {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.cp-toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.cp-toolbar-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.cp-table-wrap {
+    border: 1px solid var(--cp-line);
+    border-radius: 6px;
+    background: #fff;
+}
+
+.cp-table {
+    --bs-table-bg: #fff;
+    --bs-table-striped-bg: #fafbfc;
+    --bs-table-hover-bg: #f8fafc;
+    margin-bottom: 0;
+}
+
+.cp-table thead th {
+    background: #f8fafc;
+    border-bottom-width: 1px;
+    color: #475467;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.cp-table tbody td {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    vertical-align: middle;
+}
+
+.cp-nav-tabs {
+    border-bottom-color: var(--cp-line);
+}
+
+.cp-nav-tabs .nav-link {
+    border-radius: 6px 6px 0 0;
+    color: #475467;
+    font-weight: 600;
+}
+
+.cp-nav-tabs .nav-link.active {
+    color: var(--cp-ink);
+    border-color: var(--cp-line) var(--cp-line) #fff;
+    background: #fff;
+}
+
+.cp-subpanel {
+    border: 1px solid var(--cp-line);
+    border-radius: 6px;
+    background: #fff;
+    padding: 14px;
+}
+
+.cp-summary-list {
+    margin: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.cp-summary-list dt {
+    color: var(--cp-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.cp-summary-list dd {
+    margin: 2px 0 0;
 }
 
 .permissions-grid {
@@ -383,37 +439,13 @@ body {
     resize: vertical;
 }
 
-.service-card {
-    border: 1px solid var(--cp-line);
-    border-radius: 8px;
-    background: linear-gradient(180deg, #ffffff 0%, #fffaf1 100%);
-    padding: 16px;
-}
-
-.service-card + .service-card {
-    margin-top: 14px;
-}
-
-.service-card-head {
-    display: flex;
-    align-items: start;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 14px;
-}
-
-.service-card-head h3 {
-    font-size: 1rem;
-    margin: 0 0 6px;
-}
-
 .service-state {
     display: inline-block;
-    padding: 4px 8px;
+    padding: 3px 8px;
     border-radius: 999px;
     background: #e8edf3;
     color: #405064;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     text-transform: uppercase;
 }
 
@@ -459,42 +491,6 @@ body {
     font-size: 0.88rem;
 }
 
-.nginx-card {
-    border: 1px solid var(--cp-line);
-    border-radius: 8px;
-    background: linear-gradient(180deg, #ffffff 0%, #f4fbf9 100%);
-    padding: 16px;
-}
-
-.system-card {
-    border: 1px solid var(--cp-line);
-    border-radius: 8px;
-    background: linear-gradient(180deg, #ffffff 0%, #f7f8ff 100%);
-    padding: 16px;
-}
-
-.system-card + .system-card {
-    margin-top: 14px;
-}
-
-.system-meta {
-    color: var(--cp-muted);
-    font-size: 0.875rem;
-}
-
-.system-details-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    margin-top: 14px;
-}
-
-.system-status {
-    min-height: 20px;
-    margin-top: 12px;
-    white-space: pre-wrap;
-}
-
 .cp-authorized-keys {
     min-height: 260px;
 }
@@ -523,6 +519,22 @@ body {
 
 .deploy-output {
     min-height: 420px;
+}
+
+.deploy-tab-panel {
+    display: grid;
+    gap: 14px;
+}
+
+.deploy-section-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.deploy-cloudflare-fields {
+    display: grid;
+    gap: 14px;
 }
 
 .codex-meta {
@@ -559,8 +571,8 @@ body {
 .codex-project-card,
 .codex-conversation-card {
     border: 1px solid var(--cp-line);
-    border-radius: 8px;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border-radius: 6px;
+    background: #fff;
     padding: 12px 14px;
 }
 
@@ -612,14 +624,6 @@ body {
         position: static;
     }
 
-    .permissions-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .user-card-head {
-        flex-direction: column;
-    }
-
     .setup-grid {
         grid-template-columns: 1fr;
     }
@@ -628,11 +632,11 @@ body {
         grid-template-columns: 1fr;
     }
 
-    .service-card-head {
-        flex-direction: column;
+    .deploy-section-grid {
+        grid-template-columns: 1fr;
     }
 
-    .system-details-grid {
-        grid-template-columns: 1fr;
+    .cp-toolbar {
+        flex-direction: column;
     }
 }

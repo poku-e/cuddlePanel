@@ -9,6 +9,8 @@ Routes and access:
 - `GET /api/codex/conversations`: requires `codex:view`.
 - `POST /api/codex/conversations`: requires `codex:manage`.
 - `POST /api/codex/conversations/<id>/read`: requires `codex:view`.
+- `GET /api/codex/conversations/<id>/transcript`: requires `codex:view`.
+- `GET /api/codex/conversations/<id>/history`: requires `codex:view`.
 - `POST /api/codex/conversations/<id>/send`: requires `codex:manage`.
 - `POST /api/codex/conversations/<id>/close`: requires `codex:manage`.
 - `POST /api/codex/run`: still exists as a legacy single-run API, but the dashboard now uses conversations.
@@ -19,7 +21,9 @@ Workflow:
 - If a project is selected, Codex starts in that project root.
 - If no project is selected, the conversation runs in maintenance mode using the configured maintenance workdir.
 - Each conversation launches an interactive Codex CLI session under a PTY and keeps that session alive so follow-up prompts, approvals, and context stay within the same thread.
+- The same conversation record now stores the upstream Codex session id, so after a cuddlePanel restart the next read or send will attempt `codex resume <session-id>` and continue the same thread.
 - The page polls conversation output, appends new stream content, and sends new user messages back into the active Codex session.
+- Operators can export the accumulated transcript and inspect a simple audit history from the same page.
 - Closing a conversation terminates the live Codex process and marks the conversation closed in metadata.
 
 Runtime behavior:
@@ -36,7 +40,9 @@ Hidden dependencies and configuration:
 - `CUDDLEPANEL_CODEX_MODEL` is optional.
 - Project metadata is stored in `data/codex_projects.db`.
 - Conversation metadata is stored in `data/codex_conversations.db`.
-- Live conversation process state is in memory only; after a server restart, old metadata remains visible but the previous live PTY session does not resume.
+- Raw conversation transcripts are appended to `data/codex_transcripts/<conversation-id>.log`.
+- Audit events are appended to `data/codex_audit/<conversation-id>.log`.
+- Live PTY process state is still in memory only, but the stored Codex session id lets the panel reattach to the same Codex thread after a restart when the host CLI supports `codex resume`.
 
 Safety and operational rules:
 - The client cannot pick an arbitrary binary; only the server-configured Codex CLI is executed.
@@ -47,5 +53,5 @@ Safety and operational rules:
 Gotchas and debugging:
 - Because the page now runs interactive Codex sessions, output may contain terminal control sequences from the CLI.
 - If the host Codex CLI is not logged in, the streamed output will usually show the authentication failure directly.
-- Metadata persistence and live PTY persistence are separate: project and conversation records survive restarts, but open conversations do not automatically reconnect to an old Codex process after a restart.
+- Session recovery depends on the host Codex CLI session index. If cuddlePanel cannot detect a session id when the conversation starts, the metadata still persists, but restart-time resume may not be available for that specific thread.
 - Codex conversation starts and other runner diagnostics are written to `data/server.log`.

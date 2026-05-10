@@ -52,7 +52,10 @@
                     <h2 id="codexConversationTitle">Select a conversation</h2>
                     <div id="codexConversationMeta" class="small text-secondary">Project-scoped conversations keep Codex context per thread.</div>
                 </div>
-                <button id="codexCloseConversationButton" class="btn btn-outline-danger btn-sm" type="button" disabled>Close</button>
+                <div class="d-flex flex-wrap gap-2">
+                    <button id="codexExportTranscriptButton" class="btn btn-outline-secondary btn-sm" type="button" disabled>Export transcript</button>
+                    <button id="codexCloseConversationButton" class="btn btn-outline-danger btn-sm" type="button" disabled>Close</button>
+                </div>
             </div>
             <pre id="codexConversationOutput" class="service-output codex-chat-output">Conversation output will appear here.</pre>
             <form id="codexMessageForm" class="vstack gap-3 mt-3">
@@ -62,6 +65,10 @@
                 <button class="btn btn-primary" type="submit" disabled>Send</button>
                 <div id="codexMessageStatus" class="small"></div>
             </form>
+            <div class="mt-4">
+                <h3 class="h6 mb-2">Audit history</h3>
+                <div id="codexAuditHistory" class="small text-secondary">Conversation history will appear here.</div>
+            </div>
         </section>
     </div>
 </div>

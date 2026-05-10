@@ -31,3 +31,4 @@ coverage/
 *.iws
 *.sln
 .env
+data/users.db

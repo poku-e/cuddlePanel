@@ -14,8 +14,9 @@ Routes and access:
 Workflow:
 - The Terminal page first requires a valid TOTP code if the last terminal verification is older than 30 minutes.
 - After verification, the page creates a PTY session tied to the authenticated username.
-- The browser polls for output deltas, writes keystrokes to the PTY, and sends resize events when the terminal viewport changes.
+- The browser polls for output deltas, writes keystrokes to the PTY through a binary-safe base64 transport, and sends resize events when the terminal viewport changes.
 - Closing the page or pressing the close control requests PTY shutdown through the API.
+- The secondary terminal button now starts a new session explicitly; if an active shell exists, the UI asks for confirmation before replacing it.
 
 Security and runtime rules:
 - Terminal sessions are backed by PTYs created through `forkpty`, not by shelling out through ad hoc commands.
@@ -26,6 +27,8 @@ Security and runtime rules:
 - Terminal APIs require `terminal:manage`, not just `terminal:view`.
 - Sessions are limited per user through `CUDDLEPANEL_TERMINAL_MAX_SESSIONS_PER_USER` and expire on idle/runtime limits.
 - Output is buffered server-side with a bounded in-memory window. If the browser falls behind, the server reports truncation instead of growing without limit.
+- Terminal output is JSON-escaped on the server for all control bytes below `0x20`, so ANSI escape sequences and other PTY control characters do not break the AJAX response format.
+- Terminal input is base64-encoded in the browser before submission so `Esc`, control-key sequences, and other non-printable PTY bytes survive the HTTP form layer intact.
 - Sessions that exit are marked closed and can still be read for buffered output until the client closes them.
 - Child processes start with a minimal environment and `no_new_privs` enabled before the shell exec.
 

@@ -12,9 +12,10 @@ Routes and access:
 Workflow:
 - Administrators create a service entry in cuddlePanel by providing a panel name, a systemd unit name, and an optional description.
 - Service entries are stored in `data/services.db`.
-- The Services page loads entries and fetches each unit's current runtime state from `systemctl`.
-- Editing a service updates only the stored allowlisted metadata; it does not touch unit files on disk.
+- The Services page loads entries into a compact table and fetches each unit's current runtime state from `systemctl`.
+- Editing a service now happens in a Bootstrap modal and updates only the stored allowlisted metadata; it does not touch unit files on disk.
 - Runtime actions are limited to `start`, `stop`, and `restart`.
+- Runtime action output is shown in a shared accordion below the table so operators can keep the service list in view while checking recent command feedback.
 
 Validation and safety rules:
 - Service names must be 3-64 characters and may contain letters, numbers, `.`, `_`, and `-`.

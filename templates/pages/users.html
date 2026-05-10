@@ -1,30 +1,93 @@
-<div class="row g-4">
-    <div class="col-12 col-xl-4">
-        <section class="cp-card">
-            <div id="usersPageState" data-can-manage="{{can_manage_users}}"></div>
-            <h2>Create user</h2>
-            <form id="userCreateForm" class="vstack gap-3">
-                <label class="cp-label">Username<input class="cp-input" name="username" required minlength="3" maxlength="64"{{disabled_attr}}></label>
-                <label class="cp-label">Password<input class="cp-input" name="password" type="password" required minlength="14"{{disabled_attr}}></label>
-                <label class="cp-label">Role<select class="cp-input" name="role"{{disabled_attr}}><option value="operator">Operator</option><option value="admin">Admin</option></select></label>
-                <label class="cp-label">Permission preset
-                    <select class="cp-input" name="permissions"{{disabled_attr}}>
-                        <option value="dashboard:view,users:view,services:view,system:view,nginx:view,terminal:view,codex:view,deploy:view">View all pages</option>
-                        <option value="dashboard:manage,users:manage,services:view,system:view,nginx:view,terminal:view,codex:view,deploy:view">Admin users + view all</option>
-                        <option value="dashboard:manage,users:manage,services:manage,system:manage,nginx:manage,terminal:manage,codex:manage,deploy:manage">Manage all pages</option>
-                    </select>
-                </label>
-                <button class="btn btn-primary" type="submit"{{disabled_attr}}>Create user</button>
-                <div id="userCreateMessage" class="small"></div>
-            </form>
-            {{view_only_note}}
-        </section>
+<section class="cp-card">
+    <div id="usersPageState" data-can-manage="{{can_manage_users}}"></div>
+    <div class="cp-toolbar">
+        <div>
+            <h2 class="mb-1">User administration</h2>
+            <div class="small text-secondary">Manage dashboard users and per-page access from a single table.</div>
+        </div>
+        <div class="cp-toolbar-actions">
+            <button class="btn btn-outline-secondary btn-sm" id="refreshUsersButton" type="button">Refresh</button>
+            <button class="btn btn-primary btn-sm" id="openCreateUserModalButton" type="button"{{disabled_attr}}>New user</button>
+        </div>
     </div>
-    <div class="col-12 col-xl-8">
-        <section class="cp-card">
-            <div class="section-header"><h2>Existing users</h2><button class="btn btn-outline-secondary btn-sm" id="refreshUsersButton" type="button">Refresh</button></div>
-            <div id="usersMessage" class="small text-danger mb-3"></div>
-            <div id="usersTableHost"></div>
-        </section>
+    <div id="usersMessage" class="small text-danger mb-3"></div>
+    {{view_only_note}}
+    <div class="table-responsive cp-table-wrap">
+        <table class="table table-sm table-hover align-middle cp-table mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Username</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Pages</th>
+                    <th scope="col" class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="usersTableHost"></tbody>
+        </table>
+    </div>
+</section>
+
+<div class="modal fade" id="userCreateModal" tabindex="-1" aria-labelledby="userCreateModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title h5 mb-1" id="userCreateModalTitle">Create user</h3>
+                    <div class="small text-secondary">Create a dashboard user and assign an initial permission preset.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="userCreateForm">
+                <div class="modal-body vstack gap-3">
+                    <label class="cp-label">Username<input class="cp-input" name="username" required minlength="3" maxlength="64"{{disabled_attr}}></label>
+                    <label class="cp-label">Password<input class="cp-input" name="password" type="password" required minlength="14"{{disabled_attr}}></label>
+                    <label class="cp-label">Role<select class="cp-input cp-select" name="role"{{disabled_attr}}><option value="operator">Operator</option><option value="admin">Admin</option></select></label>
+                    <label class="cp-label">Permission preset
+                        <select class="cp-input cp-select" name="permissions"{{disabled_attr}}>
+                            <option value="dashboard:view,users:view,services:view,system:view,nginx:view,terminal:view,codex:view,deploy:view">View all pages</option>
+                            <option value="dashboard:manage,users:manage,services:view,system:view,nginx:view,terminal:view,codex:view,deploy:view">Admin users + view all</option>
+                            <option value="dashboard:manage,users:manage,services:manage,system:manage,nginx:manage,terminal:manage,codex:manage,deploy:manage">Manage all pages</option>
+                        </select>
+                    </label>
+                    <div id="userCreateMessage" class="small"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit"{{disabled_attr}}>Create user</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="userPermissionsModal" tabindex="-1" aria-labelledby="userPermissionsModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title h5 mb-1" id="userPermissionsModalTitle">Edit access</h3>
+                    <div class="small text-secondary" id="userPermissionsModalMeta">Adjust page access for the selected user.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle cp-table mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Page</th>
+                                <th scope="col">Access</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userPermissionsTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="userPermissionsMessage" class="small mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-primary" type="button" id="saveUserPermissionsButton">Save access</button>
+            </div>
+        </div>
     </div>
 </div>

@@ -158,3 +158,44 @@
 - Added persistent Codex project metadata plus conversation metadata so the dashboard can start Codex threads in an explicit project root or in maintenance mode when no project is selected.
 - Reworked the Codex page into a live conversation UI backed by PTY-based interactive Codex sessions, with streamed output, follow-up prompts, and in-thread approval responses.
 - Added new Codex project and conversation APIs, updated docs and README, and covered the new PTY conversation manager with focused tests.
+
+## Native Deploy Engine
+
+- Replaced the old deploy-script wrapper with a native deploy engine that writes systemd units and nginx site configs directly for Node.js, Golang, Streamlit, and Python + Vite stacks.
+- Added stack-specific deploy form fields, native build and dependency-install steps, and optional Cloudflare DNS create-or-update support using the official DNS record API through a temporary curl config.
+- Expanded first-run configuration and tracked env files with deploy tool paths and optional Cloudflare defaults, and updated deploy, auth/admin, first-run, and README docs to match the new workflow.
+
+## Codex Conversation Resilience
+
+- Added persisted Codex session ids to conversation metadata so the panel can attempt `codex resume` and keep the same thread after a cuddlePanel restart.
+- Added transcript persistence under `data/codex_transcripts/` plus audit history under `data/codex_audit/`, along with new Codex APIs for transcript export and history inspection.
+- Updated the Codex dashboard page to show conversation history and export transcripts, and expanded the Codex chat tests to cover transcript storage and restart-time resume behavior.
+
+## Terminal JSON Escaping
+
+- Hardened the shared JSON string encoder so all control bytes below `0x20` are emitted as `\u00xx` escapes instead of raw bytes.
+- This prevents PTY output containing ANSI escape sequences or bell/control characters from breaking terminal page AJAX responses.
+- Added a focused terminal test that exercises JSON escaping with real terminal control bytes.
+
+## System Page Layout Refresh
+
+- Reworked the System administration page into `Accounts` and `Files` tabs so host-user actions and file-level tools no longer compete in one long stacked layout.
+- Moved host account creation, constrained path actions, and `authorized_keys` editing into modal workflows while keeping the account list visible and mobile-friendly.
+- Updated the System page frontend module and styling to support tab switching, modal state, summary cards, and cleaner desktop organization.
+
+## Dashboard UX Hardening
+
+- Persisted the active dashboard page in browser state so refreshes and revisits reopen the last selected admin page instead of always falling back to the dashboard root.
+- Renamed the terminal secondary action to `New session` and added confirmation before replacing a live shell.
+- Added delete confirmation to the Users page, preserved unsaved nginx editor drafts across runtime actions, and reorganized the Deploy page into `App`, `Build`, and `DNS` tabs with automatic scrolling to the output pane during runs.
+
+## Terminal Input Transport
+
+- Switched browser-to-terminal keystroke writes to a base64 transport so `Esc`, control sequences, and other non-printable PTY bytes survive the HTTP form layer intact.
+- Updated the terminal write endpoint to decode `data_base64` server-side while keeping the existing size limits and permission checks in place.
+
+## Bootstrap Admin Layout Pass
+
+- Reworked the Users, Services, Nginx, and System pages away from stacked custom cards and into denser Bootstrap-style table layouts with modal-based editing flows.
+- Replaced the fragile custom System tabs with Bootstrap nav tabs, and converted account creation, path actions, SSH key editing, service editing, and nginx config editing into Bootstrap modals.
+- Flattened the visual styling toward a more restrained enterprise admin look, added shared output accordions for service and nginx runtime feedback, and refreshed the Deploy tabs to use Bootstrap nav-tab presentation.

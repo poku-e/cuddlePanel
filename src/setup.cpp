@@ -1,7 +1,7 @@
 #include "setup.h"
 
-#include "deploy_runner.h"
 #include "codex_runner.h"
+#include "deploy_runner.h"
 #include "nginx_store.h"
 #include "system_admin.h"
 #include "terminal_manager.h"
@@ -89,9 +89,63 @@ bool validate_first_run_config(const FirstRunConfig& config, std::string* error_
     if (!validate_numeric_string(config.port, 1, 65535, error_message, "port")) {
         return false;
     }
-    if (!valid_absolute_path_field(config.deploy_site_bin, 512)) {
+    if (!valid_absolute_path_field(config.deploy_systemd_unit_dir, 512)) {
         if (error_message) {
-            *error_message = "invalid deploy helper path";
+            *error_message = "invalid systemd unit directory";
+        }
+        return false;
+    }
+    if (!valid_absolute_path_field(config.systemctl_bin, 512)) {
+        if (error_message) {
+            *error_message = "invalid systemctl path";
+        }
+        return false;
+    }
+    if (!valid_absolute_path_field(config.certbot_bin, 512)) {
+        if (error_message) {
+            *error_message = "invalid certbot path";
+        }
+        return false;
+    }
+    if (!valid_absolute_path_field(config.python3_bin, 512)) {
+        if (error_message) {
+            *error_message = "invalid python3 path";
+        }
+        return false;
+    }
+    if (!valid_absolute_path_field(config.npm_bin, 512)) {
+        if (error_message) {
+            *error_message = "invalid npm path";
+        }
+        return false;
+    }
+    if (!valid_absolute_path_field(config.node_bin, 512)) {
+        if (error_message) {
+            *error_message = "invalid node path";
+        }
+        return false;
+    }
+    if (!valid_absolute_path_field(config.go_bin, 512)) {
+        if (error_message) {
+            *error_message = "invalid go path";
+        }
+        return false;
+    }
+    if (!valid_absolute_path_field(config.curl_bin, 512)) {
+        if (error_message) {
+            *error_message = "invalid curl path";
+        }
+        return false;
+    }
+    if (!config.cloudflare_zone_id.empty() && !valid_basic_token(config.cloudflare_zone_id, 64)) {
+        if (error_message) {
+            *error_message = "invalid cloudflare zone id";
+        }
+        return false;
+    }
+    if (config.cloudflare_api_token.size() > 255 || config.cloudflare_api_token.find('\0') != std::string::npos) {
+        if (error_message) {
+            *error_message = "invalid cloudflare api token";
         }
         return false;
     }
@@ -222,7 +276,16 @@ FirstRunConfig current_first_run_config() {
     FirstRunConfig config;
     config.port = env_or_default("CUDDLEPANEL_PORT", "8080");
     config.secure_cookies = std::getenv("CUDDLEPANEL_SECURE_COOKIES") != nullptr;
-    config.deploy_site_bin = deploy_script_path();
+    config.deploy_systemd_unit_dir = env_or_default("CUDDLEPANEL_DEPLOY_SYSTEMD_DIR", "/etc/systemd/system");
+    config.systemctl_bin = env_or_default("CUDDLEPANEL_SYSTEMCTL_BIN", "/bin/systemctl");
+    config.certbot_bin = env_or_default("CUDDLEPANEL_CERTBOT_BIN", "/usr/bin/certbot");
+    config.python3_bin = env_or_default("CUDDLEPANEL_PYTHON3_BIN", "/usr/bin/python3");
+    config.npm_bin = env_or_default("CUDDLEPANEL_NPM_BIN", "/usr/bin/npm");
+    config.node_bin = env_or_default("CUDDLEPANEL_NODE_BIN", "/usr/bin/node");
+    config.go_bin = env_or_default("CUDDLEPANEL_GO_BIN", "/usr/bin/go");
+    config.curl_bin = env_or_default("CUDDLEPANEL_CURL_BIN", "/usr/bin/curl");
+    config.cloudflare_zone_id = env_or_default("CUDDLEPANEL_CLOUDFLARE_ZONE_ID", "");
+    config.cloudflare_api_token = env_or_default("CUDDLEPANEL_CLOUDFLARE_API_TOKEN", "");
     config.nginx_available_dir = env_or_default("CUDDLEPANEL_NGINX_AVAILABLE_DIR", "/etc/nginx/sites-available");
     config.nginx_enabled_dir = env_or_default("CUDDLEPANEL_NGINX_ENABLED_DIR", "/etc/nginx/sites-enabled");
     config.nginx_bin = env_or_default("CUDDLEPANEL_NGINX_BIN", "/usr/sbin/nginx");
@@ -254,7 +317,16 @@ std::optional<FirstRunConfig> first_run_config_from_form(const std::map<std::str
     FirstRunConfig config;
     config.port = get("port");
     config.secure_cookies = truthy(get("secure_cookies"));
-    config.deploy_site_bin = get("deploy_site_bin");
+    config.deploy_systemd_unit_dir = get("deploy_systemd_unit_dir");
+    config.systemctl_bin = get("systemctl_bin");
+    config.certbot_bin = get("certbot_bin");
+    config.python3_bin = get("python3_bin");
+    config.npm_bin = get("npm_bin");
+    config.node_bin = get("node_bin");
+    config.go_bin = get("go_bin");
+    config.curl_bin = get("curl_bin");
+    config.cloudflare_zone_id = get("cloudflare_zone_id");
+    config.cloudflare_api_token = get("cloudflare_api_token");
     config.nginx_available_dir = get("nginx_available_dir");
     config.nginx_enabled_dir = get("nginx_enabled_dir");
     config.nginx_bin = get("nginx_bin");
@@ -299,8 +371,17 @@ bool write_first_run_env_file(const FirstRunConfig& config,
     file << "# Network and cookies\n";
     file << env_line("CUDDLEPANEL_PORT", config.port);
     file << env_line("CUDDLEPANEL_SECURE_COOKIES", config.secure_cookies ? "1" : "");
-    file << "\n# Deploy helper\n";
-    file << env_line("CUDDLEPANEL_DEPLOY_SITE_BIN", config.deploy_site_bin);
+    file << "\n# Native deploy engine\n";
+    file << env_line("CUDDLEPANEL_DEPLOY_SYSTEMD_DIR", config.deploy_systemd_unit_dir);
+    file << env_line("CUDDLEPANEL_SYSTEMCTL_BIN", config.systemctl_bin);
+    file << env_line("CUDDLEPANEL_CERTBOT_BIN", config.certbot_bin);
+    file << env_line("CUDDLEPANEL_PYTHON3_BIN", config.python3_bin);
+    file << env_line("CUDDLEPANEL_NPM_BIN", config.npm_bin);
+    file << env_line("CUDDLEPANEL_NODE_BIN", config.node_bin);
+    file << env_line("CUDDLEPANEL_GO_BIN", config.go_bin);
+    file << env_line("CUDDLEPANEL_CURL_BIN", config.curl_bin);
+    file << env_line("CUDDLEPANEL_CLOUDFLARE_ZONE_ID", config.cloudflare_zone_id);
+    file << env_line("CUDDLEPANEL_CLOUDFLARE_API_TOKEN", config.cloudflare_api_token);
     file << "\n# Nginx management\n";
     file << env_line("CUDDLEPANEL_NGINX_AVAILABLE_DIR", config.nginx_available_dir);
     file << env_line("CUDDLEPANEL_NGINX_ENABLED_DIR", config.nginx_enabled_dir);
@@ -338,7 +419,16 @@ void apply_first_run_config(const FirstRunConfig& config) {
     } else {
         unsetenv("CUDDLEPANEL_SECURE_COOKIES");
     }
-    setenv("CUDDLEPANEL_DEPLOY_SITE_BIN", config.deploy_site_bin.c_str(), 1);
+    setenv("CUDDLEPANEL_DEPLOY_SYSTEMD_DIR", config.deploy_systemd_unit_dir.c_str(), 1);
+    setenv("CUDDLEPANEL_SYSTEMCTL_BIN", config.systemctl_bin.c_str(), 1);
+    setenv("CUDDLEPANEL_CERTBOT_BIN", config.certbot_bin.c_str(), 1);
+    setenv("CUDDLEPANEL_PYTHON3_BIN", config.python3_bin.c_str(), 1);
+    setenv("CUDDLEPANEL_NPM_BIN", config.npm_bin.c_str(), 1);
+    setenv("CUDDLEPANEL_NODE_BIN", config.node_bin.c_str(), 1);
+    setenv("CUDDLEPANEL_GO_BIN", config.go_bin.c_str(), 1);
+    setenv("CUDDLEPANEL_CURL_BIN", config.curl_bin.c_str(), 1);
+    setenv("CUDDLEPANEL_CLOUDFLARE_ZONE_ID", config.cloudflare_zone_id.c_str(), 1);
+    setenv("CUDDLEPANEL_CLOUDFLARE_API_TOKEN", config.cloudflare_api_token.c_str(), 1);
     setenv("CUDDLEPANEL_NGINX_AVAILABLE_DIR", config.nginx_available_dir.c_str(), 1);
     setenv("CUDDLEPANEL_NGINX_ENABLED_DIR", config.nginx_enabled_dir.c_str(), 1);
     setenv("CUDDLEPANEL_NGINX_BIN", config.nginx_bin.c_str(), 1);
@@ -360,7 +450,13 @@ void apply_first_run_config(const FirstRunConfig& config) {
 std::vector<DependencyStatus> first_run_dependency_status(const FirstRunConfig& config) {
     std::vector<DependencyStatus> dependencies;
     dependencies.push_back(command_dependency("Terminal shell", config.terminal_shell, true));
-    dependencies.push_back(command_dependency("Deploy helper", config.deploy_site_bin, false));
+    dependencies.push_back(command_dependency("systemctl", config.systemctl_bin, false));
+    dependencies.push_back(command_dependency("certbot", config.certbot_bin, false));
+    dependencies.push_back(command_dependency("python3", config.python3_bin, false));
+    dependencies.push_back(command_dependency("npm", config.npm_bin, false));
+    dependencies.push_back(command_dependency("node", config.node_bin, false));
+    dependencies.push_back(command_dependency("go", config.go_bin, false));
+    dependencies.push_back(command_dependency("curl", config.curl_bin, false));
     dependencies.push_back(command_dependency("Nginx binary", config.nginx_bin, false));
     dependencies.push_back(command_dependency("useradd", env_or_default("CUDDLEPANEL_USERADD_BIN", "/usr/sbin/useradd"), false));
     dependencies.push_back(command_dependency("passwd", env_or_default("CUDDLEPANEL_PASSWD_BIN", "/usr/bin/passwd"), false));

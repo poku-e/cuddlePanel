@@ -12,16 +12,17 @@ Routes and access:
 
 Workflow:
 - The System page loads host account data through `/api/system/users`.
-- Account listing reads the configured passwd, group, and shadow sources and returns username, uid, gid, home, shell, system-account classification, sudo-group membership, and lock state.
-- Creating an account uses `useradd` directly. Normal users are created with a home directory. System accounts are created with `-r -M`.
+- The page uses Bootstrap nav tabs for `Accounts` and `Files` so account operations and file-management tools stay visually separate.
+- Account listing reads the configured passwd, group, and shadow sources and returns username, uid, gid, home, shell, system-account classification, sudo-group membership, and lock state in a compact table.
+- Creating an account opens in a Bootstrap modal, uses `useradd` directly, and keeps the account list visible in the background. Normal users are created with a home directory. System accounts are created with `-r -M`.
 - Account actions support:
   - `lock`
   - `unlock`
   - `grant-sudo`
   - `revoke-sudo`
-- SSH key management supports reading, creating, and replacing `~/.ssh/authorized_keys` for login users only.
+- SSH key management supports reading, creating, and replacing `~/.ssh/authorized_keys` for login users only, with the editor opened in a Bootstrap modal from an account row or the Files tab summary card.
 - Sudo management in this phase is group-based only. cuddlePanel manages membership in the `sudo` group and does not edit `/etc/sudoers` or drop-in sudoers files.
-- Ownership and mode changes run through one constrained form:
+- Ownership and mode changes run through a dedicated Bootstrap modal launched from the Files tab:
   - `chown` requires an allowed path plus owner and optional group.
   - `chmod` requires an allowed path plus a valid octal mode.
   - Both actions optionally support recursion.
@@ -59,3 +60,4 @@ Gotchas and debugging:
 - If shadow data is unreadable, lock-state reporting falls back to unlocked in the UI rather than failing the whole page load.
 - Recursive `chown` and `chmod` are powerful even with path allowlists. Keep `system:manage` narrowly assigned.
 - `authorized_keys` is treated as structured operator data, not as a general-purpose text editor surface. Keep the server-side username-to-home resolution authoritative.
+- The page keeps account actions in cards and moves larger write operations into modals on purpose. If the layout starts drifting back toward stacked forms, preserve the tab-and-modal organization instead of reintroducing every tool inline.

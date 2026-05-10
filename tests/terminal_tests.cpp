@@ -1,4 +1,5 @@
 #include "terminal_manager.h"
+#include "http.h"
 
 #include <cassert>
 #include <chrono>
@@ -7,6 +8,8 @@
 #include <thread>
 
 int main() {
+    assert(cuddle::json_escape(std::string("\x1b[31mred\x07", 9)) == "\\u001b[31mred\\u0007");
+
     setenv("CUDDLEPANEL_TERMINAL_SHELL", "/bin/cat", 1);
     setenv("CUDDLEPANEL_TERMINAL_RUN_AS_USER", "nobody", 1);
     setenv("CUDDLEPANEL_TERMINAL_RUN_AS_GROUP", "nogroup", 1);

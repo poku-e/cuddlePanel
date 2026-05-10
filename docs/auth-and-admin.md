@@ -38,6 +38,8 @@ Routes and access:
 - `GET /api/codex/conversations`: requires `codex:view`.
 - `POST /api/codex/conversations`: requires `codex:manage`.
 - `POST /api/codex/conversations/<id>/read`: requires `codex:view`.
+- `GET /api/codex/conversations/<id>/transcript`: requires `codex:view`.
+- `GET /api/codex/conversations/<id>/history`: requires `codex:view`.
 - `POST /api/codex/conversations/<id>/send`: requires `codex:manage`.
 - `POST /api/codex/conversations/<id>/close`: requires `codex:manage`.
 - `POST /api/codex/run`: requires `codex:manage`.
@@ -58,16 +60,18 @@ Workflow:
 - The superuser must confirm a TOTP secret during onboarding.
 - Additional users are created without a confirmed TOTP secret and are forced through TOTP setup on their first successful password login.
 - Dashboard navigation uses AJAX calls to `/api/page/<page>`; page content is returned without a full reload.
+- Dashboard navigation keeps the current page in browser state, so refreshes and revisits reopen the last selected admin page instead of always dropping back to the dashboard root.
 - Dashboard page bodies are rendered from `templates/pages/*.html`, while `static/app.js` now boots a set of smaller `static/js/*` frontend modules after injection.
 - Auth screens and dashboard actions now use a shared toast notification layer for success and error feedback in addition to any inline status text.
 - All privileged pages are checked on the server before content is returned.
-- The Users page loads its table data through `/api/users` and performs mutations through AJAX without leaving `/dashboard`.
-- The Services page loads allowlisted systemd services through `/api/services` and performs registry edits and runtime actions through AJAX.
-- The System page loads host accounts through `/api/system/users`, manages sudo-group membership through AJAX, and constrains path ownership and mode changes to configured roots.
+- The Users page loads dashboard users into a dense table, opens create and permission-edit flows in Bootstrap modals, and performs mutations through AJAX without leaving `/dashboard`.
+- User deletion now requires an explicit browser confirmation before the dashboard sends the destructive request.
+- The Services page loads allowlisted systemd services into an operations table, uses a shared output accordion for runtime feedback, and performs edits through a Bootstrap modal.
+- The System page loads host accounts into a table, uses Bootstrap tabs for account vs. file workflows, manages sudo-group membership through AJAX, and constrains path ownership and mode changes to configured roots.
 - The System page also provides an `authorized_keys` editor for login users, with the target file derived from each account's home directory on the server.
-- The Nginx page loads allowlisted site configs through `/api/nginx/sites` and performs file updates, enable/disable, config tests, and reloads through AJAX.
-- The Deploy page mirrors the host deploy helper through `/api/deploy/run` and always executes it in non-interactive mode.
-- The Codex page now manages project-scoped conversations, starts an interactive Codex CLI session in the selected project root or maintenance workdir, and sends approvals or follow-up prompts back through the same conversation thread.
+- The Nginx page loads allowlisted site configs into a table, edits full config content in a Bootstrap modal, and performs file updates, enable/disable, config tests, and reloads through AJAX.
+- The Deploy page now runs a native stack-aware deploy engine through `/api/deploy/run`, writing systemd and nginx configuration directly and optionally creating or updating a Cloudflare DNS record.
+- The Codex page now manages project-scoped conversations, starts an interactive Codex CLI session in the selected project root or maintenance workdir, persists transcript and audit data, and resumes the same Codex thread after a panel restart when a stored session id is available.
 - The Terminal page requires a fresh TOTP verification every 30 minutes before access is granted.
 - After terminal verification, the Terminal page creates a PTY-backed session and exchanges input/output through explicit session APIs.
 
@@ -96,10 +100,11 @@ Hidden dependencies and configuration:
 - Service registry state lives in `data/services.db`.
 - System account data reads from the configured passwd, group, and shadow files, and system file actions are limited by `CUDDLEPANEL_SYSTEM_ALLOWED_ROOTS`.
 - Nginx registry state lives in `data/nginx.db`.
-- The deploy helper path defaults to `/usr/local/sbin/deploy-site` and can be overridden with `CUDDLEPANEL_DEPLOY_SITE_BIN`.
+- The deploy engine uses configured paths for `systemctl`, `certbot`, `python3`, `npm`, `node`, `go`, `curl`, and the target systemd unit directory.
 - The terminal shell defaults to `/bin/bash` and can be overridden with `CUDDLEPANEL_TERMINAL_SHELL`.
 - Terminal sessions drop to `nobody:nogroup` by default, run from `/tmp`, and support configurable session count plus idle/runtime limits.
 - The Codex runner defaults to `/usr/bin/codex`, uses the configured `CUDDLEPANEL_CODEX_WORKDIR` as the maintenance-mode workdir, and can set an optional model plus timeout through environment variables.
+- Codex conversation metadata lives in `data/codex_conversations.db`, transcripts live in `data/codex_transcripts/`, and audit history lives in `data/codex_audit/`.
 - Cookie `Secure` is enabled when `CUDDLEPANEL_SECURE_COOKIES=1`.
 - The listen port defaults to `8080` and can be overridden with `CUDDLEPANEL_PORT`.
 - Shell-exported variables take precedence over values from the auto-loaded `.env` file.

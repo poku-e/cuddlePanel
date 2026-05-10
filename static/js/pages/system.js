@@ -2,42 +2,59 @@ import {postForm, postParams, requestJson} from "../core/api.js";
 import {escapeHtml} from "../core/dom.js";
 import {showErrorToast, showSuccessToast} from "../core/toast.js";
 
-function systemUserCardMarkup(user) {
-    const canManage = document.getElementById("systemPageState")?.dataset.canManage === "1";
+let systemUsers = [];
+let selectedAuthorizedKeysUser = "";
+let createModal = null;
+let pathModal = null;
+let keysModal = null;
+
+function canManage() {
+    return document.getElementById("systemPageState")?.dataset.canManage === "1";
+}
+
+function systemUserRowMarkup(user) {
+    const stateBits = [
+        user.system_account ? "system" : "login",
+        user.in_sudo ? "sudo" : "no sudo",
+        user.locked ? "locked" : "unlocked"
+    ];
     return `
-        <article class="system-card" data-system-username="${user.username}">
-            <div class="service-card-head">
-                <div>
-                    <h3>${escapeHtml(user.username)}</h3>
-                    <div class="system-meta">UID ${user.uid} | GID ${user.gid} | ${user.system_account ? "system" : "login"} account</div>
+        <tr data-system-username="${escapeHtml(user.username)}">
+            <td class="fw-semibold">${escapeHtml(user.username)}</td>
+            <td><code>${user.uid}</code> / <code>${user.gid}</code></td>
+            <td><code>${escapeHtml(user.shell)}</code></td>
+            <td class="small text-secondary">${escapeHtml(user.home)}</td>
+            <td class="small text-secondary">${escapeHtml(stateBits.join(", "))}</td>
+            <td class="text-end">
+                <div class="btn-toolbar justify-content-end gap-1">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary system-action-button" data-action="${user.locked ? "unlock" : "lock"}" type="button" ${canManage() ? "" : "disabled"}>${user.locked ? "Unlock" : "Lock"}</button>
+                        <button class="btn btn-outline-warning system-action-button" data-action="${user.in_sudo ? "revoke-sudo" : "grant-sudo"}" type="button" ${(canManage() && user.username !== "root") ? "" : "disabled"}>${user.in_sudo ? "Revoke sudo" : "Grant sudo"}</button>
+                    </div>
+                    <button class="btn btn-outline-primary btn-sm system-keys-button" type="button" ${(canManage() && user.login_user) ? "" : "disabled"}>Keys</button>
                 </div>
-                <div class="user-actions">
-                    <button class="btn btn-outline-secondary btn-sm system-action-button" data-action="${user.locked ? "unlock" : "lock"}" type="button" ${canManage ? "" : "disabled"}>${user.locked ? "Unlock" : "Lock"}</button>
-                    <button class="btn btn-outline-warning btn-sm system-action-button" data-action="${user.in_sudo ? "revoke-sudo" : "grant-sudo"}" type="button" ${(canManage && user.username !== "root") ? "" : "disabled"}>${user.in_sudo ? "Revoke sudo" : "Grant sudo"}</button>
-                    <button class="btn btn-outline-primary btn-sm system-keys-button" type="button" ${(canManage && user.login_user) ? "" : "disabled"}>Edit keys</button>
-                </div>
-            </div>
-            <div class="system-details-grid">
-                <div><strong>Home</strong><div class="small text-secondary">${escapeHtml(user.home)}</div></div>
-                <div><strong>Shell</strong><div class="small text-secondary">${escapeHtml(user.shell)}</div></div>
-                <div><strong>Sudo</strong><div class="small text-secondary">${user.in_sudo ? "Yes" : "No"}</div></div>
-                <div><strong>Locked</strong><div class="small text-secondary">${user.locked ? "Yes" : "No"}</div></div>
-            </div>
-            <div class="small system-status"></div>
-        </article>
+            </td>
+        </tr>
     `;
 }
 
+function setSelectedAuthorizedKeysUser(username) {
+    selectedAuthorizedKeysUser = username;
+    document.getElementById("authorizedKeysSelectedUserLabel").textContent = username || "No login user selected";
+}
+
 function renderSystemUsers(payload) {
-    const meta = document.getElementById("systemAllowedRoots");
-    meta.textContent = `Allowed path roots: ${payload.allowedRoots.join(", ")}`;
+    systemUsers = payload.users;
+    const rootsText = payload.allowedRoots.join(", ");
+    document.getElementById("systemAllowedRoots").textContent = `Allowed path roots: ${rootsText}`;
+    document.getElementById("systemAllowedRootsInline").textContent = rootsText;
 
     const host = document.getElementById("systemUsersHost");
     if (!payload.users.length) {
-        host.innerHTML = "<div class=\"text-secondary\">No host accounts found.</div>";
+        host.innerHTML = '<tr><td colspan="6" class="text-secondary">No host accounts found.</td></tr>';
         return;
     }
-    host.innerHTML = payload.users.map(systemUserCardMarkup).join("");
+    host.innerHTML = payload.users.map(systemUserRowMarkup).join("");
 }
 
 async function refreshSystemPage() {
@@ -45,8 +62,14 @@ async function refreshSystemPage() {
     try {
         const payload = await requestJson("/api/system/users");
         renderSystemUsers(payload);
-        wireSystemCards();
+        wireSystemRows();
         message.textContent = "";
+        if (selectedAuthorizedKeysUser && !systemUsers.some((user) => user.username === selectedAuthorizedKeysUser && user.login_user)) {
+            setSelectedAuthorizedKeysUser("");
+            document.getElementById("authorizedKeysSummaryMessage").textContent = "Choose a login user from Accounts.";
+            document.getElementById("authorizedKeysUsername").value = "";
+            document.getElementById("authorizedKeysContent").value = "";
+        }
     } catch (error) {
         message.textContent = error.message;
     }
@@ -56,40 +79,39 @@ async function loadAuthorizedKeys(username) {
     const usernameField = document.getElementById("authorizedKeysUsername");
     const contentField = document.getElementById("authorizedKeysContent");
     const message = document.getElementById("authorizedKeysMessage");
+    setSelectedAuthorizedKeysUser(username);
     usernameField.value = username;
     contentField.value = "";
     message.textContent = "Loading authorized_keys...";
     message.className = "small text-secondary";
+    document.getElementById("authorizedKeysSummaryMessage").textContent = `Loading keys for ${username}...`;
     try {
         const payload = await requestJson(`/api/system/users/${encodeURIComponent(username)}/authorized-keys`);
         contentField.value = payload.content || "";
         message.textContent = payload.output;
         message.className = "small text-success";
+        document.getElementById("authorizedKeysSummaryMessage").textContent = payload.output;
         showSuccessToast(`Loaded authorized_keys for ${username}.`);
+        keysModal.show();
     } catch (error) {
         message.textContent = error.message;
         message.className = "small text-danger";
+        document.getElementById("authorizedKeysSummaryMessage").textContent = error.message;
         showErrorToast(error.message);
     }
 }
 
-function wireSystemCards() {
+function wireSystemRows() {
     document.querySelectorAll(".system-action-button").forEach((button) => {
         button.addEventListener("click", async () => {
-            const card = button.closest("[data-system-username]");
-            const status = card.querySelector(".system-status");
-            status.textContent = "";
+            const row = button.closest("[data-system-username]");
             try {
-                const payload = await postParams(`/api/system/users/${encodeURIComponent(card.dataset.systemUsername)}/action`, {
+                const payload = await postParams(`/api/system/users/${encodeURIComponent(row.dataset.systemUsername)}/action`, {
                     action: button.dataset.action
                 });
-                status.textContent = payload.output;
-                status.className = "small system-status text-success";
                 showSuccessToast(payload.output || "System user action completed.");
                 await refreshSystemPage();
             } catch (error) {
-                status.textContent = error.message;
-                status.className = "small system-status text-danger";
                 showErrorToast(error.message);
             }
         });
@@ -97,8 +119,9 @@ function wireSystemCards() {
 
     document.querySelectorAll(".system-keys-button").forEach((button) => {
         button.addEventListener("click", async () => {
-            const card = button.closest("[data-system-username]");
-            await loadAuthorizedKeys(card.dataset.systemUsername);
+            const row = button.closest("[data-system-username]");
+            bootstrap.Tab.getOrCreateInstance(document.getElementById("system-files-tab")).show();
+            await loadAuthorizedKeys(row.dataset.systemUsername);
         });
     });
 }
@@ -108,9 +131,12 @@ export async function initSystemPage() {
     if (!createForm) {
         return;
     }
-    const canManage = document.getElementById("systemPageState")?.dataset.canManage === "1";
+
+    createModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemCreateUserModal"));
+    pathModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemPathModal"));
+    keysModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemAuthorizedKeysModal"));
+
     const createMessage = document.getElementById("systemCreateMessage");
-    const refreshButton = document.getElementById("refreshSystemUsersButton");
     const pathForm = document.getElementById("systemPathActionForm");
     const pathMessage = document.getElementById("systemPathMessage");
     const pathOutput = document.getElementById("systemPathOutput");
@@ -129,20 +155,33 @@ export async function initSystemPage() {
     const syncPathFields = () => {
         const isChown = actionField.value === "chown";
         ownerField.toggleAttribute("required", isChown);
-        ownerField.toggleAttribute("disabled", !isChown || !canManage);
-        groupField.toggleAttribute("disabled", !isChown || !canManage);
+        ownerField.toggleAttribute("disabled", !isChown || !canManage());
+        groupField.toggleAttribute("disabled", !isChown || !canManage());
         modeField.toggleAttribute("required", !isChown);
-        modeField.toggleAttribute("disabled", isChown || !canManage);
+        modeField.toggleAttribute("disabled", isChown || !canManage());
     };
 
     const syncHomeField = () => {
         const base = systemAccountField.checked ? "/var/lib/" : "/home/";
-        if (!usernameField.value.trim()) {
-            homeField.value = base;
+        homeField.value = usernameField.value.trim() ? `${base}${usernameField.value.trim()}` : base;
+    };
+
+    document.getElementById("openCreateSystemUserModalButton").addEventListener("click", () => {
+        createMessage.textContent = "";
+        createForm.reset();
+        homeField.value = "/home/";
+        createModal.show();
+    });
+    document.getElementById("openSystemPathModalButton").addEventListener("click", () => pathModal.show());
+    document.getElementById("openSystemPathModalButtonSecondary").addEventListener("click", () => pathModal.show());
+    document.getElementById("openAuthorizedKeysModalButton").addEventListener("click", () => {
+        if (!selectedAuthorizedKeysUser) {
+            showErrorToast("Choose a login user from Accounts first.");
             return;
         }
-        homeField.value = `${base}${usernameField.value.trim()}`;
-    };
+        keysModal.show();
+    });
+    document.getElementById("refreshSystemUsersButton").addEventListener("click", refreshSystemPage);
 
     createForm.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -152,8 +191,7 @@ export async function initSystemPage() {
             createMessage.textContent = payload.output;
             createMessage.className = "small text-success";
             showSuccessToast(payload.output || "System account created.");
-            createForm.reset();
-            homeField.value = "/home/";
+            createModal.hide();
             await refreshSystemPage();
         } catch (error) {
             createMessage.textContent = error.message;
@@ -171,11 +209,14 @@ export async function initSystemPage() {
             pathOutput.textContent = payload.output;
             pathMessage.textContent = "Path action completed.";
             pathMessage.className = "small text-success";
+            document.getElementById("systemPathSummaryMessage").textContent = "Path action completed successfully.";
             showSuccessToast("Path action completed.");
+            pathModal.hide();
         } catch (error) {
             pathOutput.textContent = error.message;
             pathMessage.textContent = "Path action failed.";
             pathMessage.className = "small text-danger";
+            document.getElementById("systemPathSummaryMessage").textContent = error.message;
             showErrorToast(error.message);
         }
     });
@@ -192,10 +233,12 @@ export async function initSystemPage() {
             const payload = await postForm(`/api/system/users/${encodeURIComponent(keysUsernameField.value)}/authorized-keys`, keysForm);
             keysMessage.textContent = payload.output;
             keysMessage.className = "small text-success";
+            document.getElementById("authorizedKeysSummaryMessage").textContent = payload.output || `Saved keys for ${keysUsernameField.value}.`;
             showSuccessToast(payload.output || "authorized_keys saved.");
         } catch (error) {
             keysMessage.textContent = error.message;
             keysMessage.className = "small text-danger";
+            document.getElementById("authorizedKeysSummaryMessage").textContent = error.message;
             showErrorToast(error.message);
         }
     });
@@ -212,8 +255,9 @@ export async function initSystemPage() {
 
     usernameField.addEventListener("input", syncHomeField);
     systemAccountField.addEventListener("change", syncHomeField);
-    refreshButton.addEventListener("click", refreshSystemPage);
     actionField.addEventListener("change", syncPathFields);
+
+    setSelectedAuthorizedKeysUser("");
     syncHomeField();
     syncPathFields();
     await refreshSystemPage();

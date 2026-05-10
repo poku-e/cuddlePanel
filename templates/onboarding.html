@@ -35,8 +35,35 @@
                             <option value="1">Enabled</option>
                         </select>
                     </label>
-                    <label class="cp-label">Deploy helper
-                        <input class="cp-input" name="deploy_site_bin" required>
+                    <label class="cp-label">Systemd unit dir
+                        <input class="cp-input" name="deploy_systemd_unit_dir" required>
+                    </label>
+                    <label class="cp-label">systemctl path
+                        <input class="cp-input" name="systemctl_bin" required>
+                    </label>
+                    <label class="cp-label">Certbot path
+                        <input class="cp-input" name="certbot_bin" required>
+                    </label>
+                    <label class="cp-label">Python3 path
+                        <input class="cp-input" name="python3_bin" required>
+                    </label>
+                    <label class="cp-label">npm path
+                        <input class="cp-input" name="npm_bin" required>
+                    </label>
+                    <label class="cp-label">node path
+                        <input class="cp-input" name="node_bin" required>
+                    </label>
+                    <label class="cp-label">go path
+                        <input class="cp-input" name="go_bin" required>
+                    </label>
+                    <label class="cp-label">curl path
+                        <input class="cp-input" name="curl_bin" required>
+                    </label>
+                    <label class="cp-label">Cloudflare zone ID
+                        <input class="cp-input" name="cloudflare_zone_id" maxlength="64">
+                    </label>
+                    <label class="cp-label">Cloudflare API token
+                        <input class="cp-input" name="cloudflare_api_token" type="password" maxlength="255">
                     </label>
                     <label class="cp-label">Nginx binary
                         <input class="cp-input" name="nginx_bin" required>

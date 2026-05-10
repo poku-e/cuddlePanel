@@ -10,7 +10,16 @@ namespace cuddle {
 struct FirstRunConfig {
     std::string port;
     bool secure_cookies = false;
-    std::string deploy_site_bin;
+    std::string deploy_systemd_unit_dir;
+    std::string systemctl_bin;
+    std::string certbot_bin;
+    std::string python3_bin;
+    std::string npm_bin;
+    std::string node_bin;
+    std::string go_bin;
+    std::string curl_bin;
+    std::string cloudflare_zone_id;
+    std::string cloudflare_api_token;
     std::string nginx_available_dir;
     std::string nginx_enabled_dir;
     std::string nginx_bin;

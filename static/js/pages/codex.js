@@ -5,6 +5,7 @@ import {showErrorToast, showSuccessToast} from "../core/toast.js";
 let currentConversationId = null;
 let currentCursor = 0;
 let pollTimer = null;
+let latestConversations = [];
 
 function stopPolling() {
     if (pollTimer) {
@@ -70,13 +71,15 @@ function renderConversations(conversations) {
 function setConversationUiEnabled(enabled, closed = false) {
     const form = document.getElementById("codexMessageForm");
     const closeButton = document.getElementById("codexCloseConversationButton");
-    if (!form || !closeButton) {
+    const exportButton = document.getElementById("codexExportTranscriptButton");
+    if (!form || !closeButton || !exportButton) {
         return;
     }
     form.querySelectorAll("textarea, button").forEach((field) => {
         field.disabled = !enabled || closed || !canManage();
     });
     closeButton.disabled = !enabled || closed || !canManage();
+    exportButton.disabled = !enabled;
 }
 
 function updateConversationHeader(conversation) {
@@ -91,9 +94,12 @@ function updateConversationHeader(conversation) {
         return;
     }
     title.textContent = conversation.title;
+    const sessionLabel = conversation.codex_session_id
+        ? `Session ${conversation.codex_session_id}`
+        : "Session id pending";
     meta.textContent = conversation.maintenance_mode
-        ? `Maintenance mode in ${conversation.working_directory}`
-        : `${conversation.project_name} - ${conversation.working_directory}`;
+        ? `Maintenance mode in ${conversation.working_directory} - ${sessionLabel}`
+        : `${conversation.project_name} - ${conversation.working_directory} - ${sessionLabel}`;
 }
 
 async function refreshProjects() {
@@ -103,6 +109,7 @@ async function refreshProjects() {
 
 async function refreshConversations() {
     const payload = await requestJson("/api/codex/conversations");
+    latestConversations = payload.conversations;
     renderConversations(payload.conversations);
     if (currentConversationId && !payload.conversations.some((item) => item.id === currentConversationId)) {
         currentConversationId = null;
@@ -110,9 +117,38 @@ async function refreshConversations() {
         stopPolling();
         updateConversationHeader(null);
         document.getElementById("codexConversationOutput").textContent = "Conversation output will appear here.";
+        document.getElementById("codexAuditHistory").textContent = "Conversation history will appear here.";
         setConversationUiEnabled(false);
     }
     return payload.conversations;
+}
+
+function formatAuditTimestamp(timestamp) {
+    if (!timestamp) {
+        return "";
+    }
+    return new Date(timestamp * 1000).toLocaleString();
+}
+
+async function refreshAuditHistory() {
+    const history = document.getElementById("codexAuditHistory");
+    if (!history) {
+        return;
+    }
+    if (!currentConversationId) {
+        history.textContent = "Conversation history will appear here.";
+        return;
+    }
+    const payload = await requestJson(`/api/codex/conversations/${encodeURIComponent(currentConversationId)}/history`);
+    history.innerHTML = payload.events.length
+        ? payload.events.map((event) => `
+            <div class="mb-2">
+                <div class="fw-semibold">${escapeHtml(event.kind)}</div>
+                <div>${escapeHtml(event.detail)}</div>
+                <div class="text-secondary">${escapeHtml(formatAuditTimestamp(event.timestamp))}</div>
+            </div>
+        `).join("")
+        : '<div class="text-secondary">No audit history yet.</div>';
 }
 
 async function pollConversation() {
@@ -139,7 +175,9 @@ async function pollConversation() {
                 : "Conversation closed.";
             status.className = "small text-secondary";
             setConversationUiEnabled(true, true);
-            await refreshConversations();
+            const conversations = await refreshConversations();
+            updateConversationHeader(conversations.find((item) => item.id === currentConversationId) || null);
+            await refreshAuditHistory();
             return;
         }
     } catch (error) {
@@ -159,6 +197,9 @@ function selectConversation(conversationId, conversations = []) {
     updateConversationHeader(conversation);
     setConversationUiEnabled(Boolean(conversation), conversation?.closed);
     renderConversations(conversations);
+    refreshAuditHistory().catch((error) => {
+        showErrorToast(error.message);
+    });
     pollConversation().catch((error) => {
         showErrorToast(error.message);
     });
@@ -169,7 +210,8 @@ export async function initCodexPage() {
     const conversationForm = document.getElementById("codexConversationForm");
     const messageForm = document.getElementById("codexMessageForm");
     const closeButton = document.getElementById("codexCloseConversationButton");
-    if (!projectForm || !conversationForm || !messageForm || !closeButton) {
+    const exportButton = document.getElementById("codexExportTranscriptButton");
+    if (!projectForm || !conversationForm || !messageForm || !closeButton || !exportButton) {
         return;
     }
 
@@ -231,6 +273,7 @@ export async function initCodexPage() {
             });
             field.value = "";
             showSuccessToast("Message sent to Codex.");
+            await refreshAuditHistory();
         } catch (error) {
             status.textContent = error.message;
             status.className = "small text-danger";
@@ -254,8 +297,32 @@ export async function initCodexPage() {
                 stopPolling();
                 updateConversationHeader(null);
                 document.getElementById("codexConversationOutput").textContent = "Conversation output will appear here.";
+                document.getElementById("codexAuditHistory").textContent = "Conversation history will appear here.";
                 setConversationUiEnabled(false);
             }
+        } catch (error) {
+            showErrorToast(error.message);
+        }
+    });
+
+    exportButton.addEventListener("click", async () => {
+        if (!currentConversationId) {
+            return;
+        }
+        try {
+            const payload = await requestJson(`/api/codex/conversations/${encodeURIComponent(currentConversationId)}/transcript`);
+            const selected = latestConversations.find((item) => item.id === currentConversationId);
+            const fileName = `${selected?.title || "codex-conversation"}.log`.replace(/[^a-z0-9._-]+/gi, "-");
+            const blob = new Blob([payload.transcript || ""], {type: "text/plain;charset=utf-8"});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+            showSuccessToast("Transcript exported.");
         } catch (error) {
             showErrorToast(error.message);
         }

@@ -2,54 +2,54 @@ import {postForm, postParams, requestJson} from "../core/api.js";
 import {escapeHtml} from "../core/dom.js";
 import {showErrorToast, showSuccessToast} from "../core/toast.js";
 
-function nginxCardMarkup(site) {
-    const canManage = document.getElementById("nginxPageState")?.dataset.canManage === "1";
-    return `
-        <article class="nginx-card" data-nginx-name="${site.name}">
-            <div class="service-card-head">
-                <div>
-                    <h3>${escapeHtml(site.name)}</h3>
-                    <div class="${site.enabled ? "service-state is-active" : "service-state is-inactive"}">${site.enabled ? "enabled" : "disabled"}</div>
-                </div>
-                <div class="user-actions">
-                    <button class="btn btn-outline-success btn-sm nginx-action-button" data-action="enable" type="button" ${(canManage && !site.enabled) ? "" : "disabled"}>Enable</button>
-                    <button class="btn btn-outline-secondary btn-sm nginx-action-button" data-action="disable" type="button" ${(canManage && site.enabled) ? "" : "disabled"}>Disable</button>
-                    <button class="btn btn-outline-warning btn-sm nginx-action-button" data-action="test" type="button" ${canManage ? "" : "disabled"}>Test</button>
-                    <button class="btn btn-outline-primary btn-sm nginx-action-button" data-action="reload" type="button" ${canManage ? "" : "disabled"}>Reload</button>
-                </div>
-            </div>
-            <div class="service-grid">
-                <label class="cp-label">Panel name
-                    <input class="cp-input" name="name" value="${escapeHtml(site.name)}" ${canManage ? "" : "disabled"}>
-                </label>
-                <label class="cp-label">Filename
-                    <input class="cp-input" name="filename" value="${escapeHtml(site.filename)}" ${canManage ? "" : "disabled"}>
-                </label>
-            </div>
-            <label class="cp-label mt-3">Description
-                <input class="cp-input" name="description" value="${escapeHtml(site.description)}" ${canManage ? "" : "disabled"}>
-            </label>
-            <label class="cp-label mt-3">Config
-                <textarea class="cp-input cp-textarea cp-codearea" name="content" ${canManage ? "" : "disabled"}>${escapeHtml(site.content)}</textarea>
-            </label>
-            <div class="service-actions-row">
-                <button class="btn btn-outline-primary btn-sm save-nginx-button" type="button" ${canManage ? "" : "disabled"}>Save site</button>
-            </div>
-            <div class="small nginx-status"></div>
-        </article>
-    `;
+const nginxDrafts = new Map();
+let nginxSitesCache = [];
+let nginxModal = null;
+
+function canManage() {
+    return document.getElementById("nginxPageState")?.dataset.canManage === "1";
+}
+
+function enabledBadge(enabled) {
+    return enabled
+        ? '<span class="badge text-bg-success">enabled</span>'
+        : '<span class="badge text-bg-secondary">disabled</span>';
 }
 
 function renderNginxSites(payload) {
+    nginxSitesCache = payload.sites;
     const meta = document.getElementById("nginxMeta");
     meta.textContent = `Available: ${payload.availableDir} | Enabled: ${payload.enabledDir}`;
 
     const host = document.getElementById("nginxSitesHost");
     if (!payload.sites.length) {
-        host.innerHTML = "<div class=\"text-secondary\">No allowlisted nginx sites yet.</div>";
+        host.innerHTML = '<tr><td colspan="5" class="text-secondary">No allowlisted nginx sites yet.</td></tr>';
         return;
     }
-    host.innerHTML = payload.sites.map(nginxCardMarkup).join("");
+    host.innerHTML = payload.sites.map((site) => `
+        <tr data-nginx-name="${escapeHtml(site.name)}">
+            <td class="fw-semibold">${escapeHtml(site.name)}</td>
+            <td><code>${escapeHtml(site.filename)}</code></td>
+            <td>${enabledBadge(site.enabled)}</td>
+            <td class="small text-secondary">${escapeHtml(site.description || "No description")}</td>
+            <td class="text-end">
+                <div class="btn-toolbar justify-content-end gap-1">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-success nginx-action-button" data-action="enable" type="button" ${(canManage() && !site.enabled) ? "" : "disabled"}>Enable</button>
+                        <button class="btn btn-outline-secondary nginx-action-button" data-action="disable" type="button" ${(canManage() && site.enabled) ? "" : "disabled"}>Disable</button>
+                        <button class="btn btn-outline-warning nginx-action-button" data-action="test" type="button" ${canManage() ? "" : "disabled"}>Test</button>
+                        <button class="btn btn-outline-primary nginx-action-button" data-action="reload" type="button" ${canManage() ? "" : "disabled"}>Reload</button>
+                    </div>
+                    <button class="btn btn-outline-primary btn-sm edit-nginx-button" type="button" ${canManage() ? "" : "disabled"}>Edit</button>
+                </div>
+            </td>
+        </tr>
+    `).join("");
+}
+
+function setNginxOutput(title, output) {
+    document.getElementById("nginxOutputMeta").textContent = title;
+    document.getElementById("nginxOutput").textContent = output || "No nginx output yet.";
 }
 
 async function refreshNginxPage() {
@@ -57,54 +57,73 @@ async function refreshNginxPage() {
     try {
         const payload = await requestJson("/api/nginx/sites");
         renderNginxSites(payload);
-        wireNginxCards();
+        wireNginxRows();
         message.textContent = "";
     } catch (error) {
         message.textContent = error.message;
     }
 }
 
-function wireNginxCards() {
-    document.querySelectorAll(".save-nginx-button").forEach((button) => {
-        button.addEventListener("click", async () => {
-            const card = button.closest("[data-nginx-name]");
-            const status = card.querySelector(".nginx-status");
-            status.textContent = "";
-            try {
-                await postParams(`/api/nginx/sites/${encodeURIComponent(card.dataset.nginxName)}`, {
-                    name: card.querySelector('[name="name"]').value,
-                    filename: card.querySelector('[name="filename"]').value,
-                    description: card.querySelector('[name="description"]').value,
-                    content: card.querySelector('[name="content"]').value
-                });
-                status.textContent = "Nginx site saved.";
-                status.className = "small nginx-status text-success";
-                showSuccessToast(`Saved nginx site ${card.dataset.nginxName}.`);
-                await refreshNginxPage();
-            } catch (error) {
-                status.textContent = error.message;
-                status.className = "small nginx-status text-danger";
-                showErrorToast(error.message);
-            }
+function draftFor(site) {
+    return nginxDrafts.get(site.name) || {
+        name: site.name,
+        filename: site.filename,
+        description: site.description,
+        content: site.content
+    };
+}
+
+function openNginxModal(site = null) {
+    const form = document.getElementById("nginxEditorForm");
+    const message = document.getElementById("nginxEditorMessage");
+    const draft = site ? draftFor(site) : {name: "", filename: "", description: "", content: ""};
+    form.reset();
+    message.textContent = "";
+    form.querySelector('[name="original_name"]').value = site?.name || "";
+    form.querySelector('[name="name"]').value = draft.name;
+    form.querySelector('[name="filename"]').value = draft.filename;
+    form.querySelector('[name="description"]').value = draft.description;
+    form.querySelector('[name="content"]').value = draft.content;
+    document.getElementById("nginxEditorModalTitle").textContent = site ? `Edit site: ${site.name}` : "Register site";
+    document.getElementById("nginxEditorModalMeta").textContent = site
+        ? "Edit the stored metadata and config without losing unsaved drafts."
+        : "Create an allowlisted nginx site entry.";
+    nginxModal.show();
+}
+
+function captureEditorDraft(form) {
+    const original = form.querySelector('[name="original_name"]').value;
+    if (!original) {
+        return;
+    }
+    nginxDrafts.set(original, {
+        name: form.querySelector('[name="name"]').value,
+        filename: form.querySelector('[name="filename"]').value,
+        description: form.querySelector('[name="description"]').value,
+        content: form.querySelector('[name="content"]').value
+    });
+}
+
+function wireNginxRows() {
+    document.querySelectorAll(".edit-nginx-button").forEach((button) => {
+        button.addEventListener("click", () => {
+            const row = button.closest("[data-nginx-name]");
+            openNginxModal(nginxSitesCache.find((site) => site.name === row.dataset.nginxName) || null);
         });
     });
 
     document.querySelectorAll(".nginx-action-button").forEach((button) => {
         button.addEventListener("click", async () => {
-            const card = button.closest("[data-nginx-name]");
-            const status = card.querySelector(".nginx-status");
-            status.textContent = "";
+            const row = button.closest("[data-nginx-name]");
             try {
-                const payload = await postParams(`/api/nginx/sites/${encodeURIComponent(card.dataset.nginxName)}/action`, {
+                const payload = await postParams(`/api/nginx/sites/${encodeURIComponent(row.dataset.nginxName)}/action`, {
                     action: button.dataset.action
                 });
-                status.textContent = payload.output;
-                status.className = "small nginx-status text-success";
-                showSuccessToast(payload.output || `Nginx action completed for ${card.dataset.nginxName}.`);
+                setNginxOutput(`${row.dataset.nginxName}: ${button.dataset.action}`, payload.output);
+                showSuccessToast(payload.output || `Nginx action completed for ${row.dataset.nginxName}.`);
                 await refreshNginxPage();
             } catch (error) {
-                status.textContent = error.message;
-                status.className = "small nginx-status text-danger";
+                setNginxOutput(`${row.dataset.nginxName}: ${button.dataset.action}`, error.message);
                 showErrorToast(error.message);
             }
         });
@@ -112,30 +131,47 @@ function wireNginxCards() {
 }
 
 export async function initNginxPage() {
-    const createForm = document.getElementById("nginxCreateForm");
-    if (!createForm) {
+    const form = document.getElementById("nginxEditorForm");
+    if (!form) {
         return;
     }
-    const createMessage = document.getElementById("nginxCreateMessage");
-    const refreshButton = document.getElementById("refreshNginxButton");
 
-    createForm.addEventListener("submit", async (event) => {
+    nginxModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("nginxEditorModal"));
+    const message = document.getElementById("nginxEditorMessage");
+
+    document.getElementById("openCreateNginxModalButton").addEventListener("click", () => openNginxModal());
+    document.getElementById("refreshNginxButton").addEventListener("click", refreshNginxPage);
+
+    form.querySelectorAll("input[name], textarea[name]").forEach((field) => {
+        field.addEventListener("input", () => captureEditorDraft(form));
+    });
+
+    form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        createMessage.textContent = "";
+        message.textContent = "";
+        const original = form.querySelector('[name="original_name"]').value;
         try {
-            await postForm("/api/nginx/sites", createForm);
-            createMessage.textContent = "Nginx site added.";
-            createMessage.className = "small text-success";
-            showSuccessToast("Nginx site added.");
-            createForm.reset();
+            if (original) {
+                await postParams(`/api/nginx/sites/${encodeURIComponent(original)}`, {
+                    name: form.querySelector('[name="name"]').value,
+                    filename: form.querySelector('[name="filename"]').value,
+                    description: form.querySelector('[name="description"]').value,
+                    content: form.querySelector('[name="content"]').value
+                });
+                nginxDrafts.delete(original);
+                showSuccessToast(`Saved nginx site ${original}.`);
+            } else {
+                await postForm("/api/nginx/sites", form);
+                showSuccessToast("Nginx site added.");
+            }
+            nginxModal.hide();
             await refreshNginxPage();
         } catch (error) {
-            createMessage.textContent = error.message;
-            createMessage.className = "small text-danger";
+            message.textContent = error.message;
+            message.className = "small text-danger";
             showErrorToast(error.message);
         }
     });
 
-    refreshButton.addEventListener("click", refreshNginxPage);
     await refreshNginxPage();
 }

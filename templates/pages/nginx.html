@@ -1,25 +1,78 @@
-<div class="row g-4">
-    <div class="col-12 col-xl-4">
-        <section class="cp-card">
-            <div id="nginxPageState" data-can-manage="{{can_manage_nginx}}"></div>
-            <h2>Register site</h2>
-            <form id="nginxCreateForm" class="vstack gap-3">
-                <label class="cp-label">Panel name<input class="cp-input" name="name" required minlength="3" maxlength="64"{{disabled_attr}}></label>
-                <label class="cp-label">Filename<input class="cp-input" name="filename" placeholder="example.conf" required maxlength="128"{{disabled_attr}}></label>
-                <label class="cp-label">Description<input class="cp-input" name="description" maxlength="200"{{disabled_attr}}></label>
-                <label class="cp-label">Config<textarea class="cp-input cp-textarea cp-codearea" name="content"{{disabled_attr}}></textarea></label>
-                <button class="btn btn-primary" type="submit"{{disabled_attr}}>Add site</button>
-                <div id="nginxCreateMessage" class="small"></div>
-            </form>
-            {{view_only_note}}
-        </section>
+<section class="cp-card">
+    <div id="nginxPageState" data-can-manage="{{can_manage_nginx}}"></div>
+    <div class="cp-toolbar">
+        <div>
+            <h2 class="mb-1">Nginx sites</h2>
+            <div class="small text-secondary" id="nginxMeta">Manage allowlisted site configs, enablement, and runtime checks.</div>
+        </div>
+        <div class="cp-toolbar-actions">
+            <button class="btn btn-outline-secondary btn-sm" id="refreshNginxButton" type="button">Refresh</button>
+            <button class="btn btn-primary btn-sm" id="openCreateNginxModalButton" type="button"{{disabled_attr}}>Register site</button>
+        </div>
     </div>
-    <div class="col-12 col-xl-8">
-        <section class="cp-card">
-            <div class="section-header"><h2>Allowlisted nginx sites</h2><button class="btn btn-outline-secondary btn-sm" id="refreshNginxButton" type="button">Refresh</button></div>
-            <div id="nginxMeta" class="small text-secondary mb-3"></div>
-            <div id="nginxMessage" class="small text-danger mb-3"></div>
-            <div id="nginxSitesHost"></div>
-        </section>
+    <div id="nginxMessage" class="small text-danger mb-3"></div>
+    {{view_only_note}}
+    <div class="table-responsive cp-table-wrap">
+        <table class="table table-sm table-hover align-middle cp-table mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Filename</th>
+                    <th scope="col">Enabled</th>
+                    <th scope="col">Description</th>
+                    <th scope="col" class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="nginxSitesHost"></tbody>
+        </table>
+    </div>
+    <div class="accordion mt-4" id="nginxOutputAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#nginxOutputPanel" aria-expanded="true" aria-controls="nginxOutputPanel">
+                    Recent nginx output
+                </button>
+            </h2>
+            <div id="nginxOutputPanel" class="accordion-collapse collapse show" data-bs-parent="#nginxOutputAccordion">
+                <div class="accordion-body">
+                    <div id="nginxOutputMeta" class="small text-secondary mb-2">Run enable, disable, test, or reload to view command output.</div>
+                    <pre id="nginxOutput" class="service-output mt-0">No nginx output yet.</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="nginxEditorModal" tabindex="-1" aria-labelledby="nginxEditorModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title h5 mb-1" id="nginxEditorModalTitle">Register site</h3>
+                    <div class="small text-secondary" id="nginxEditorModalMeta">Create or edit an allowlisted nginx site configuration.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="nginxEditorForm">
+                <div class="modal-body vstack gap-3">
+                    <input type="hidden" name="original_name">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="cp-label">Panel name<input class="cp-input" name="name" required minlength="3" maxlength="64"{{disabled_attr}}></label>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="cp-label">Filename<input class="cp-input" name="filename" placeholder="example.conf" required maxlength="128"{{disabled_attr}}></label>
+                        </div>
+                    </div>
+                    <label class="cp-label">Description<input class="cp-input" name="description" maxlength="200"{{disabled_attr}}></label>
+                    <label class="cp-label">Config<textarea class="cp-input cp-textarea cp-codearea" name="content"{{disabled_attr}}></textarea></label>
+                    <div id="nginxEditorMessage" class="small"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit"{{disabled_attr}}>Save site</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>

@@ -11,7 +11,16 @@ int main() {
     std::map<std::string, std::string> form = {
         {"port", "18080"},
         {"secure_cookies", "1"},
-        {"deploy_site_bin", "/usr/local/sbin/deploy-site"},
+        {"deploy_systemd_unit_dir", "/etc/systemd/system"},
+        {"systemctl_bin", "/bin/systemctl"},
+        {"certbot_bin", "/usr/bin/certbot"},
+        {"python3_bin", "/usr/bin/python3"},
+        {"npm_bin", "/usr/bin/npm"},
+        {"node_bin", "/usr/bin/node"},
+        {"go_bin", "/usr/bin/go"},
+        {"curl_bin", "/usr/bin/curl"},
+        {"cloudflare_zone_id", ""},
+        {"cloudflare_api_token", ""},
         {"nginx_available_dir", "/etc/nginx/sites-available"},
         {"nginx_enabled_dir", "/etc/nginx/sites-enabled"},
         {"nginx_bin", "/usr/sbin/nginx"},
@@ -48,6 +57,7 @@ int main() {
     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     assert(content.find("CUDDLEPANEL_PORT=18080") != std::string::npos);
     assert(content.find("CUDDLEPANEL_SECURE_COOKIES=1") != std::string::npos);
+    assert(content.find("CUDDLEPANEL_DEPLOY_SYSTEMD_DIR=/etc/systemd/system") != std::string::npos);
     assert(content.find("CUDDLEPANEL_CODEX_BIN=/usr/bin/codex") != std::string::npos);
     std::filesystem::remove(path);
 

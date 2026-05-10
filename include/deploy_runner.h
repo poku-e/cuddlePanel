@@ -3,9 +3,15 @@
 #include <map>
 #include <optional>
 #include <string>
-#include <vector>
 
 namespace cuddle {
+
+enum class DeployStack {
+    NodeJs,
+    Go,
+    Streamlit,
+    PythonVite,
+};
 
 struct DeployRequest {
     std::string domain;
@@ -16,7 +22,22 @@ struct DeployRequest {
     std::string email;
     std::string site_name;
     std::string upstream_host;
-    bool skip_dns_check = false;
+    std::string stack;
+    std::string node_entry;
+    std::string go_package;
+    std::string go_binary_path;
+    std::string streamlit_entry;
+    std::string python_module;
+    std::string python_backend_dir;
+    std::string vite_root;
+    std::string vite_dist_dir;
+    std::string public_ip;
+    std::string cloudflare_zone_id;
+    std::string cloudflare_api_token;
+    bool install_dependencies = false;
+    bool run_build = false;
+    bool enable_cloudflare_dns = false;
+    bool cloudflare_proxied = false;
     bool skip_certbot = false;
     bool force_overwrite_site = false;
     bool skip_service_start = false;
@@ -29,8 +50,8 @@ struct DeployResult {
 
 std::optional<DeployRequest> deploy_request_from_form(const std::map<std::string, std::string>& form);
 bool valid_deploy_request(const DeployRequest& request, std::string* error_message = nullptr);
-std::vector<std::string> build_deploy_args(const DeployRequest& request);
-std::string deploy_script_path();
+DeployStack deploy_stack_from_string(const std::string& value);
+std::string deploy_stack_to_string(DeployStack stack);
 DeployResult run_deploy_site(const DeployRequest& request);
 
 }

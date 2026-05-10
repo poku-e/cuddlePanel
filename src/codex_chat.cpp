@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include <array>
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
@@ -29,6 +30,8 @@ namespace cuddle {
 namespace {
 
 constexpr size_t kConversationBufferLimit = 512 * 1024;
+constexpr int kSessionIndexPollIterations = 20;
+constexpr useconds_t kSessionIndexPollSleepMicros = 100000;
 
 std::int64_t unix_now() {
     return static_cast<std::int64_t>(std::time(nullptr));
@@ -92,6 +95,73 @@ bool ensure_file_permissions(const std::string& path) {
 bool is_git_repo_root(const std::string& path) {
     std::error_code ec;
     return std::filesystem::is_directory(std::filesystem::path(path) / ".git", ec);
+}
+
+std::string codex_home_dir() {
+    const char* override = std::getenv("CODEX_HOME");
+    if (override != nullptr && override[0] != '\0') {
+        return override;
+    }
+    const char* home = std::getenv("HOME");
+    if (home != nullptr && home[0] != '\0') {
+        return std::string(home) + "/.codex";
+    }
+    return "/root/.codex";
+}
+
+std::string codex_session_index_path() {
+    return codex_home_dir() + "/session_index.jsonl";
+}
+
+std::vector<std::string> read_session_index_ids() {
+    std::vector<std::string> ids;
+    std::ifstream file(codex_session_index_path());
+    if (!file.good()) {
+        return ids;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        const auto token = std::string("\"id\":\"");
+        const auto start = line.find(token);
+        if (start == std::string::npos) {
+            continue;
+        }
+        const auto id_start = start + token.size();
+        const auto id_end = line.find('"', id_start);
+        if (id_end == std::string::npos || id_end <= id_start) {
+            continue;
+        }
+        ids.push_back(line.substr(id_start, id_end - id_start));
+    }
+    return ids;
+}
+
+std::optional<std::string> detect_new_session_id(const std::vector<std::string>& before_ids) {
+    for (int i = 0; i < kSessionIndexPollIterations; ++i) {
+        const auto after_ids = read_session_index_ids();
+        for (const auto& id : after_ids) {
+            if (std::find(before_ids.begin(), before_ids.end(), id) == before_ids.end()) {
+                return id;
+            }
+        }
+        usleep(kSessionIndexPollSleepMicros);
+    }
+    return std::nullopt;
+}
+
+std::string sanitize_detail(const std::string& detail) {
+    std::string out;
+    out.reserve(detail.size());
+    for (char c : detail) {
+        switch (c) {
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += ' '; break;
+            default: out += c; break;
+        }
+    }
+    return out;
 }
 
 }
@@ -229,7 +299,7 @@ bool CodexConversationManager::load() {
     std::string line;
     while (std::getline(file, line)) {
         const auto parts = split(line, '\t');
-        if (parts.size() != 9) {
+        if (parts.size() != 9 && parts.size() != 11) {
             continue;
         }
         CodexConversationRecord record;
@@ -239,11 +309,22 @@ bool CodexConversationManager::load() {
         record.project_id = parts[3];
         record.project_name = parts[4];
         record.working_directory = parts[5];
-        record.maintenance_mode = parts[6] == "1";
-        record.closed = parts[7] == "1";
-        record.created_at = std::strtoll(parts[8].c_str(), nullptr, 10);
-        record.updated_at = record.created_at;
-        if (!record.id.empty() && !record.owner.empty() && !record.title.empty() && valid_absolute_path(record.working_directory)) {
+        if (parts.size() == 11) {
+            record.codex_session_id = parts[6];
+            record.maintenance_mode = parts[7] == "1";
+            record.closed = parts[8] == "1";
+            record.created_at = std::strtoll(parts[9].c_str(), nullptr, 10);
+            record.updated_at = std::strtoll(parts[10].c_str(), nullptr, 10);
+        } else {
+            record.maintenance_mode = parts[6] == "1";
+            record.closed = parts[7] == "1";
+            record.created_at = std::strtoll(parts[8].c_str(), nullptr, 10);
+            record.updated_at = record.created_at;
+        }
+        if (!record.id.empty() &&
+            !record.owner.empty() &&
+            !record.title.empty() &&
+            valid_absolute_path(record.working_directory)) {
             conversations_.push_back(record);
         }
     }
@@ -264,9 +345,11 @@ bool CodexConversationManager::save() const {
              << conversation.project_id << '\t'
              << conversation.project_name << '\t'
              << conversation.working_directory << '\t'
+             << conversation.codex_session_id << '\t'
              << (conversation.maintenance_mode ? "1" : "0") << '\t'
              << (conversation.closed ? "1" : "0") << '\t'
-             << conversation.created_at << '\n';
+             << conversation.created_at << '\t'
+             << conversation.updated_at << '\n';
     }
     file.close();
     return ensure_file_permissions(metadata_path_);
@@ -313,7 +396,47 @@ std::optional<CodexConversationRecord> CodexConversationManager::find_conversati
     return **found;
 }
 
+std::string CodexConversationManager::transcript_path_locked(const std::string& conversation_id) const {
+    const auto directory = std::filesystem::path(metadata_path_).parent_path() / "codex_transcripts";
+    return (directory / (conversation_id + ".log")).string();
+}
+
+std::string CodexConversationManager::audit_log_path_locked(const std::string& conversation_id) const {
+    const auto directory = std::filesystem::path(metadata_path_).parent_path() / "codex_audit";
+    return (directory / (conversation_id + ".log")).string();
+}
+
+void CodexConversationManager::append_transcript_locked(const std::string& conversation_id, const std::string& chunk) const {
+    if (chunk.empty()) {
+        return;
+    }
+    const auto path = transcript_path_locked(conversation_id);
+    std::filesystem::create_directories(std::filesystem::path(path).parent_path());
+    std::ofstream file(path, std::ios::app | std::ios::binary);
+    if (!file.good()) {
+        return;
+    }
+    file.write(chunk.data(), static_cast<std::streamsize>(chunk.size()));
+    file.close();
+    (void)ensure_file_permissions(path);
+}
+
+void CodexConversationManager::append_audit_event_locked(const std::string& conversation_id,
+                                                         const std::string& kind,
+                                                         const std::string& detail) const {
+    const auto path = audit_log_path_locked(conversation_id);
+    std::filesystem::create_directories(std::filesystem::path(path).parent_path());
+    std::ofstream file(path, std::ios::app);
+    if (!file.good()) {
+        return;
+    }
+    file << unix_now() << '\t' << kind << '\t' << sanitize_detail(detail) << '\n';
+    file.close();
+    (void)ensure_file_permissions(path);
+}
+
 std::optional<std::string> CodexConversationManager::spawn_session_locked(const CodexConversationRecord& conversation,
+                                                                          bool resume_existing,
                                                                           std::string* error_message) {
     const auto config = codex_runtime_config();
     if (!valid_absolute_path(config.binary_path) || access(config.binary_path.c_str(), X_OK) != 0) {
@@ -323,18 +446,37 @@ std::optional<std::string> CodexConversationManager::spawn_session_locked(const 
         return std::nullopt;
     }
 
-    std::vector<std::string> args = {
-        config.binary_path,
-        "--no-alt-screen",
-        "--sandbox", "danger-full-access",
-        "--ask-for-approval", "on-request",
-        "--cd", conversation.working_directory
-    };
-    if (!config.model.empty()) {
-        args.insert(args.end(), {"--model", config.model});
-    }
-    if (conversation.maintenance_mode || !is_git_repo_root(conversation.working_directory)) {
-        args.push_back("--skip-git-repo-check");
+    const auto before_ids = read_session_index_ids();
+    std::vector<std::string> args;
+    args.push_back(config.binary_path);
+    if (resume_existing && !conversation.codex_session_id.empty()) {
+        args.push_back("resume");
+        args.push_back(conversation.codex_session_id);
+        args.push_back("--no-alt-screen");
+        if (!config.model.empty()) {
+            args.push_back("--model");
+            args.push_back(config.model);
+        }
+        args.push_back("--cd");
+        args.push_back(conversation.working_directory);
+        if (conversation.maintenance_mode || !is_git_repo_root(conversation.working_directory)) {
+            args.push_back("--skip-git-repo-check");
+        }
+    } else {
+        args.push_back("--no-alt-screen");
+        args.push_back("--sandbox");
+        args.push_back("danger-full-access");
+        args.push_back("--ask-for-approval");
+        args.push_back("on-request");
+        args.push_back("--cd");
+        args.push_back(conversation.working_directory);
+        if (!config.model.empty()) {
+            args.push_back("--model");
+            args.push_back(config.model);
+        }
+        if (conversation.maintenance_mode || !is_git_repo_root(conversation.working_directory)) {
+            args.push_back("--skip-git-repo-check");
+        }
     }
 
     int master_fd = -1;
@@ -344,7 +486,7 @@ std::optional<std::string> CodexConversationManager::spawn_session_locked(const 
     const pid_t pid = forkpty(&master_fd, nullptr, nullptr, &size);
     if (pid < 0) {
         if (error_message) {
-            *error_message = "unable to start Codex session";
+            *error_message = resume_existing ? "unable to resume Codex session" : "unable to start Codex session";
         }
         return std::nullopt;
     }
@@ -368,8 +510,22 @@ std::optional<std::string> CodexConversationManager::spawn_session_locked(const 
         fcntl(master_fd, F_SETFL, flags | O_NONBLOCK);
     }
     sessions_[conversation.id] = LiveSession{master_fd, pid, false, -1, "", 0};
-    log_message(LogLevel::Info, "started Codex conversation " + conversation.id + " in " + conversation.working_directory);
-    return conversation.id;
+
+    std::string session_id;
+    if (resume_existing && !conversation.codex_session_id.empty()) {
+        session_id = conversation.codex_session_id;
+        append_audit_event_locked(conversation.id, "resumed", conversation.codex_session_id);
+        log_message(LogLevel::Info, "resumed Codex conversation " + conversation.id + " with session " + conversation.codex_session_id);
+    } else {
+        session_id = detect_new_session_id(before_ids).value_or("");
+        append_audit_event_locked(conversation.id, "started", conversation.working_directory);
+        log_message(LogLevel::Info, "started Codex conversation " + conversation.id + " in " + conversation.working_directory);
+        if (session_id.empty()) {
+            log_message(LogLevel::Warning, "unable to detect Codex session id for conversation " + conversation.id);
+        }
+    }
+
+    return session_id;
 }
 
 std::optional<CodexConversationRecord> CodexConversationManager::create_conversation(const std::string& owner,
@@ -416,9 +572,14 @@ std::optional<CodexConversationRecord> CodexConversationManager::create_conversa
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!spawn_session_locked(conversation, error_message)) {
-            return std::nullopt;
+        auto session_id = spawn_session_locked(conversation, false, error_message);
+        if (!session_id && error_message && error_message->empty()) {
+            *error_message = "unable to start conversation";
         }
+        if (session_id && !session_id->empty()) {
+            conversation.codex_session_id = *session_id;
+        }
+        append_audit_event_locked(conversation.id, "created", conversation.title);
         conversations_.push_back(conversation);
     }
 
@@ -434,46 +595,125 @@ std::optional<CodexConversationRecord> CodexConversationManager::create_conversa
 std::optional<CodexConversationSnapshot> CodexConversationManager::read_conversation(const std::string& conversation_id,
                                                                                      const std::string& owner,
                                                                                      std::uint64_t cursor) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    const auto found_conversation = mutable_conversation_locked(conversation_id, owner);
-    if (!found_conversation) {
-        return std::nullopt;
-    }
-    auto& conversation = **found_conversation;
-    auto found_session = live_session_locked(conversation_id);
-    if (!found_session) {
-        CodexConversationSnapshot snapshot;
-        snapshot.ok = true;
-        snapshot.closed = true;
-        snapshot.cursor = 0;
-        snapshot.exit_code = 0;
-        snapshot.title = conversation.title;
-        return snapshot;
-    }
-
-    auto& session = **found_session;
-    refresh_session_output_locked(conversation_id, session, conversation);
-    reap_if_exited_locked(conversation_id, session, conversation);
-
     CodexConversationSnapshot snapshot;
-    snapshot.ok = true;
-    snapshot.closed = session.closed;
-    snapshot.exit_code = session.exit_code;
-    snapshot.title = conversation.title;
+    bool should_save = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto found_conversation = mutable_conversation_locked(conversation_id, owner);
+        if (!found_conversation) {
+            return std::nullopt;
+        }
+        auto& conversation = **found_conversation;
+        auto found_session = live_session_locked(conversation_id);
+        if (!found_session && !conversation.closed && !conversation.codex_session_id.empty()) {
+            std::string error;
+            if (spawn_session_locked(conversation, true, &error)) {
+                conversation.updated_at = unix_now();
+                should_save = true;
+                found_session = live_session_locked(conversation_id);
+            } else if (!error.empty()) {
+                append_audit_event_locked(conversation_id, "resume_failed", error);
+                log_message(LogLevel::Warning, "unable to resume Codex conversation " + conversation_id + ": " + error);
+            }
+        }
+        if (!found_session) {
+            if (!conversation.closed) {
+                const std::string detail = conversation.codex_session_id.empty()
+                    ? "missing stored codex session id"
+                    : "codex session could not be resumed";
+                append_audit_event_locked(conversation_id, "resume_unavailable", detail);
+                conversation.closed = true;
+                conversation.updated_at = unix_now();
+                should_save = true;
+            }
+            snapshot.ok = true;
+            snapshot.closed = true;
+            snapshot.cursor = 0;
+            snapshot.exit_code = 0;
+            snapshot.title = conversation.title;
+        } else {
+            auto& session = **found_session;
+            refresh_session_output_locked(conversation_id, session, conversation);
+            const bool was_closed = conversation.closed;
+            reap_if_exited_locked(conversation_id, session, conversation);
+            if (conversation.closed != was_closed || session.exit_code >= 0) {
+                should_save = true;
+            }
 
-    const std::uint64_t earliest = session.stream_offset >= session.buffer.size()
-        ? session.stream_offset - session.buffer.size()
-        : 0;
-    if (cursor < earliest) {
-        snapshot.truncated = true;
-        cursor = earliest;
+            snapshot.ok = true;
+            snapshot.closed = session.closed;
+            snapshot.exit_code = session.exit_code;
+            snapshot.title = conversation.title;
+
+            const std::uint64_t earliest = session.stream_offset >= session.buffer.size()
+                ? session.stream_offset - session.buffer.size()
+                : 0;
+            if (cursor < earliest) {
+                snapshot.truncated = true;
+                cursor = earliest;
+            }
+            if (cursor < session.stream_offset) {
+                const std::size_t start = static_cast<std::size_t>(cursor - earliest);
+                snapshot.data = session.buffer.substr(start);
+            }
+            snapshot.cursor = session.stream_offset;
+        }
     }
-    if (cursor < session.stream_offset) {
-        const std::size_t start = static_cast<std::size_t>(cursor - earliest);
-        snapshot.data = session.buffer.substr(start);
+    if (should_save) {
+        (void)save();
     }
-    snapshot.cursor = session.stream_offset;
     return snapshot;
+}
+
+std::optional<std::string> CodexConversationManager::transcript_for(const std::string& conversation_id,
+                                                                    const std::string& owner) const {
+    std::string path;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto found = conversation_locked(conversation_id, owner);
+        if (!found) {
+            return std::nullopt;
+        }
+        path = transcript_path_locked(conversation_id);
+    }
+    std::ifstream file(path, std::ios::binary);
+    if (!file.good()) {
+        return std::string();
+    }
+    std::ostringstream out;
+    out << file.rdbuf();
+    return out.str();
+}
+
+std::optional<std::vector<CodexAuditEvent>> CodexConversationManager::audit_history_for(const std::string& conversation_id,
+                                                                                        const std::string& owner) const {
+    std::string path;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto found = conversation_locked(conversation_id, owner);
+        if (!found) {
+            return std::nullopt;
+        }
+        path = audit_log_path_locked(conversation_id);
+    }
+    std::vector<CodexAuditEvent> out;
+    std::ifstream file(path);
+    if (!file.good()) {
+        return out;
+    }
+    std::string line;
+    while (std::getline(file, line)) {
+        const auto parts = split(line, '\t');
+        if (parts.size() < 3) {
+            continue;
+        }
+        CodexAuditEvent event;
+        event.timestamp = std::strtoll(parts[0].c_str(), nullptr, 10);
+        event.kind = parts[1];
+        event.detail = parts[2];
+        out.push_back(event);
+    }
+    return out;
 }
 
 bool CodexConversationManager::send_message(const std::string& conversation_id,
@@ -484,27 +724,53 @@ bool CodexConversationManager::send_message(const std::string& conversation_id,
         return false;
     }
 
-    std::lock_guard<std::mutex> lock(mutex_);
-    const auto found_conversation = mutable_conversation_locked(conversation_id, owner);
-    if (!found_conversation) {
-        return false;
+    bool should_save = false;
+    bool ok = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto found_conversation = mutable_conversation_locked(conversation_id, owner);
+        if (!found_conversation) {
+            return false;
+        }
+        auto& conversation = **found_conversation;
+        auto found_session = live_session_locked(conversation_id);
+        if (!found_session && !conversation.closed && !conversation.codex_session_id.empty()) {
+            std::string error;
+            if (spawn_session_locked(conversation, true, &error)) {
+                conversation.updated_at = unix_now();
+                should_save = true;
+                found_session = live_session_locked(conversation_id);
+            } else {
+                append_audit_event_locked(conversation_id, "resume_failed", error.empty() ? "unable to resume session" : error);
+            }
+        }
+        if (!found_session) {
+            if (!conversation.closed) {
+                append_audit_event_locked(conversation_id,
+                                          "resume_unavailable",
+                                          conversation.codex_session_id.empty() ? "missing stored codex session id" : "codex session could not be resumed");
+                conversation.closed = true;
+                conversation.updated_at = unix_now();
+                should_save = true;
+            }
+        } else {
+            auto& session = **found_session;
+            if (!session.closed && session.master_fd >= 0) {
+                const std::string payload = cleaned_message + "\n";
+                const ssize_t written = write(session.master_fd, payload.data(), payload.size());
+                if (written >= 0) {
+                    append_audit_event_locked(conversation_id, "message", cleaned_message);
+                    conversation.updated_at = unix_now();
+                    should_save = true;
+                    ok = true;
+                }
+            }
+        }
     }
-    auto& conversation = **found_conversation;
-    auto found_session = live_session_locked(conversation_id);
-    if (!found_session) {
-        return false;
+    if (should_save) {
+        (void)save();
     }
-    auto& session = **found_session;
-    if (session.closed || session.master_fd < 0) {
-        return false;
-    }
-    const std::string payload = cleaned_message + "\n";
-    const ssize_t written = write(session.master_fd, payload.data(), payload.size());
-    if (written < 0) {
-        return false;
-    }
-    conversation.updated_at = unix_now();
-    return true;
+    return ok;
 }
 
 bool CodexConversationManager::close_conversation(const std::string& conversation_id,
@@ -520,6 +786,7 @@ bool CodexConversationManager::close_conversation(const std::string& conversatio
         if (found_session) {
             close_live_session_locked(**found_session);
         }
+        append_audit_event_locked(conversation_id, "closed", "operator closed conversation");
         conversation.closed = true;
         conversation.updated_at = unix_now();
     }
@@ -544,7 +811,9 @@ void CodexConversationManager::refresh_session_output_locked(const std::string& 
     while (true) {
         const ssize_t read_count = read(session.master_fd, buffer.data(), buffer.size());
         if (read_count > 0) {
-            session.buffer.append(buffer.data(), static_cast<size_t>(read_count));
+            const std::string chunk(buffer.data(), static_cast<size_t>(read_count));
+            session.buffer.append(chunk);
+            append_transcript_locked(conversation_id, chunk);
             session.stream_offset += static_cast<std::uint64_t>(read_count);
             conversation.updated_at = unix_now();
             if (session.buffer.size() > kConversationBufferLimit) {
@@ -561,7 +830,6 @@ void CodexConversationManager::refresh_session_output_locked(const std::string& 
         }
         break;
     }
-    (void)conversation_id;
 }
 
 void CodexConversationManager::reap_if_exited_locked(const std::string& conversation_id,
@@ -584,6 +852,7 @@ void CodexConversationManager::reap_if_exited_locked(const std::string& conversa
     }
     session.closed = true;
     close_live_session_locked(session);
+    append_audit_event_locked(conversation_id, "process_exit", std::to_string(session.exit_code));
     conversation.closed = true;
     conversation.updated_at = unix_now();
     log_message(LogLevel::Info, "Codex conversation " + conversation_id + " closed with exit code " + std::to_string(session.exit_code));
