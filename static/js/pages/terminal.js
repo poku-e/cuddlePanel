@@ -164,7 +164,7 @@ function bindTerminalOtpPage() {
             await reloadPage("terminal");
         } catch (error) {
             message.textContent = error.message;
-            message.className = "small text-danger";
+            message.className = "small";
             showErrorToast(error.message);
         }
     });

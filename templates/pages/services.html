@@ -3,14 +3,14 @@
     <div class="cp-toolbar">
         <div>
             <h2 class="mb-1">Services</h2>
-            <div class="small text-secondary">Track allowlisted systemd services in a compact operations table.</div>
+            <div class="small">Track allowlisted systemd services in a compact operations table.</div>
         </div>
         <div class="cp-toolbar-actions">
             <button class="btn btn-outline-secondary btn-sm" id="refreshServicesButton" type="button">Refresh</button>
             <button class="btn btn-primary btn-sm" id="openCreateServiceModalButton" type="button"{{disabled_attr}}>Register service</button>
         </div>
     </div>
-    <div id="servicesMessage" class="small text-danger mb-3"></div>
+    <div id="servicesMessage" class="small mb-3"></div>
     {{view_only_note}}
     <div class="table-responsive cp-table-wrap">
         <table class="table table-sm table-hover align-middle cp-table mb-0">
@@ -35,7 +35,7 @@
             </h2>
             <div id="servicesOutputPanel" class="accordion-collapse collapse show" data-bs-parent="#servicesOutputAccordion">
                 <div class="accordion-body">
-                    <div id="servicesOutputMeta" class="small text-secondary mb-2">Select a service action to view runtime output.</div>
+                    <div id="servicesOutputMeta" class="small mb-2">Select a service action to view runtime output.</div>
                     <pre id="servicesOutput" class="service-output mt-0">No runtime output yet.</pre>
                 </div>
             </div>
@@ -49,7 +49,7 @@
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title h5 mb-1" id="serviceEditorModalTitle">Register service</h3>
-                    <div class="small text-secondary" id="serviceEditorModalMeta">Create or update a systemd service entry for the dashboard.</div>
+                    <div class="small" id="serviceEditorModalMeta">Create or update a systemd service entry for the dashboard.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>

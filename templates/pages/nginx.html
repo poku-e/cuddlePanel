@@ -3,14 +3,14 @@
     <div class="cp-toolbar">
         <div>
             <h2 class="mb-1">Nginx sites</h2>
-            <div class="small text-secondary" id="nginxMeta">Manage allowlisted site configs, enablement, and runtime checks.</div>
+            <div class="small" id="nginxMeta">Manage allowlisted site configs, enablement, and runtime checks.</div>
         </div>
         <div class="cp-toolbar-actions">
             <button class="btn btn-outline-secondary btn-sm" id="refreshNginxButton" type="button">Refresh</button>
             <button class="btn btn-primary btn-sm" id="openCreateNginxModalButton" type="button"{{disabled_attr}}>Register site</button>
         </div>
     </div>
-    <div id="nginxMessage" class="small text-danger mb-3"></div>
+    <div id="nginxMessage" class="small mb-3"></div>
     {{view_only_note}}
     <div class="table-responsive cp-table-wrap">
         <table class="table table-sm table-hover align-middle cp-table mb-0">
@@ -35,7 +35,7 @@
             </h2>
             <div id="nginxOutputPanel" class="accordion-collapse collapse show" data-bs-parent="#nginxOutputAccordion">
                 <div class="accordion-body">
-                    <div id="nginxOutputMeta" class="small text-secondary mb-2">Run enable, disable, test, or reload to view command output.</div>
+                    <div id="nginxOutputMeta" class="small mb-2">Run enable, disable, test, or reload to view command output.</div>
                     <pre id="nginxOutput" class="service-output mt-0">No nginx output yet.</pre>
                 </div>
             </div>
@@ -49,7 +49,7 @@
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title h5 mb-1" id="nginxEditorModalTitle">Register site</h3>
-                    <div class="small text-secondary" id="nginxEditorModalMeta">Create or edit an allowlisted nginx site configuration.</div>
+                    <div class="small" id="nginxEditorModalMeta">Create or edit an allowlisted nginx site configuration.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>

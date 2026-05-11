@@ -5,7 +5,7 @@
             <div class="section-header">
                 <div>
                     <h2>Run native deploy</h2>
-                    <div class="small text-secondary">Move through the app, build, and DNS sections without losing the output pane.</div>
+                    <div class="small">Move through the app, build, and DNS sections without losing the output pane.</div>
                 </div>
             </div>
             <form id="deployRunForm" class="vstack gap-3">
@@ -54,7 +54,7 @@
                 </section>
 
                 <section class="deploy-tab-panel" data-deploy-panel="build" hidden>
-                    <div class="small text-secondary mb-2">Use these toggles to control dependency install, build, certbot, and restart behavior.</div>
+                    <div class="small mb-2">Use these toggles to control dependency install, build, certbot, and restart behavior.</div>
                     <label class="cp-toggle"><input type="checkbox" name="install_dependencies"{{disabled_attr}}> <span>Install dependencies</span></label>
                     <label class="cp-toggle"><input type="checkbox" name="run_build"{{disabled_attr}}> <span>Run build step</span></label>
                     <label class="cp-toggle"><input type="checkbox" name="skip_certbot"{{disabled_attr}}> <span>Skip Certbot</span></label>
@@ -66,7 +66,7 @@
                     <div class="totp-secret-block">
                         <div class="section-header mb-2">
                             <h2 class="mb-0">Cloudflare DNS</h2>
-                            <div class="small text-secondary">Optional A record create or update</div>
+                            <div class="small">Optional A record create or update</div>
                         </div>
                         <label class="cp-toggle"><input type="checkbox" name="enable_cloudflare_dns"{{disabled_attr}}> <span>Create or update DNS record</span></label>
                         <div class="deploy-cloudflare-fields">
@@ -86,7 +86,7 @@
     </div>
     <div class="col-12 col-xl-7">
         <section class="cp-card">
-            <div class="section-header"><h2>Deploy output</h2><div class="small text-secondary">Native stack-aware deploy engine</div></div>
+            <div class="section-header"><h2>Deploy output</h2><div class="small">Native stack-aware deploy engine</div></div>
             <pre id="deployOutput" class="service-output deploy-output">Run output will appear here.</pre>
         </section>
     </div>

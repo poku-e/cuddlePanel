@@ -46,15 +46,15 @@ function roleBadge(role) {
 function renderUsers(users) {
     const host = document.getElementById("usersTableHost");
     if (!users.length) {
-        host.innerHTML = '<tr><td colspan="4" class="text-secondary">No users found.</td></tr>';
+        host.innerHTML = '<tr><td colspan="4">No users found.</td></tr>';
         return;
     }
 
     host.innerHTML = users.map((user) => `
         <tr data-username="${escapeHtml(user.username)}">
-            <td class="fw-semibold">${escapeHtml(user.username)}</td>
+            <td>${escapeHtml(user.username)}</td>
             <td>${roleBadge(user.role)}</td>
-            <td class="small text-secondary">${escapeHtml(permissionSummary(user))}</td>
+            <td class="small">${escapeHtml(permissionSummary(user))}</td>
             <td class="text-end">
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-primary edit-user-button" type="button" ${(user.role === "superuser" || !canManage()) ? "disabled" : ""}>Edit access</button>
@@ -165,13 +165,13 @@ export async function initUsersPage() {
         try {
             await postForm("/api/users", createForm);
             createMessage.textContent = "User created.";
-            createMessage.className = "small text-success";
+            createMessage.className = "small";
             showSuccessToast("User created.");
             createModal.hide();
             await refreshUsersPage();
         } catch (error) {
             createMessage.textContent = error.message;
-            createMessage.className = "small text-danger";
+            createMessage.className = "small";
             showErrorToast(error.message);
         }
     });
@@ -186,13 +186,13 @@ export async function initUsersPage() {
                 permissions: collectPermissions()
             });
             permissionsMessage.textContent = "Permissions saved.";
-            permissionsMessage.className = "small text-success";
+            permissionsMessage.className = "small";
             showSuccessToast(`Permissions saved for ${selectedUser.username}.`);
             permissionsModal.hide();
             await refreshUsersPage();
         } catch (error) {
             permissionsMessage.textContent = error.message;
-            permissionsMessage.className = "small text-danger";
+            permissionsMessage.className = "small";
             showErrorToast(error.message);
         }
     });

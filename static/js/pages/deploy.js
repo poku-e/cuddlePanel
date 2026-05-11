@@ -74,13 +74,13 @@ export function initDeployPage() {
             const payload = await postForm("/api/deploy/run", form);
             output.textContent = payload.output;
             message.textContent = "Deploy completed.";
-            message.className = "small text-success";
+            message.className = "small";
             showSuccessToast("Deploy completed.");
             output.scrollIntoView({behavior: "smooth", block: "start"});
         } catch (error) {
             output.textContent = error.message;
             message.textContent = "Deploy failed.";
-            message.className = "small text-danger";
+            message.className = "small";
             showErrorToast(error.message);
             output.scrollIntoView({behavior: "smooth", block: "start"});
         }

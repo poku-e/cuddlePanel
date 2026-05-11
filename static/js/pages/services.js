@@ -22,16 +22,16 @@ function stateBadge(state) {
 function renderServices(services) {
     const host = document.getElementById("servicesTableHost");
     if (!services.length) {
-        host.innerHTML = '<tr><td colspan="5" class="text-secondary">No allowlisted services yet.</td></tr>';
+        host.innerHTML = '<tr><td colspan="5">No allowlisted services yet.</td></tr>';
         return;
     }
 
     host.innerHTML = services.map((service) => `
         <tr data-service-name="${escapeHtml(service.name)}">
-            <td class="fw-semibold">${escapeHtml(service.name)}</td>
+            <td>${escapeHtml(service.name)}</td>
             <td><code>${escapeHtml(service.unit)}</code></td>
             <td>${stateBadge(service.state)}</td>
-            <td class="small text-secondary">${escapeHtml(service.description || "No description")}</td>
+            <td class="small">${escapeHtml(service.description || "No description")}</td>
             <td class="text-end">
                 <div class="btn-toolbar justify-content-end gap-1">
                     <div class="btn-group btn-group-sm">
@@ -138,7 +138,7 @@ export async function initServicesPage() {
             await refreshServicesPage();
         } catch (error) {
             message.textContent = error.message;
-            message.className = "small text-danger";
+            message.className = "small";
             showErrorToast(error.message);
         }
     });

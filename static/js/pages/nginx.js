@@ -23,15 +23,15 @@ function renderNginxSites(payload) {
 
     const host = document.getElementById("nginxSitesHost");
     if (!payload.sites.length) {
-        host.innerHTML = '<tr><td colspan="5" class="text-secondary">No allowlisted nginx sites yet.</td></tr>';
+        host.innerHTML = '<tr><td colspan="5">No allowlisted nginx sites yet.</td></tr>';
         return;
     }
     host.innerHTML = payload.sites.map((site) => `
         <tr data-nginx-name="${escapeHtml(site.name)}">
-            <td class="fw-semibold">${escapeHtml(site.name)}</td>
+            <td>${escapeHtml(site.name)}</td>
             <td><code>${escapeHtml(site.filename)}</code></td>
             <td>${enabledBadge(site.enabled)}</td>
-            <td class="small text-secondary">${escapeHtml(site.description || "No description")}</td>
+            <td class="small">${escapeHtml(site.description || "No description")}</td>
             <td class="text-end">
                 <div class="btn-toolbar justify-content-end gap-1">
                     <div class="btn-group btn-group-sm">
@@ -168,7 +168,7 @@ export async function initNginxPage() {
             await refreshNginxPage();
         } catch (error) {
             message.textContent = error.message;
-            message.className = "small text-danger";
+            message.className = "small";
             showErrorToast(error.message);
         }
     });

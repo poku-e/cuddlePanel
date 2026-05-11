@@ -3,14 +3,14 @@
     <div class="cp-toolbar">
         <div>
             <h2 class="mb-1">User administration</h2>
-            <div class="small text-secondary">Manage dashboard users and per-page access from a single table.</div>
+            <div class="small">Manage dashboard users and per-page access from a single table.</div>
         </div>
         <div class="cp-toolbar-actions">
             <button class="btn btn-outline-secondary btn-sm" id="refreshUsersButton" type="button">Refresh</button>
             <button class="btn btn-primary btn-sm" id="openCreateUserModalButton" type="button"{{disabled_attr}}>New user</button>
         </div>
     </div>
-    <div id="usersMessage" class="small text-danger mb-3"></div>
+    <div id="usersMessage" class="small mb-3"></div>
     {{view_only_note}}
     <div class="table-responsive cp-table-wrap">
         <table class="table table-sm table-hover align-middle cp-table mb-0">
@@ -33,7 +33,7 @@
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title h5 mb-1" id="userCreateModalTitle">Create user</h3>
-                    <div class="small text-secondary">Create a dashboard user and assign an initial permission preset.</div>
+                    <div class="small">Create a dashboard user and assign an initial permission preset.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -66,7 +66,7 @@
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title h5 mb-1" id="userPermissionsModalTitle">Edit access</h3>
-                    <div class="small text-secondary" id="userPermissionsModalMeta">Adjust page access for the selected user.</div>
+                    <div class="small" id="userPermissionsModalMeta">Adjust page access for the selected user.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>

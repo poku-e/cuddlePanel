@@ -4,7 +4,7 @@
     <div class="cp-toolbar">
         <div>
             <h2 class="mb-1">System administration</h2>
-            <div id="systemAllowedRoots" class="small text-secondary">Allowed path roots: {{roots_note}}</div>
+            <div id="systemAllowedRoots" class="small">Allowed path roots: {{roots_note}}</div>
         </div>
         <div class="cp-toolbar-actions">
             <button class="btn btn-outline-secondary btn-sm" id="refreshSystemUsersButton" type="button">Refresh</button>
@@ -24,7 +24,7 @@
 
     <div class="tab-content pt-3">
         <div class="tab-pane fade show active" id="system-accounts-panel" role="tabpanel" aria-labelledby="system-accounts-tab" tabindex="0">
-            <div id="systemUsersMessage" class="small text-danger mb-3"></div>
+            <div id="systemUsersMessage" class="small mb-3"></div>
             {{view_only_note}}
             <div class="table-responsive cp-table-wrap system-table-wrap">
                 <table class="table table-hover align-middle cp-table system-admin-table mb-0">
@@ -49,7 +49,7 @@
                         <div class="cp-toolbar">
                             <div>
                                 <h3 class="h6 mb-1">authorized_keys</h3>
-                                <div class="small text-secondary">Select a login user from Accounts to edit SSH keys.</div>
+                                <div class="small">Select a login user from Accounts to edit SSH keys.</div>
                             </div>
                             <button class="btn btn-outline-primary btn-sm" id="openAuthorizedKeysModalButton" type="button"{{disabled_attr}}>Open editor</button>
                         </div>
@@ -64,7 +64,7 @@
                         <div class="cp-toolbar">
                             <div>
                                 <h3 class="h6 mb-1">Ownership and mode</h3>
-                                <div class="small text-secondary">Run constrained <code>chown</code> or <code>chmod</code> operations inside allowed roots.</div>
+                                <div class="small">Run constrained <code>chown</code> or <code>chmod</code> operations inside allowed roots.</div>
                             </div>
                             <button class="btn btn-outline-primary btn-sm" id="openSystemPathModalButtonSecondary" type="button"{{disabled_attr}}>Open action</button>
                         </div>
@@ -86,7 +86,7 @@
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title h5 mb-1" id="systemCreateUserModalTitle">Create host account</h3>
-                    <div class="small text-secondary">Create a normal login user or a system account.</div>
+                    <div class="small">Create a normal login user or a system account.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -113,14 +113,14 @@
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title h5 mb-1" id="systemDeleteUserModalTitle">Delete host account</h3>
-                    <div class="small text-secondary">Remove the selected host account after explicit confirmation.</div>
+                    <div class="small">Remove the selected host account after explicit confirmation.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="systemDeleteUserForm">
                 <div class="modal-body vstack gap-3">
                     <label class="cp-label">Username<input class="cp-input" id="systemDeleteUsername" name="username" readonly></label>
-                    <div class="small text-secondary">This uses <code>userdel</code> on the server. Deleting a home directory is optional and recursive.</div>
+                    <div class="small">This uses <code>userdel</code> on the server. Deleting a home directory is optional and recursive.</div>
                     <label class="cp-toggle"><input type="checkbox" id="systemDeleteHome" name="delete_home"{{disabled_attr}}> <span>Delete the user's home directory recursively</span></label>
                     <div id="systemDeleteMessage" class="small"></div>
                 </div>
@@ -139,7 +139,7 @@
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title h5 mb-1" id="systemPathModalTitle">Ownership and mode</h3>
-                    <div class="small text-secondary">Allowed roots: {{roots_note}}</div>
+                    <div class="small">Allowed roots: {{roots_note}}</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -168,7 +168,7 @@
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title h5 mb-1" id="systemAuthorizedKeysModalTitle">SSH authorized_keys</h3>
-                    <div class="small text-secondary">Edit login-user SSH keys without leaving the account list.</div>
+                    <div class="small">Edit login-user SSH keys without leaving the account list.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>

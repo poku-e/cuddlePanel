@@ -219,6 +219,11 @@
 
 - Hardened the native deploy engine so build and dependency-install steps now execute as the requested deploy user instead of the panel's root context.
 
+## Dashboard Text Class Cleanup
+
+- Removed Bootstrap text emphasis classes from dashboard page templates and page-specific JavaScript render paths so page text now renders without color or font-weight utility emphasis.
+- Kept the cleanup scoped to `templates/pages/*` and `static/js/pages/*`, leaving layout and workflow behavior unchanged.
+
 ## System Account List Focus
 
 - Updated the System administration Accounts tab to render only login-enabled host accounts so `nologin` entries no longer crowd the main operator table.

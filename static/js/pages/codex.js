@@ -31,11 +31,11 @@ function renderProjects(projects) {
     list.innerHTML = projects.length
         ? projects.map((project) => `
             <article class="codex-project-card">
-                <div class="fw-semibold">${escapeHtml(project.name)}</div>
-                <div class="small text-secondary"><code>${escapeHtml(project.root)}</code></div>
+                <div>${escapeHtml(project.name)}</div>
+                <div class="small"><code>${escapeHtml(project.root)}</code></div>
             </article>
         `).join("")
-        : '<div class="text-secondary small">No projects added yet. New conversations can still run in maintenance mode.</div>';
+        : '<div class="small">No projects added yet. New conversations can still run in maintenance mode.</div>';
 
     const selected = select.value;
     select.innerHTML = '<option value="">Server maintenance</option>' + projects.map((project) => `
@@ -54,12 +54,12 @@ function renderConversations(conversations) {
             <button class="codex-conversation-card ${conversation.id === currentConversationId ? "active" : ""}"
                     type="button"
                     data-conversation-id="${escapeHtml(conversation.id)}">
-                <div class="fw-semibold">${escapeHtml(conversation.title)}</div>
-                <div class="small text-secondary">${escapeHtml(conversation.maintenance_mode ? "Server maintenance" : conversation.project_name)}</div>
-                <div class="small ${conversation.closed ? "text-danger" : "text-secondary"}">${conversation.closed ? "Closed" : escapeHtml(conversation.working_directory)}</div>
+                <div>${escapeHtml(conversation.title)}</div>
+                <div class="small">${escapeHtml(conversation.maintenance_mode ? "Server maintenance" : conversation.project_name)}</div>
+                <div class="small">${conversation.closed ? "Closed" : escapeHtml(conversation.working_directory)}</div>
             </button>
         `).join("")
-        : '<div class="text-secondary small">No conversations yet.</div>';
+        : '<div class="small">No conversations yet.</div>';
 
     list.querySelectorAll("[data-conversation-id]").forEach((button) => {
         button.addEventListener("click", () => {
@@ -143,12 +143,12 @@ async function refreshAuditHistory() {
     history.innerHTML = payload.events.length
         ? payload.events.map((event) => `
             <div class="mb-2">
-                <div class="fw-semibold">${escapeHtml(event.kind)}</div>
+                <div>${escapeHtml(event.kind)}</div>
                 <div>${escapeHtml(event.detail)}</div>
-                <div class="text-secondary">${escapeHtml(formatAuditTimestamp(event.timestamp))}</div>
+                <div>${escapeHtml(formatAuditTimestamp(event.timestamp))}</div>
             </div>
         `).join("")
-        : '<div class="text-secondary">No audit history yet.</div>';
+        : '<div>No audit history yet.</div>';
 }
 
 async function pollConversation() {
@@ -173,7 +173,7 @@ async function pollConversation() {
             status.textContent = payload.exit_code >= 0
                 ? `Conversation closed with exit code ${payload.exit_code}.`
                 : "Conversation closed.";
-            status.className = "small text-secondary";
+            status.className = "small";
             setConversationUiEnabled(true, true);
             const conversations = await refreshConversations();
             updateConversationHeader(conversations.find((item) => item.id === currentConversationId) || null);
@@ -231,11 +231,11 @@ export async function initCodexPage() {
             projectForm.reset();
             await refreshProjects();
             message.textContent = "Project added.";
-            message.className = "small text-success";
+            message.className = "small";
             showSuccessToast("Project added.");
         } catch (error) {
             message.textContent = error.message;
-            message.className = "small text-danger";
+            message.className = "small";
             showErrorToast(error.message);
         }
     });
@@ -250,11 +250,11 @@ export async function initCodexPage() {
             const conversations = await refreshConversations();
             selectConversation(payload.conversation_id, conversations);
             message.textContent = "Conversation started.";
-            message.className = "small text-success";
+            message.className = "small";
             showSuccessToast("Conversation started.");
         } catch (error) {
             message.textContent = error.message;
-            message.className = "small text-danger";
+            message.className = "small";
             showErrorToast(error.message);
         }
     });
@@ -276,7 +276,7 @@ export async function initCodexPage() {
             await refreshAuditHistory();
         } catch (error) {
             status.textContent = error.message;
-            status.className = "small text-danger";
+            status.className = "small";
             showErrorToast(error.message);
         }
     });

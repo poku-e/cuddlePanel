@@ -9,7 +9,7 @@
                  data-timeout="{{codex_timeout_seconds}}"></div>
             <div class="section-header">
                 <h2>Projects</h2>
-                <div class="small text-secondary">Binary: {{codex_binary}}</div>
+                <div class="small">Binary: {{codex_binary}}</div>
             </div>
             <form id="codexProjectForm" class="vstack gap-3">
                 <label class="cp-label">Project name
@@ -27,7 +27,7 @@
         <section class="cp-card mt-4">
             <div class="section-header">
                 <h2>Conversations</h2>
-                <div class="small text-secondary">Approvals and follow-ups stay inside the same thread.</div>
+                <div class="small">Approvals and follow-ups stay inside the same thread.</div>
             </div>
             <form id="codexConversationForm" class="vstack gap-3">
                 <label class="cp-label">Title
@@ -38,7 +38,7 @@
                         <option value="">Server maintenance</option>
                     </select>
                 </label>
-                <div class="small text-secondary">Maintenance mode workdir: <code>{{maintenance_workdir}}</code></div>
+                <div class="small">Maintenance mode workdir: <code>{{maintenance_workdir}}</code></div>
                 <button class="btn btn-primary" type="submit"{{disabled_attr}}>Start conversation</button>
                 <div id="codexConversationMessage" class="small"></div>
             </form>
@@ -50,7 +50,7 @@
             <div class="section-header">
                 <div>
                     <h2 id="codexConversationTitle">Select a conversation</h2>
-                    <div id="codexConversationMeta" class="small text-secondary">Project-scoped conversations keep Codex context per thread.</div>
+                    <div id="codexConversationMeta" class="small">Project-scoped conversations keep Codex context per thread.</div>
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                     <button id="codexExportTranscriptButton" class="btn btn-outline-secondary btn-sm" type="button" disabled>Export transcript</button>
@@ -67,7 +67,7 @@
             </form>
             <div class="mt-4">
                 <h3 class="h6 mb-2">Audit history</h3>
-                <div id="codexAuditHistory" class="small text-secondary">Conversation history will appear here.</div>
+                <div id="codexAuditHistory" class="small">Conversation history will appear here.</div>
             </div>
         </section>
     </div>

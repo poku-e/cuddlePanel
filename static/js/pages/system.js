@@ -36,11 +36,11 @@ function systemUserRowMarkup(user) {
     ];
     return `
         <tr data-system-username="${escapeHtml(user.username)}">
-            <td class="fw-semibold">${escapeHtml(user.username)}</td>
+            <td>${escapeHtml(user.username)}</td>
             <td><code>${user.uid}</code> / <code>${user.gid}</code></td>
             <td><code>${escapeHtml(user.shell)}</code></td>
-            <td class="small text-secondary">${escapeHtml(user.home)}</td>
-            <td class="small text-secondary">${escapeHtml(stateBits.join(", "))}</td>
+            <td class="small">${escapeHtml(user.home)}</td>
+            <td class="small">${escapeHtml(stateBits.join(", "))}</td>
             <td class="text-end">
                 <div class="btn-toolbar justify-content-end gap-1">
                     <div class="btn-group btn-group-sm">
@@ -69,7 +69,7 @@ function renderSystemUsers(payload) {
 
     const host = document.getElementById("systemUsersHost");
     if (!usersForTable.length) {
-        host.innerHTML = '<tr><td colspan="6" class="text-secondary">No login-enabled host accounts found.</td></tr>';
+        host.innerHTML = '<tr><td colspan="6">No login-enabled host accounts found.</td></tr>';
         return;
     }
     host.innerHTML = usersForTable.map(systemUserRowMarkup).join("");
@@ -101,19 +101,19 @@ async function loadAuthorizedKeys(username) {
     usernameField.value = username;
     contentField.value = "";
     message.textContent = "Loading authorized_keys...";
-    message.className = "small text-secondary";
+    message.className = "small";
     document.getElementById("authorizedKeysSummaryMessage").textContent = `Loading keys for ${username}...`;
     try {
         const payload = await requestJson(`/api/system/users/${encodeURIComponent(username)}/authorized-keys`);
         contentField.value = payload.content || "";
         message.textContent = payload.output;
-        message.className = "small text-success";
+        message.className = "small";
         document.getElementById("authorizedKeysSummaryMessage").textContent = payload.output;
         showSuccessToast(`Loaded authorized_keys for ${username}.`);
         keysModal.show();
     } catch (error) {
         message.textContent = error.message;
-        message.className = "small text-danger";
+        message.className = "small";
         document.getElementById("authorizedKeysSummaryMessage").textContent = error.message;
         showErrorToast(error.message);
     }
@@ -151,7 +151,7 @@ function wireSystemRows() {
             document.getElementById("systemDeleteHome").checked = false;
             const message = document.getElementById("systemDeleteMessage");
             message.textContent = `Confirm deletion for ${username}.`;
-            message.className = "small text-secondary";
+            message.className = "small";
             deleteModal.show();
         });
     });
@@ -225,13 +225,13 @@ export async function initSystemPage() {
         try {
             const payload = await postForm("/api/system/users", createForm);
             createMessage.textContent = payload.output;
-            createMessage.className = "small text-success";
+            createMessage.className = "small";
             showSuccessToast(payload.output || "System account created.");
             createModal.hide();
             await refreshSystemPage();
         } catch (error) {
             createMessage.textContent = error.message;
-            createMessage.className = "small text-danger";
+            createMessage.className = "small";
             showErrorToast(error.message);
         }
     });
@@ -244,14 +244,14 @@ export async function initSystemPage() {
             const payload = await postForm("/api/system/path-action", pathForm);
             pathOutput.textContent = payload.output;
             pathMessage.textContent = "Path action completed.";
-            pathMessage.className = "small text-success";
+            pathMessage.className = "small";
             document.getElementById("systemPathSummaryMessage").textContent = "Path action completed successfully.";
             showSuccessToast("Path action completed.");
             pathModal.hide();
         } catch (error) {
             pathOutput.textContent = error.message;
             pathMessage.textContent = "Path action failed.";
-            pathMessage.className = "small text-danger";
+            pathMessage.className = "small";
             document.getElementById("systemPathSummaryMessage").textContent = error.message;
             showErrorToast(error.message);
         }
@@ -261,7 +261,7 @@ export async function initSystemPage() {
         event.preventDefault();
         if (!deleteUsernameField.value) {
             deleteMessage.textContent = "Choose an account first.";
-            deleteMessage.className = "small text-danger";
+            deleteMessage.className = "small";
             return;
         }
         if (deleteRequestInFlight) {
@@ -276,7 +276,7 @@ export async function initSystemPage() {
                 delete_home: document.getElementById("systemDeleteHome").checked ? "on" : ""
             });
             deleteMessage.textContent = payload.output;
-            deleteMessage.className = "small text-success";
+            deleteMessage.className = "small";
             showSuccessToast(payload.output || "System account deleted.");
             deleteModal.hide();
             if (selectedAuthorizedKeysUser === deleteUsernameField.value) {
@@ -288,7 +288,7 @@ export async function initSystemPage() {
             await refreshSystemPage();
         } catch (error) {
             deleteMessage.textContent = error.message;
-            deleteMessage.className = "small text-danger";
+            deleteMessage.className = "small";
             showErrorToast(error.message);
         } finally {
             deleteRequestInFlight = false;
@@ -300,19 +300,19 @@ export async function initSystemPage() {
         event.preventDefault();
         if (!keysUsernameField.value) {
             keysMessage.textContent = "Choose a login user first.";
-            keysMessage.className = "small text-danger";
+            keysMessage.className = "small";
             return;
         }
         keysMessage.textContent = "";
         try {
             const payload = await postForm(`/api/system/users/${encodeURIComponent(keysUsernameField.value)}/authorized-keys`, keysForm);
             keysMessage.textContent = payload.output;
-            keysMessage.className = "small text-success";
+            keysMessage.className = "small";
             document.getElementById("authorizedKeysSummaryMessage").textContent = payload.output || `Saved keys for ${keysUsernameField.value}.`;
             showSuccessToast(payload.output || "authorized_keys saved.");
         } catch (error) {
             keysMessage.textContent = error.message;
-            keysMessage.className = "small text-danger";
+            keysMessage.className = "small";
             document.getElementById("authorizedKeysSummaryMessage").textContent = error.message;
             showErrorToast(error.message);
         }
@@ -321,7 +321,7 @@ export async function initSystemPage() {
     loadKeysButton.addEventListener("click", async () => {
         if (!keysUsernameField.value) {
             keysMessage.textContent = "Choose a login user first.";
-            keysMessage.className = "small text-danger";
+            keysMessage.className = "small";
             showErrorToast("Choose a login user first.");
             return;
         }
