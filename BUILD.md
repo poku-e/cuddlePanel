@@ -278,3 +278,10 @@
 - `App` class is now reduced to constructor + `handle()` + private store references + `routes_`.
 - `src/http.cpp` shrank from 1823 lines to ~400; all nine handler files together total comparable line count but each file covers a single domain.
 - Updated `CMakeLists.txt` to include all nine new handler source files in the `cuddle_core` static library.
+
+## Dedicated User Management Page
+
+- Turned the System page into an account index with `Manage` entry points and added a dedicated per-user `User management` page with tabs for Overview, Profile, Security, SSH, Privileges, Files, and Audit.
+- Added dynamic dashboard loading for account-specific system pages plus new backend routes for per-user page HTML, account detail JSON, and audit history.
+- Kept existing host-account mutations behind the same validated backend commands while reorganizing the UI around a single account-focused workflow instead of several row modals.
+- Added a simple panel-local audit trail for successful account mutations, SSH key saves, and user-scoped file actions, stored in `data/system_account_audit.log` by default.

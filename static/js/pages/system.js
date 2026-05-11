@@ -1,18 +1,9 @@
-import {postForm, postParams, requestJson} from "../core/api.js";
+import {postForm, requestJson} from "../core/api.js";
 import {escapeHtml} from "../core/dom.js";
 import {showErrorToast, showSuccessToast} from "../core/toast.js";
 
-let systemUsers = [];
-let selectedAuthorizedKeysUser = "";
 let createModal = null;
-let editModal = null;
-let securityModal = null;
-let deleteModal = null;
 let pathModal = null;
-let keysModal = null;
-let deleteRequestInFlight = false;
-let editRequestInFlight = false;
-let securityRequestInFlight = false;
 
 function canManage() {
     return document.getElementById("systemPageState")?.dataset.canManage === "1";
@@ -40,76 +31,25 @@ function systemUserRowMarkup(user) {
     ];
     return `
         <tr data-system-username="${escapeHtml(user.username)}">
-            <td>${escapeHtml(user.username)}</td>
+            <td>
+                <button class="btn btn-link p-0 system-manage-link" type="button">${escapeHtml(user.username)}</button>
+            </td>
             <td><code>${user.uid}</code> / <code>${user.gid}</code></td>
             <td><code>${escapeHtml(user.shell)}</code></td>
             <td class="small">${escapeHtml(user.home)}</td>
             <td class="small">${escapeHtml(stateBits.join(", "))}</td>
             <td class="text-end">
-                <div class="btn-toolbar justify-content-end gap-1">
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary system-edit-button" type="button" ${(canManage() && user.username !== "root") ? "" : "disabled"}>Edit</button>
-                        <button class="btn btn-outline-primary system-security-button" type="button" ${(canManage() && user.username !== "root") ? "" : "disabled"}>Security</button>
-                        <button class="btn btn-outline-secondary system-action-button" data-action="${user.locked ? "unlock" : "lock"}" type="button" ${canManage() ? "" : "disabled"}>${user.locked ? "Unlock" : "Lock"}</button>
-                        <button class="btn btn-outline-warning system-action-button" data-action="${user.in_sudo ? "revoke-sudo" : "grant-sudo"}" type="button" ${(canManage() && user.username !== "root") ? "" : "disabled"}>${user.in_sudo ? "Revoke sudo" : "Grant sudo"}</button>
-                    </div>
-                    <button class="btn btn-outline-primary btn-sm system-keys-button" type="button" ${(canManage() && user.login_user) ? "" : "disabled"}>Keys</button>
-                    <button class="btn btn-outline-danger btn-sm system-delete-button" type="button" ${(canManage() && user.username !== "root") ? "" : "disabled"}>Delete</button>
-                </div>
+                <button class="btn btn-outline-primary btn-sm system-manage-button" type="button">Manage</button>
             </td>
         </tr>
     `;
 }
 
-function openEditModal(username) {
-    const user = systemUsers.find((entry) => entry.username === username);
-    if (!user) {
-        showErrorToast("Unable to load the selected account.");
-        return;
-    }
-    document.getElementById("systemEditUsername").value = user.username;
-    document.getElementById("systemEditComment").value = user.comment || "";
-    document.getElementById("systemEditShell").value = user.shell || "";
-    document.getElementById("systemEditHome").value = user.home || "";
-    document.getElementById("systemEditMoveHome").checked = false;
-    document.getElementById("systemEditPrimaryGroup").value = user.primary_group || "";
-    document.getElementById("systemEditSecondaryGroups").value = (user.secondary_groups || []).join(",");
-    const message = document.getElementById("systemEditMessage");
-    message.textContent = `Editing ${username}.`;
-    message.className = "small";
-    editModal.show();
-}
-
-function openSecurityModal(username) {
-    const user = systemUsers.find((entry) => entry.username === username);
-    if (!user) {
-        showErrorToast("Unable to load the selected account.");
-        return;
-    }
-    document.getElementById("systemSecurityUsername").value = user.username;
-    document.getElementById("systemSecurityPassword").value = "";
-    document.getElementById("systemSecurityForcePasswordChange").checked = user.password_change_required;
-    document.getElementById("systemSecurityExpiresOn").value = user.expires_on || "";
-    document.getElementById("systemSecurityClearExpiration").checked = !user.expires_on;
-    document.getElementById("systemSecurityExpiresOn").disabled = !user.expires_on || !canManage();
-    document.getElementById("systemSecurityCurrentState").textContent = [
-        user.locked ? "Locked" : "Unlocked",
-        user.password_change_required ? "password change required" : "password change not required",
-        user.expires_on ? `expires ${user.expires_on}` : "no expiration set"
-    ].join(", ");
-    const message = document.getElementById("systemSecurityMessage");
-    message.textContent = `Updating security settings for ${username}.`;
-    message.className = "small";
-    securityModal.show();
-}
-
-function setSelectedAuthorizedKeysUser(username) {
-    selectedAuthorizedKeysUser = username;
-    document.getElementById("authorizedKeysSelectedUserLabel").textContent = username || "No login user selected";
+function openSystemUserPage(username) {
+    window.location.hash = `page=${encodeURIComponent(`system-user:${username}`)}`;
 }
 
 function renderSystemUsers(payload) {
-    systemUsers = payload.users;
     const usersForTable = visibleSystemUsers(payload.users);
     const rootsText = payload.allowedRoots.join(", ");
     document.getElementById("systemAllowedRoots").textContent = `Allowed path roots: ${rootsText}`;
@@ -123,6 +63,15 @@ function renderSystemUsers(payload) {
     host.innerHTML = usersForTable.map(systemUserRowMarkup).join("");
 }
 
+function wireSystemRows() {
+    document.querySelectorAll(".system-manage-link, .system-manage-button").forEach((button) => {
+        button.addEventListener("click", () => {
+            const row = button.closest("[data-system-username]");
+            openSystemUserPage(row.dataset.systemUsername);
+        });
+    });
+}
+
 async function refreshSystemPage() {
     const message = document.getElementById("systemUsersMessage");
     try {
@@ -130,93 +79,9 @@ async function refreshSystemPage() {
         renderSystemUsers(payload);
         wireSystemRows();
         message.textContent = "";
-        if (selectedAuthorizedKeysUser && !systemUsers.some((user) => user.username === selectedAuthorizedKeysUser && user.login_user)) {
-            setSelectedAuthorizedKeysUser("");
-            document.getElementById("authorizedKeysSummaryMessage").textContent = "Choose a login user from Accounts.";
-            document.getElementById("authorizedKeysUsername").value = "";
-            document.getElementById("authorizedKeysContent").value = "";
-        }
     } catch (error) {
         message.textContent = error.message;
     }
-}
-
-async function loadAuthorizedKeys(username) {
-    const usernameField = document.getElementById("authorizedKeysUsername");
-    const contentField = document.getElementById("authorizedKeysContent");
-    const message = document.getElementById("authorizedKeysMessage");
-    setSelectedAuthorizedKeysUser(username);
-    usernameField.value = username;
-    contentField.value = "";
-    message.textContent = "Loading authorized_keys...";
-    message.className = "small";
-    document.getElementById("authorizedKeysSummaryMessage").textContent = `Loading keys for ${username}...`;
-    try {
-        const payload = await requestJson(`/api/system/users/${encodeURIComponent(username)}/authorized-keys`);
-        contentField.value = payload.content || "";
-        message.textContent = payload.output;
-        message.className = "small";
-        document.getElementById("authorizedKeysSummaryMessage").textContent = payload.output;
-        showSuccessToast(`Loaded authorized_keys for ${username}.`);
-        keysModal.show();
-    } catch (error) {
-        message.textContent = error.message;
-        message.className = "small";
-        document.getElementById("authorizedKeysSummaryMessage").textContent = error.message;
-        showErrorToast(error.message);
-    }
-}
-
-function wireSystemRows() {
-    document.querySelectorAll(".system-edit-button").forEach((button) => {
-        button.addEventListener("click", () => {
-            const row = button.closest("[data-system-username]");
-            openEditModal(row.dataset.systemUsername);
-        });
-    });
-
-    document.querySelectorAll(".system-security-button").forEach((button) => {
-        button.addEventListener("click", () => {
-            const row = button.closest("[data-system-username]");
-            openSecurityModal(row.dataset.systemUsername);
-        });
-    });
-
-    document.querySelectorAll(".system-action-button").forEach((button) => {
-        button.addEventListener("click", async () => {
-            const row = button.closest("[data-system-username]");
-            try {
-                const payload = await postParams(`/api/system/users/${encodeURIComponent(row.dataset.systemUsername)}/action`, {
-                    action: button.dataset.action
-                });
-                showSuccessToast(payload.output || "System user action completed.");
-                await refreshSystemPage();
-            } catch (error) {
-                showErrorToast(error.message);
-            }
-        });
-    });
-
-    document.querySelectorAll(".system-keys-button").forEach((button) => {
-        button.addEventListener("click", async () => {
-            const row = button.closest("[data-system-username]");
-            bootstrap.Tab.getOrCreateInstance(document.getElementById("system-files-tab")).show();
-            await loadAuthorizedKeys(row.dataset.systemUsername);
-        });
-    });
-
-    document.querySelectorAll(".system-delete-button").forEach((button) => {
-        button.addEventListener("click", () => {
-            const row = button.closest("[data-system-username]");
-            const username = row.dataset.systemUsername;
-            document.getElementById("systemDeleteUsername").value = username;
-            document.getElementById("systemDeleteHome").checked = false;
-            const message = document.getElementById("systemDeleteMessage");
-            message.textContent = `Confirm deletion for ${username}.`;
-            message.className = "small";
-            deleteModal.show();
-        });
-    });
 }
 
 export async function initSystemPage() {
@@ -226,28 +91,9 @@ export async function initSystemPage() {
     }
 
     createModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemCreateUserModal"));
-    editModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemEditUserModal"));
-    securityModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemSecurityUserModal"));
-    deleteModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemDeleteUserModal"));
     pathModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemPathModal"));
-    keysModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemAuthorizedKeysModal"));
 
     const createMessage = document.getElementById("systemCreateMessage");
-    const editForm = document.getElementById("systemEditUserForm");
-    const editMessage = document.getElementById("systemEditMessage");
-    const editUsernameField = document.getElementById("systemEditUsername");
-    const editSubmitButton = editForm.querySelector('button[type="submit"]');
-    const securityForm = document.getElementById("systemSecurityUserForm");
-    const securityMessage = document.getElementById("systemSecurityMessage");
-    const securityUsernameField = document.getElementById("systemSecurityUsername");
-    const securityPasswordField = document.getElementById("systemSecurityPassword");
-    const securityExpiresOnField = document.getElementById("systemSecurityExpiresOn");
-    const securityClearExpirationField = document.getElementById("systemSecurityClearExpiration");
-    const securitySubmitButton = securityForm.querySelector('button[type="submit"]');
-    const deleteForm = document.getElementById("systemDeleteUserForm");
-    const deleteMessage = document.getElementById("systemDeleteMessage");
-    const deleteUsernameField = document.getElementById("systemDeleteUsername");
-    const deleteSubmitButton = deleteForm.querySelector('button[type="submit"]');
     const pathForm = document.getElementById("systemPathActionForm");
     const pathMessage = document.getElementById("systemPathMessage");
     const pathOutput = document.getElementById("systemPathOutput");
@@ -258,10 +104,6 @@ export async function initSystemPage() {
     const usernameField = createForm.querySelector('[name="username"]');
     const homeField = createForm.querySelector('[name="home"]');
     const systemAccountField = createForm.querySelector('[name="system_account"]');
-    const keysForm = document.getElementById("systemAuthorizedKeysForm");
-    const keysUsernameField = document.getElementById("authorizedKeysUsername");
-    const keysMessage = document.getElementById("authorizedKeysMessage");
-    const loadKeysButton = document.getElementById("loadAuthorizedKeysButton");
 
     const syncPathFields = () => {
         const isChown = actionField.value === "chown";
@@ -285,13 +127,6 @@ export async function initSystemPage() {
     });
     document.getElementById("openSystemPathModalButton").addEventListener("click", () => pathModal.show());
     document.getElementById("openSystemPathModalButtonSecondary").addEventListener("click", () => pathModal.show());
-    document.getElementById("openAuthorizedKeysModalButton").addEventListener("click", () => {
-        if (!selectedAuthorizedKeysUser) {
-            showErrorToast("Choose a login user from Accounts first.");
-            return;
-        }
-        keysModal.show();
-    });
     document.getElementById("refreshSystemUsersButton").addEventListener("click", refreshSystemPage);
 
     createForm.addEventListener("submit", async (event) => {
@@ -308,66 +143,6 @@ export async function initSystemPage() {
             createMessage.textContent = error.message;
             createMessage.className = "small";
             showErrorToast(error.message);
-        }
-    });
-
-    editForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        if (!editUsernameField.value) {
-            editMessage.textContent = "Choose an account first.";
-            editMessage.className = "small";
-            return;
-        }
-        if (editRequestInFlight) {
-            return;
-        }
-        editRequestInFlight = true;
-        editSubmitButton.disabled = true;
-        editMessage.textContent = "";
-        try {
-            const payload = await postForm(`/api/system/users/${encodeURIComponent(editUsernameField.value)}/edit`, editForm);
-            editMessage.textContent = payload.output;
-            editMessage.className = "small";
-            showSuccessToast(payload.output || "System account updated.");
-            editModal.hide();
-            await refreshSystemPage();
-        } catch (error) {
-            editMessage.textContent = error.message;
-            editMessage.className = "small";
-            showErrorToast(error.message);
-        } finally {
-            editRequestInFlight = false;
-            editSubmitButton.disabled = !canManage();
-        }
-    });
-
-    securityForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        if (!securityUsernameField.value) {
-            securityMessage.textContent = "Choose an account first.";
-            securityMessage.className = "small";
-            return;
-        }
-        if (securityRequestInFlight) {
-            return;
-        }
-        securityRequestInFlight = true;
-        securitySubmitButton.disabled = true;
-        securityMessage.textContent = "";
-        try {
-            const payload = await postForm(`/api/system/users/${encodeURIComponent(securityUsernameField.value)}/security`, securityForm);
-            securityMessage.textContent = payload.output;
-            securityMessage.className = "small";
-            showSuccessToast(payload.output || "Account security updated.");
-            securityModal.hide();
-            await refreshSystemPage();
-        } catch (error) {
-            securityMessage.textContent = error.message;
-            securityMessage.className = "small";
-            showErrorToast(error.message);
-        } finally {
-            securityRequestInFlight = false;
-            securitySubmitButton.disabled = !canManage();
         }
     });
 
@@ -392,87 +167,11 @@ export async function initSystemPage() {
         }
     });
 
-    deleteForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        if (!deleteUsernameField.value) {
-            deleteMessage.textContent = "Choose an account first.";
-            deleteMessage.className = "small";
-            return;
-        }
-        if (deleteRequestInFlight) {
-            return;
-        }
-        deleteRequestInFlight = true;
-        deleteSubmitButton.disabled = true;
-        deleteMessage.textContent = "";
-        try {
-            const payload = await postParams(`/api/system/users/${encodeURIComponent(deleteUsernameField.value)}/action`, {
-                action: "delete",
-                delete_home: document.getElementById("systemDeleteHome").checked ? "on" : ""
-            });
-            deleteMessage.textContent = payload.output;
-            deleteMessage.className = "small";
-            showSuccessToast(payload.output || "System account deleted.");
-            deleteModal.hide();
-            if (selectedAuthorizedKeysUser === deleteUsernameField.value) {
-                setSelectedAuthorizedKeysUser("");
-                document.getElementById("authorizedKeysSummaryMessage").textContent = "Choose a login user from Accounts.";
-                document.getElementById("authorizedKeysUsername").value = "";
-                document.getElementById("authorizedKeysContent").value = "";
-            }
-            await refreshSystemPage();
-        } catch (error) {
-            deleteMessage.textContent = error.message;
-            deleteMessage.className = "small";
-            showErrorToast(error.message);
-        } finally {
-            deleteRequestInFlight = false;
-            deleteSubmitButton.disabled = !canManage();
-        }
-    });
-
-    keysForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        if (!keysUsernameField.value) {
-            keysMessage.textContent = "Choose a login user first.";
-            keysMessage.className = "small";
-            return;
-        }
-        keysMessage.textContent = "";
-        try {
-            const payload = await postForm(`/api/system/users/${encodeURIComponent(keysUsernameField.value)}/authorized-keys`, keysForm);
-            keysMessage.textContent = payload.output;
-            keysMessage.className = "small";
-            document.getElementById("authorizedKeysSummaryMessage").textContent = payload.output || `Saved keys for ${keysUsernameField.value}.`;
-            showSuccessToast(payload.output || "authorized_keys saved.");
-        } catch (error) {
-            keysMessage.textContent = error.message;
-            keysMessage.className = "small";
-            document.getElementById("authorizedKeysSummaryMessage").textContent = error.message;
-            showErrorToast(error.message);
-        }
-    });
-
-    loadKeysButton.addEventListener("click", async () => {
-        if (!keysUsernameField.value) {
-            keysMessage.textContent = "Choose a login user first.";
-            keysMessage.className = "small";
-            showErrorToast("Choose a login user first.");
-            return;
-        }
-        await loadAuthorizedKeys(keysUsernameField.value);
-    });
-
     usernameField.addEventListener("input", syncHomeField);
     systemAccountField.addEventListener("change", syncHomeField);
     actionField.addEventListener("change", syncPathFields);
-    securityClearExpirationField.addEventListener("change", () => {
-        securityExpiresOnField.disabled = securityClearExpirationField.checked || !canManage();
-    });
 
-    setSelectedAuthorizedKeysUser("");
     syncHomeField();
     syncPathFields();
-    securityExpiresOnField.disabled = securityClearExpirationField.checked || !canManage();
     await refreshSystemPage();
 }

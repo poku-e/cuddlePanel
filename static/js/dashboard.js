@@ -3,6 +3,7 @@ import {showErrorToast} from "./core/toast.js";
 import {initUsersPage} from "./pages/users.js";
 import {initServicesPage} from "./pages/services.js";
 import {initSystemPage} from "./pages/system.js";
+import {initSystemUserPage} from "./pages/system_user.js";
 import {initNginxPage} from "./pages/nginx.js";
 import {initDeployPage} from "./pages/deploy.js";
 import {initCodexPage} from "./pages/codex.js";
@@ -21,7 +22,30 @@ const pageInitializers = new Map([
 const dashboardPageStorageKey = "cuddlepanel.activePage";
 let suppressNextHashLoad = false;
 
+function validSystemUsername(username) {
+    return /^[A-Za-z_][A-Za-z0-9._-]{0,63}$/.test(username);
+}
+
+function systemUserPageKey(username) {
+    return `system-user:${username}`;
+}
+
+function systemUserFromPage(page) {
+    if (!page.startsWith("system-user:")) {
+        return null;
+    }
+    const username = page.slice("system-user:".length);
+    return validSystemUsername(username) ? username : null;
+}
+
 function normalizePage(page) {
+    if (typeof page !== "string" || !page) {
+        return "dashboard";
+    }
+    const systemUsername = systemUserFromPage(page);
+    if (systemUsername) {
+        return systemUserPageKey(systemUsername);
+    }
     return pageInitializers.has(page) || page === "dashboard" ? page : "dashboard";
 }
 
@@ -45,9 +69,12 @@ function persistCurrentPage(page) {
 
 export async function loadPage(page) {
     const normalizedPage = normalizePage(page);
+    const systemUsername = systemUserFromPage(normalizedPage);
     const content = document.getElementById("content");
-    content.innerHTML = "<div class=\"text-secondary\">Loading...</div>";
-    const response = await fetch(`/api/page/${encodeURIComponent(normalizedPage)}`);
+    content.innerHTML = "<div>Loading...</div>";
+    const response = await fetch(systemUsername
+        ? `/api/system/users/${encodeURIComponent(systemUsername)}/page`
+        : `/api/page/${encodeURIComponent(normalizedPage)}`);
     if (response.status === 401) {
         window.location.assign("/login");
         return;
@@ -60,15 +87,20 @@ export async function loadPage(page) {
     }
 
     if (response.ok) {
-        const initializer = pageInitializers.get(normalizedPage);
-        if (initializer) {
-            await initializer();
+        if (systemUsername) {
+            await initSystemUserPage(systemUsername);
+        } else {
+            const initializer = pageInitializers.get(normalizedPage);
+            if (initializer) {
+                await initializer();
+            }
         }
         persistCurrentPage(normalizedPage);
     }
 
     document.querySelectorAll("[data-page]").forEach((button) => {
-        button.classList.toggle("active", button.dataset.page === normalizedPage);
+        const activePage = systemUsername ? "system" : normalizedPage;
+        button.classList.toggle("active", button.dataset.page === activePage);
     });
 
     document.getElementById("sidebar").classList.remove("open");

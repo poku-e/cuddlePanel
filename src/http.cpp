@@ -340,6 +340,7 @@ HttpResponse handle_totp_confirm(const RequestContext&, const std::string&);
 HttpResponse handle_terminal_totp_verify(const RequestContext&, const std::string&);
 
 HttpResponse handle_api_page(const RequestContext&, const std::string&);
+HttpResponse handle_system_user_page(const RequestContext&, const std::string&);
 
 HttpResponse handle_users(const RequestContext&, const std::string&);
 HttpResponse handle_user_permissions(const RequestContext&, const std::string&);
@@ -350,10 +351,12 @@ HttpResponse handle_update_service(const RequestContext&, const std::string&);
 HttpResponse handle_service_action(const RequestContext&, const std::string&);
 
 HttpResponse handle_system_users(const RequestContext&, const std::string&);
+HttpResponse handle_system_user_detail(const RequestContext&, const std::string&);
 HttpResponse handle_system_user_update(const RequestContext&, const std::string&);
 HttpResponse handle_system_user_security(const RequestContext&, const std::string&);
 HttpResponse handle_system_user_action(const RequestContext&, const std::string&);
 HttpResponse handle_system_authorized_keys(const RequestContext&, const std::string&);
+HttpResponse handle_system_user_audit(const RequestContext&, const std::string&);
 HttpResponse handle_system_path_action(const RequestContext&, const std::string&);
 
 HttpResponse handle_nginx_sites(const RequestContext&, const std::string&);
@@ -411,6 +414,7 @@ void App::build_routes() {
     routes_.push_back({"POST", "/api/2fa/confirm",          "",                 true,  handle_totp_confirm});
     routes_.push_back({"POST", "/api/2fa/verify-terminal",  "",                 true,  handle_terminal_totp_verify});
     // pages
+    routes_.push_back({"GET",  "/api/page/system-user/",     "",                 false, handle_system_user_page});
     routes_.push_back({"GET",  "/api/page/",                "",                 false, handle_api_page});
     // users
     routes_.push_back({"",     "/api/users",                "",                 true,  handle_users});
@@ -423,10 +427,13 @@ void App::build_routes() {
     // system
     routes_.push_back({"",     "/api/system/users",         "",                 true,  handle_system_users});
     routes_.push_back({"",     "/api/system/path-action",   "",                 true,  handle_system_path_action});
+    routes_.push_back({"GET",  "/api/system/users/",        "/page",            false, handle_system_user_page});
+    routes_.push_back({"GET",  "/api/system/users/",        "/audit",           false, handle_system_user_audit});
     routes_.push_back({"",     "/api/system/users/",        "/authorized-keys", false, handle_system_authorized_keys});
     routes_.push_back({"",     "/api/system/users/",        "/edit",            false, handle_system_user_update});
     routes_.push_back({"",     "/api/system/users/",        "/security",        false, handle_system_user_security});
     routes_.push_back({"",     "/api/system/users/",        "/action",          false, handle_system_user_action});
+    routes_.push_back({"GET",  "/api/system/users/",        "",                 false, handle_system_user_detail});
     // nginx
     routes_.push_back({"",     "/api/nginx/sites",          "",                 true,  handle_nginx_sites});
     routes_.push_back({"",     "/api/nginx/sites/",         "/action",          false, handle_nginx_action});

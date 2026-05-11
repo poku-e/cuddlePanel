@@ -13,19 +13,20 @@
         </div>
     </div>
 
+    {{view_only_note}}
+
     <ul class="nav nav-tabs cp-nav-tabs mt-3" id="systemTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="system-accounts-tab" data-bs-toggle="tab" data-bs-target="#system-accounts-panel" type="button" role="tab" aria-controls="system-accounts-panel" aria-selected="true">Accounts</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="system-files-tab" data-bs-toggle="tab" data-bs-target="#system-files-panel" type="button" role="tab" aria-controls="system-files-panel" aria-selected="false">Files</button>
+            <button class="nav-link" id="system-files-tab" data-bs-toggle="tab" data-bs-target="#system-files-panel" type="button" role="tab" aria-controls="system-files-panel" aria-selected="false">Host files</button>
         </li>
     </ul>
 
     <div class="tab-content pt-3">
         <div class="tab-pane fade show active" id="system-accounts-panel" role="tabpanel" aria-labelledby="system-accounts-tab" tabindex="0">
             <div id="systemUsersMessage" class="small mb-3"></div>
-            {{view_only_note}}
             <div class="table-responsive cp-table-wrap system-table-wrap">
                 <table class="table table-hover align-middle cp-table system-admin-table mb-0">
                     <thead>
@@ -35,7 +36,7 @@
                             <th scope="col">Shell</th>
                             <th scope="col">Home</th>
                             <th scope="col">State</th>
-                            <th scope="col" class="text-end">Actions</th>
+                            <th scope="col" class="text-end">Manage</th>
                         </tr>
                     </thead>
                     <tbody id="systemUsersHost"></tbody>
@@ -43,39 +44,20 @@
             </div>
         </div>
         <div class="tab-pane fade" id="system-files-panel" role="tabpanel" aria-labelledby="system-files-tab" tabindex="0">
-            <div class="row g-3">
-                <div class="col-12 col-xl-6">
-                    <section class="cp-subpanel h-100">
-                        <div class="cp-toolbar">
-                            <div>
-                                <h3 class="h6 mb-1">authorized_keys</h3>
-                                <div class="small">Select a login user from Accounts to edit SSH keys.</div>
-                            </div>
-                            <button class="btn btn-outline-primary btn-sm" id="openAuthorizedKeysModalButton" type="button"{{disabled_attr}}>Open editor</button>
-                        </div>
-                        <dl class="cp-summary-list mt-3">
-                            <div><dt>Selected user</dt><dd id="authorizedKeysSelectedUserLabel">No login user selected</dd></div>
-                            <div><dt>Status</dt><dd id="authorizedKeysSummaryMessage">Choose a login user from Accounts.</dd></div>
-                        </dl>
-                    </section>
+            <section class="cp-subpanel">
+                <div class="cp-toolbar">
+                    <div>
+                        <h3 class="h6 mb-1">Ownership and mode</h3>
+                        <div class="small">Run constrained <code>chown</code> or <code>chmod</code> operations inside allowed roots.</div>
+                    </div>
+                    <button class="btn btn-outline-primary btn-sm" id="openSystemPathModalButtonSecondary" type="button"{{disabled_attr}}>Open action</button>
                 </div>
-                <div class="col-12 col-xl-6">
-                    <section class="cp-subpanel h-100">
-                        <div class="cp-toolbar">
-                            <div>
-                                <h3 class="h6 mb-1">Ownership and mode</h3>
-                                <div class="small">Run constrained <code>chown</code> or <code>chmod</code> operations inside allowed roots.</div>
-                            </div>
-                            <button class="btn btn-outline-primary btn-sm" id="openSystemPathModalButtonSecondary" type="button"{{disabled_attr}}>Open action</button>
-                        </div>
-                        <dl class="cp-summary-list mt-3">
-                            <div><dt>Allowed roots</dt><dd id="systemAllowedRootsInline">{{roots_note}}</dd></div>
-                            <div><dt>Last result</dt><dd id="systemPathSummaryMessage">No path action run yet.</dd></div>
-                        </dl>
-                        <pre id="systemPathOutput" class="service-output mt-3">Path action output will appear here.</pre>
-                    </section>
-                </div>
-            </div>
+                <dl class="cp-summary-list mt-3">
+                    <div><dt>Allowed roots</dt><dd id="systemAllowedRootsInline">{{roots_note}}</dd></div>
+                    <div><dt>Last result</dt><dd id="systemPathSummaryMessage">No path action run yet.</dd></div>
+                </dl>
+                <pre id="systemPathOutput" class="service-output mt-3">Path action output will appear here.</pre>
+            </section>
         </div>
     </div>
 </section>
@@ -107,93 +89,6 @@
     </div>
 </div>
 
-<div class="modal fade" id="systemEditUserModal" tabindex="-1" aria-labelledby="systemEditUserModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h3 class="modal-title h5 mb-1" id="systemEditUserModalTitle">Edit host account</h3>
-                    <div class="small">Update shell, home directory, comment, and group membership for the selected account.</div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="systemEditUserForm">
-                <div class="modal-body vstack gap-3">
-                    <label class="cp-label">Username<input class="cp-input" id="systemEditUsername" name="username" readonly></label>
-                    <label class="cp-label">Comment<input class="cp-input" id="systemEditComment" name="comment" maxlength="256"{{disabled_attr}}></label>
-                    <label class="cp-label">Shell<input class="cp-input" id="systemEditShell" name="shell" required maxlength="512"{{disabled_attr}}></label>
-                    <label class="cp-label">Home directory<input class="cp-input" id="systemEditHome" name="home" required maxlength="512"{{disabled_attr}}></label>
-                    <label class="cp-toggle"><input type="checkbox" id="systemEditMoveHome" name="move_home"{{disabled_attr}}> <span>Move existing home contents to the new directory</span></label>
-                    <label class="cp-label">Primary group<input class="cp-input" id="systemEditPrimaryGroup" name="primary_group" required maxlength="64"{{disabled_attr}}></label>
-                    <label class="cp-label">Supplementary groups<input class="cp-input" id="systemEditSecondaryGroups" name="secondary_groups" maxlength="512" placeholder="sudo,deploy,www-data"{{disabled_attr}}></label>
-                    <div class="small">Supplementary groups are comma-separated. Leave blank to clear all non-primary groups.</div>
-                    <div id="systemEditMessage" class="small"></div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-primary" type="submit"{{disabled_attr}}>Save changes</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="systemSecurityUserModal" tabindex="-1" aria-labelledby="systemSecurityUserModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h3 class="modal-title h5 mb-1" id="systemSecurityUserModalTitle">Account security</h3>
-                    <div class="small">Reset the password, require a password change on next login, and manage account expiration.</div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="systemSecurityUserForm">
-                <div class="modal-body vstack gap-3">
-                    <label class="cp-label">Username<input class="cp-input" id="systemSecurityUsername" name="username" readonly></label>
-                    <div class="small">Leave the password blank to keep the current password unchanged.</div>
-                    <label class="cp-label">New password<input class="cp-input" id="systemSecurityPassword" name="password" type="password" minlength="8" maxlength="256"{{disabled_attr}}></label>
-                    <label class="cp-toggle"><input type="checkbox" id="systemSecurityForcePasswordChange" name="force_password_change"{{disabled_attr}}> <span>Require a password change on next login</span></label>
-                    <label class="cp-label">Account expiration date<input class="cp-input" id="systemSecurityExpiresOn" name="expires_on" type="date"{{disabled_attr}}></label>
-                    <label class="cp-toggle"><input type="checkbox" id="systemSecurityClearExpiration" name="clear_expiration"{{disabled_attr}}> <span>Clear account expiration</span></label>
-                    <div id="systemSecurityCurrentState" class="small">Current lifecycle state will appear here.</div>
-                    <div id="systemSecurityMessage" class="small"></div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-primary" type="submit"{{disabled_attr}}>Save security settings</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="systemDeleteUserModal" tabindex="-1" aria-labelledby="systemDeleteUserModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h3 class="modal-title h5 mb-1" id="systemDeleteUserModalTitle">Delete host account</h3>
-                    <div class="small">Remove the selected host account after explicit confirmation.</div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="systemDeleteUserForm">
-                <div class="modal-body vstack gap-3">
-                    <label class="cp-label">Username<input class="cp-input" id="systemDeleteUsername" name="username" readonly></label>
-                    <div class="small">This uses <code>userdel</code> on the server. Deleting a home directory is optional and recursive.</div>
-                    <label class="cp-toggle"><input type="checkbox" id="systemDeleteHome" name="delete_home"{{disabled_attr}}> <span>Delete the user's home directory recursively</span></label>
-                    <div id="systemDeleteMessage" class="small"></div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-danger" type="submit"{{disabled_attr}}>Delete account</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <div class="modal fade" id="systemPathModal" tabindex="-1" aria-labelledby="systemPathModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -217,31 +112,6 @@
                 <div class="modal-footer">
                     <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
                     <button class="btn btn-primary" type="submit"{{disabled_attr}}>Run path action</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="systemAuthorizedKeysModal" tabindex="-1" aria-labelledby="systemAuthorizedKeysModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h3 class="modal-title h5 mb-1" id="systemAuthorizedKeysModalTitle">SSH authorized_keys</h3>
-                    <div class="small">Edit login-user SSH keys without leaving the account list.</div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="systemAuthorizedKeysForm">
-                <div class="modal-body vstack gap-3">
-                    <label class="cp-label">Login user<input class="cp-input" id="authorizedKeysUsername" name="username" readonly></label>
-                    <label class="cp-label">authorized_keys<textarea class="cp-input cp-textarea cp-codearea cp-authorized-keys" id="authorizedKeysContent" name="content"{{disabled_attr}}></textarea></label>
-                    <div id="authorizedKeysMessage" class="small"></div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline-secondary" id="loadAuthorizedKeysButton" type="button"{{disabled_attr}}>Reload keys</button>
-                    <button class="btn btn-primary" type="submit"{{disabled_attr}}>Save keys</button>
                 </div>
             </form>
         </div>

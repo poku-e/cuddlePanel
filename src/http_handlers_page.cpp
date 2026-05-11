@@ -101,4 +101,34 @@ HttpResponse handle_api_page(const RequestContext& ctx, const std::string& page_
     return response;
 }
 
+HttpResponse handle_system_user_page(const RequestContext& ctx, const std::string& username) {
+    if (auto err = ctx.require_permission("system", PermissionLevel::View)) return *err;
+    if (!valid_system_username(username)) {
+        return json_response(404, "{\"error\":\"unknown user\"}");
+    }
+    const auto user = ctx.system_admin.find_user(username);
+    if (!user) {
+        return json_response(404, "{\"error\":\"unknown user\"}");
+    }
+
+    std::ostringstream roots_note;
+    const auto roots = ctx.system_admin.allowed_path_roots();
+    for (size_t i = 0; i < roots.size(); ++i) {
+        if (i > 0) roots_note << ", ";
+        roots_note << "<code>" << html_escape(roots[i]) << "</code>";
+    }
+
+    const bool can_manage = ctx.users.has_permission(*ctx.username, "system", PermissionLevel::Manage);
+    HttpResponse response;
+    response.content_type = "text/html; charset=utf-8";
+    response.body = template_panel("User Management", "templates/pages/system_user.html", {
+        {"can_manage_system", can_manage ? "1" : "0"},
+        {"disabled_attr",     can_manage ? "" : " disabled"},
+        {"view_only_note",    can_manage ? "" : "<p class=\"small mt-3 mb-0\">You have view access to this page, but account changes require `system:manage`.</p>"},
+        {"roots_note",        roots_note.str()},
+        {"selected_username", html_escape(user->username)}
+    });
+    return response;
+}
+
 } // namespace cuddle

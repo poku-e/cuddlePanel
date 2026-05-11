@@ -1,0 +1,221 @@
+<div id="systemUserPageState" data-can-manage="{{can_manage_system}}" data-username="{{selected_username}}"></div>
+
+<section class="cp-card">
+    <div class="cp-toolbar">
+        <div>
+            <h2 class="mb-1">User management</h2>
+            <div class="small">Manage host account <code>{{selected_username}}</code> from one place.</div>
+        </div>
+        <div class="cp-toolbar-actions">
+            <button class="btn btn-outline-secondary btn-sm" id="systemUserBackButton" type="button">Back to accounts</button>
+            <button class="btn btn-outline-secondary btn-sm" id="systemUserRefreshButton" type="button">Refresh</button>
+        </div>
+    </div>
+
+    {{view_only_note}}
+
+    <ul class="nav nav-tabs cp-nav-tabs mt-3" id="systemUserTabs" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" id="system-user-overview-tab" data-bs-toggle="tab" data-bs-target="#system-user-overview-panel" type="button" role="tab" aria-controls="system-user-overview-panel" aria-selected="true">Overview</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-profile-tab" data-bs-toggle="tab" data-bs-target="#system-user-profile-panel" type="button" role="tab" aria-controls="system-user-profile-panel" aria-selected="false">Profile</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-security-tab" data-bs-toggle="tab" data-bs-target="#system-user-security-panel" type="button" role="tab" aria-controls="system-user-security-panel" aria-selected="false">Security</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-ssh-tab" data-bs-toggle="tab" data-bs-target="#system-user-ssh-panel" type="button" role="tab" aria-controls="system-user-ssh-panel" aria-selected="false">SSH</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-privileges-tab" data-bs-toggle="tab" data-bs-target="#system-user-privileges-panel" type="button" role="tab" aria-controls="system-user-privileges-panel" aria-selected="false">Privileges</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-files-tab" data-bs-toggle="tab" data-bs-target="#system-user-files-panel" type="button" role="tab" aria-controls="system-user-files-panel" aria-selected="false">Files</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-audit-tab" data-bs-toggle="tab" data-bs-target="#system-user-audit-panel" type="button" role="tab" aria-controls="system-user-audit-panel" aria-selected="false">Audit</button></li>
+    </ul>
+
+    <div class="tab-content pt-3">
+        <div class="tab-pane fade show active" id="system-user-overview-panel" role="tabpanel" aria-labelledby="system-user-overview-tab" tabindex="0">
+            <div class="row g-3">
+                <div class="col-12 col-xl-7">
+                    <section class="cp-subpanel h-100">
+                        <h3 class="h6 mb-3">Account summary</h3>
+                        <dl class="cp-summary-list">
+                            <div><dt>Username</dt><dd id="systemUserOverviewUsername">{{selected_username}}</dd></div>
+                            <div><dt>UID / GID</dt><dd id="systemUserOverviewUidGid">Loading...</dd></div>
+                            <div><dt>Comment</dt><dd id="systemUserOverviewComment">Loading...</dd></div>
+                            <div><dt>Shell</dt><dd id="systemUserOverviewShell">Loading...</dd></div>
+                            <div><dt>Home</dt><dd id="systemUserOverviewHome">Loading...</dd></div>
+                            <div><dt>Primary group</dt><dd id="systemUserOverviewPrimaryGroup">Loading...</dd></div>
+                            <div><dt>Supplementary groups</dt><dd id="systemUserOverviewSecondaryGroups">Loading...</dd></div>
+                            <div><dt>State</dt><dd id="systemUserOverviewState">Loading...</dd></div>
+                        </dl>
+                    </section>
+                </div>
+                <div class="col-12 col-xl-5">
+                    <section class="cp-subpanel h-100">
+                        <h3 class="h6 mb-3">Quick actions</h3>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-secondary" id="systemUserToggleLockButton" type="button"{{disabled_attr}}>Loading account state...</button>
+                            <button class="btn btn-outline-warning" id="systemUserToggleSudoButton" type="button"{{disabled_attr}}>Loading sudo state...</button>
+                            <button class="btn btn-outline-danger" id="systemUserOpenDeleteModalButton" type="button"{{disabled_attr}}>Delete account</button>
+                        </div>
+                        <dl class="cp-summary-list mt-3">
+                            <div><dt>Allowed file roots</dt><dd id="systemUserOverviewAllowedRoots">{{roots_note}}</dd></div>
+                        </dl>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="system-user-profile-panel" role="tabpanel" aria-labelledby="system-user-profile-tab" tabindex="0">
+            <section class="cp-subpanel">
+                <div class="cp-toolbar">
+                    <div>
+                        <h3 class="h6 mb-1">Profile settings</h3>
+                        <div class="small">Update shell, home, comment, and group membership.</div>
+                    </div>
+                </div>
+                <form id="systemUserProfileForm" class="vstack gap-3 mt-3">
+                    <label class="cp-label">Comment<input class="cp-input" id="systemUserProfileComment" name="comment" maxlength="256"{{disabled_attr}}></label>
+                    <label class="cp-label">Shell<input class="cp-input" id="systemUserProfileShell" name="shell" required maxlength="512"{{disabled_attr}}></label>
+                    <label class="cp-label">Home directory<input class="cp-input" id="systemUserProfileHome" name="home" required maxlength="512"{{disabled_attr}}></label>
+                    <label class="cp-toggle"><input type="checkbox" id="systemUserProfileMoveHome" name="move_home"{{disabled_attr}}> <span>Move existing home contents to the new directory</span></label>
+                    <label class="cp-label">Primary group<input class="cp-input" id="systemUserProfilePrimaryGroup" name="primary_group" required maxlength="64"{{disabled_attr}}></label>
+                    <label class="cp-label">Supplementary groups<input class="cp-input" id="systemUserProfileSecondaryGroups" name="secondary_groups" maxlength="512" placeholder="sudo,deploy,www-data"{{disabled_attr}}></label>
+                    <div class="small">Supplementary groups are comma-separated. Leave blank to clear all non-primary groups.</div>
+                    <div id="systemUserProfileMessage" class="small"></div>
+                    <div><button class="btn btn-primary" type="submit"{{disabled_attr}}>Save profile</button></div>
+                </form>
+            </section>
+        </div>
+
+        <div class="tab-pane fade" id="system-user-security-panel" role="tabpanel" aria-labelledby="system-user-security-tab" tabindex="0">
+            <section class="cp-subpanel">
+                <div class="cp-toolbar">
+                    <div>
+                        <h3 class="h6 mb-1">Credential and lifecycle controls</h3>
+                        <div class="small">Reset the password, require a password change on next login, and manage account expiration.</div>
+                    </div>
+                </div>
+                <form id="systemUserSecurityForm" class="vstack gap-3 mt-3">
+                    <div id="systemUserSecurityState" class="small">Loading lifecycle state...</div>
+                    <div class="small">Leave the password blank to keep the current password unchanged.</div>
+                    <label class="cp-label">New password<input class="cp-input" id="systemUserSecurityPassword" name="password" type="password" minlength="8" maxlength="256"{{disabled_attr}}></label>
+                    <label class="cp-toggle"><input type="checkbox" id="systemUserSecurityForcePasswordChange" name="force_password_change"{{disabled_attr}}> <span>Require a password change on next login</span></label>
+                    <label class="cp-label">Account expiration date<input class="cp-input" id="systemUserSecurityExpiresOn" name="expires_on" type="date"{{disabled_attr}}></label>
+                    <label class="cp-toggle"><input type="checkbox" id="systemUserSecurityClearExpiration" name="clear_expiration"{{disabled_attr}}> <span>Clear account expiration</span></label>
+                    <div id="systemUserSecurityMessage" class="small"></div>
+                    <div><button class="btn btn-primary" type="submit"{{disabled_attr}}>Save security settings</button></div>
+                </form>
+            </section>
+        </div>
+
+        <div class="tab-pane fade" id="system-user-ssh-panel" role="tabpanel" aria-labelledby="system-user-ssh-tab" tabindex="0">
+            <section class="cp-subpanel">
+                <div class="cp-toolbar">
+                    <div>
+                        <h3 class="h6 mb-1">SSH authorized_keys</h3>
+                        <div class="small">Read and replace SSH keys for this login-enabled account.</div>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" id="systemUserReloadKeysButton" type="button"{{disabled_attr}}>Reload keys</button>
+                </div>
+                <form id="systemUserSshForm" class="vstack gap-3 mt-3">
+                    <label class="cp-label">authorized_keys<textarea class="cp-input cp-textarea cp-codearea cp-authorized-keys" id="systemUserAuthorizedKeysContent" name="content"{{disabled_attr}}></textarea></label>
+                    <div id="systemUserSshMessage" class="small">Loading SSH key state...</div>
+                    <div><button class="btn btn-primary" type="submit"{{disabled_attr}}>Save keys</button></div>
+                </form>
+            </section>
+        </div>
+
+        <div class="tab-pane fade" id="system-user-privileges-panel" role="tabpanel" aria-labelledby="system-user-privileges-tab" tabindex="0">
+            <section class="cp-subpanel">
+                <h3 class="h6 mb-3">Privilege state</h3>
+                <dl class="cp-summary-list">
+                    <div><dt>Sudo</dt><dd id="systemUserPrivilegesState">Loading...</dd></div>
+                    <div><dt>Supplementary groups</dt><dd id="systemUserPrivilegesGroups">Loading...</dd></div>
+                </dl>
+                <div class="small mt-3">This phase keeps privilege management group-based. cuddlePanel adjusts membership in the <code>sudo</code> group and does not edit <code>/etc/sudoers</code>.</div>
+            </section>
+        </div>
+
+        <div class="tab-pane fade" id="system-user-files-panel" role="tabpanel" aria-labelledby="system-user-files-tab" tabindex="0">
+            <div class="row g-3">
+                <div class="col-12 col-xl-7">
+                    <section class="cp-subpanel h-100">
+                        <div class="cp-toolbar">
+                            <div>
+                                <h3 class="h6 mb-1">Ownership and mode</h3>
+                                <div class="small">Run constrained file actions for this account or another allowlisted path.</div>
+                            </div>
+                            <button class="btn btn-outline-secondary btn-sm" id="systemUserUseHomePathButton" type="button">Use home path</button>
+                        </div>
+                        <form id="systemUserFilesForm" class="vstack gap-3 mt-3">
+                            <input type="hidden" name="audit_user" value="{{selected_username}}">
+                            <label class="cp-label">Action<select class="cp-input cp-select" id="systemUserFilesAction" name="action"{{disabled_attr}}><option value="chown">chown</option><option value="chmod">chmod</option></select></label>
+                            <label class="cp-label">Path<input class="cp-input" id="systemUserFilesPath" name="path" required maxlength="512"{{disabled_attr}}></label>
+                            <label class="cp-label">Owner<input class="cp-input" id="systemUserFilesOwner" name="owner" maxlength="64" placeholder="deploy"{{disabled_attr}}></label>
+                            <label class="cp-label">Group<input class="cp-input" id="systemUserFilesGroup" name="group" maxlength="64" placeholder="www-data"{{disabled_attr}}></label>
+                            <label class="cp-label">Mode<input class="cp-input" id="systemUserFilesMode" name="mode" maxlength="4" placeholder="755"{{disabled_attr}}></label>
+                            <label class="cp-toggle"><input type="checkbox" id="systemUserFilesRecursive" name="recursive"{{disabled_attr}}> <span>Apply recursively</span></label>
+                            <div id="systemUserFilesMessage" class="small"></div>
+                            <div><button class="btn btn-primary" type="submit"{{disabled_attr}}>Run file action</button></div>
+                        </form>
+                        <pre id="systemUserFilesOutput" class="service-output mt-3">Path action output will appear here.</pre>
+                    </section>
+                </div>
+                <div class="col-12 col-xl-5">
+                    <section class="cp-subpanel h-100">
+                        <h3 class="h6 mb-3">Home directory context</h3>
+                        <dl class="cp-summary-list">
+                            <div><dt>Home path</dt><dd id="systemUserFilesHomePath">Loading...</dd></div>
+                            <div><dt>Allowed roots</dt><dd>{{roots_note}}</dd></div>
+                        </dl>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="system-user-audit-panel" role="tabpanel" aria-labelledby="system-user-audit-tab" tabindex="0">
+            <section class="cp-subpanel">
+                <div class="cp-toolbar">
+                    <div>
+                        <h3 class="h6 mb-1">Panel audit history</h3>
+                        <div class="small">Shows account changes initiated through cuddlePanel for this user.</div>
+                    </div>
+                </div>
+                <div class="table-responsive cp-table-wrap mt-3">
+                    <table class="table table-hover align-middle cp-table mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Timestamp</th>
+                                <th scope="col">Actor</th>
+                                <th scope="col">Action</th>
+                                <th scope="col">Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody id="systemUserAuditHost">
+                            <tr><td colspan="4">Loading audit history...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="systemUserDeleteModal" tabindex="-1" aria-labelledby="systemUserDeleteModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title h5 mb-1" id="systemUserDeleteModalTitle">Delete host account</h3>
+                    <div class="small">Remove this account after explicit confirmation.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="systemUserDeleteForm">
+                <div class="modal-body vstack gap-3">
+                    <label class="cp-label">Username<input class="cp-input" id="systemUserDeleteUsername" name="username" readonly></label>
+                    <div class="small">This uses <code>userdel</code> on the server. Deleting the home directory is optional and recursive.</div>
+                    <label class="cp-toggle"><input type="checkbox" id="systemUserDeleteHome" name="delete_home"{{disabled_attr}}> <span>Delete the user's home directory recursively</span></label>
+                    <div id="systemUserDeleteMessage" class="small"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-danger" type="submit"{{disabled_attr}}>Delete account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
