@@ -226,6 +226,11 @@
 - Hardened Python + Vite deploy builds to canonicalize `vite_root` before running npm commands and reject symlinked working directories that escape the trusted project root.
 - Added a focused deploy test that exercises a symlinked child directory escape attempt and verifies the deploy run fails.
 
+## Deploy Unit Escaping
+
+- Hardened native deploy validation to reject control whitespace in systemd-bound fields such as `service_desc`, absolute paths, relative paths, and Go package values.
+- Updated unit generation to quote and escape `Description`, `WorkingDirectory`, `Environment`, and `ExecStart` arguments instead of writing raw deploy fields into the systemd unit.
+
 ## HTTP Layer Refactor — Route Table, RequestContext, Domain Split
 
 - Replaced the ~250-line if-chain router in `src/http.cpp` with a `std::vector<Route>` table and a 20-line dispatch loop registered via `App::build_routes()`.
@@ -234,3 +239,4 @@
 - `App` class is now reduced to constructor + `handle()` + private store references + `routes_`.
 - `src/http.cpp` shrank from 1823 lines to ~400; all nine handler files together total comparable line count but each file covers a single domain.
 - Updated `CMakeLists.txt` to include all nine new handler source files in the `cuddle_core` static library.
+

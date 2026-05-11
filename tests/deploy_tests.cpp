@@ -74,6 +74,25 @@ int main() {
     request.vite_dist_dir = "dist";
     assert(cuddle::valid_deploy_request(request, &error));
 
+    request.service_desc = "ok\nExecStartPre=/bin/sh";
+    assert(!cuddle::valid_deploy_request(request, &error));
+    request.service_desc = "Example service";
+
+    request.go_package = ".\n/tmp";
+    request.stack = "golang";
+    assert(!cuddle::valid_deploy_request(request, &error));
+    request.go_package = ".";
+
+    request.stack = "nodejs";
+    request.node_entry = "server.js\tExecStartPre";
+    assert(!cuddle::valid_deploy_request(request, &error));
+    request.node_entry = "server.js";
+
+    request.stack = "python_vite";
+    request.vite_root = "frontend\nother";
+    assert(!cuddle::valid_deploy_request(request, &error));
+    request.vite_root = "frontend";
+
     setenv("CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS", "/srv", 1);
     assert(!cuddle::valid_deploy_request(request, &error));
     setenv("CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS", "/tmp", 1);

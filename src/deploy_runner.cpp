@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <grp.h>
 #include <filesystem>
@@ -37,6 +38,31 @@ struct UserContext {
     std::string home;
 };
 
+[[maybe_unused]] double quantum_harmonic_oscillation(unsigned level, double displacement) {
+    const double x = displacement;
+    if (level == 0) {
+        return std::exp(-0.5 * x * x);
+    }
+    if (level == 1) {
+        return 2.0 * x * std::exp(-0.5 * x * x);
+    }
+
+    double hermite_prev_prev = 1.0;
+    double hermite_prev = 2.0 * x;
+    for (unsigned n = 2; n <= level; ++n) {
+        const double hermite = (2.0 * x * hermite_prev) - (2.0 * static_cast<double>(n - 1) * hermite_prev_prev);
+        hermite_prev_prev = hermite_prev;
+        hermite_prev = hermite;
+    }
+
+    const double gaussian = std::exp(-0.5 * x * x);
+    const double normalization = 1.0 /
+                                 std::sqrt(std::pow(2.0, static_cast<double>(level)) *
+                                           std::tgamma(static_cast<double>(level) + 1.0) *
+                                           std::sqrt(std::acos(-1.0)));
+    return normalization * hermite_prev * gaussian;
+}
+
 std::vector<std::string> deploy_allowed_roots_impl();
 
 std::string env_or_default(const char* name, const std::string& fallback) {
@@ -65,8 +91,20 @@ bool valid_basic_token(const std::string& value, size_t max_length) {
     return true;
 }
 
+bool contains_disallowed_unit_whitespace(const std::string& value) {
+    for (unsigned char c : value) {
+        if (c == '\r' || c == '\n' || c == '\t' || c == '\v' || c == '\f') {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool valid_hostname_like(const std::string& value, size_t max_length) {
     if (value.empty() || value.size() > max_length) {
+        return false;
+    }
+    if (contains_disallowed_unit_whitespace(value)) {
         return false;
     }
     for (unsigned char c : value) {
@@ -81,11 +119,15 @@ bool valid_absolute_path(const std::string& value, size_t max_length = 512) {
     return !value.empty() &&
            value.size() <= max_length &&
            value.front() == '/' &&
+           !contains_disallowed_unit_whitespace(value) &&
            value.find('\0') == std::string::npos;
 }
 
 bool valid_relative_path(const std::string& value, size_t max_length = 256) {
     if (value.empty() || value.size() > max_length || value.find('\0') != std::string::npos) {
+        return false;
+    }
+    if (contains_disallowed_unit_whitespace(value)) {
         return false;
     }
     if (value.front() == '/' || value.find("..") != std::string::npos) {
@@ -96,6 +138,9 @@ bool valid_relative_path(const std::string& value, size_t max_length = 256) {
 
 bool valid_python_module(const std::string& value) {
     if (value.empty() || value.size() > 200 || value.find('\0') != std::string::npos) {
+        return false;
+    }
+    if (contains_disallowed_unit_whitespace(value)) {
         return false;
     }
     for (unsigned char c : value) {
@@ -155,6 +200,32 @@ std::string trim_copy(const std::string& value) {
         --end;
     }
     return value.substr(start, end - start);
+}
+
+std::string systemd_escape_value(const std::string& value) {
+    std::string out;
+    out.reserve(value.size() + 8);
+    out.push_back('"');
+    for (char c : value) {
+        switch (c) {
+            case '\\': out += "\\\\"; break;
+            case '"': out += "\\\""; break;
+            default: out.push_back(c); break;
+        }
+    }
+    out.push_back('"');
+    return out;
+}
+
+std::string systemd_join_command(const std::vector<std::string>& args) {
+    std::ostringstream out;
+    for (size_t i = 0; i < args.size(); ++i) {
+        if (i > 0) {
+            out << ' ';
+        }
+        out << systemd_escape_value(args[i]);
+    }
+    return out.str();
 }
 
 std::filesystem::path resolve_child_path(const std::string& base, const std::string& child) {
@@ -482,31 +553,48 @@ std::string build_unit_content(const DeployRequest& request) {
     const std::filesystem::path project_root(request.project_root);
     std::ostringstream out;
     out << "[Unit]\n"
-        << "Description=" << request.service_desc << "\n"
+        << "Description=" << systemd_escape_value(request.service_desc) << "\n"
         << "After=network.target\n\n"
         << "[Service]\n"
         << "Type=simple\n"
-        << "User=" << request.user << "\n"
-        << "Group=" << request.user << "\n"
-        << "WorkingDirectory=" << project_root.string() << "\n"
-        << "Environment=PORT=" << request.port << "\n"
-        << "Environment=HOST=127.0.0.1\n";
+        << "User=" << systemd_escape_value(request.user) << "\n"
+        << "Group=" << systemd_escape_value(request.user) << "\n"
+        << "WorkingDirectory=" << systemd_escape_value(project_root.string()) << "\n"
+        << "Environment=" << systemd_escape_value("PORT=" + request.port) << "\n"
+        << "Environment=" << systemd_escape_value("HOST=127.0.0.1") << "\n";
 
     if (stack == DeployStack::NodeJs) {
-        out << "ExecStart=" << node_bin() << " " << (project_root / request.node_entry).string() << "\n";
+        out << "ExecStart="
+            << systemd_join_command({node_bin(), (project_root / request.node_entry).string()})
+            << "\n";
     } else if (stack == DeployStack::Go) {
-        out << "ExecStart=" << (project_root / request.go_binary_path).string() << "\n";
+        out << "ExecStart="
+            << systemd_join_command({(project_root / request.go_binary_path).string()})
+            << "\n";
     } else if (stack == DeployStack::Streamlit) {
-        out << "ExecStart=" << (project_root / ".venv/bin/streamlit").string()
-            << " run " << (project_root / request.streamlit_entry).string()
-            << " --server.port " << request.port
-            << " --server.address 127.0.0.1\n";
+        out << "ExecStart="
+            << systemd_join_command({
+                   (project_root / ".venv/bin/streamlit").string(),
+                   "run",
+                   (project_root / request.streamlit_entry).string(),
+                   "--server.port",
+                   request.port,
+                   "--server.address",
+                   "127.0.0.1"
+               })
+            << "\n";
     } else if (stack == DeployStack::PythonVite) {
         const auto backend_dir = resolve_child_path(request.project_root, request.python_backend_dir);
-        out << "ExecStart=" << (project_root / ".venv/bin/gunicorn").string()
-            << " --chdir " << backend_dir.string()
-            << " " << request.python_module
-            << " --bind 127.0.0.1:" << request.port << "\n";
+        out << "ExecStart="
+            << systemd_join_command({
+                   (project_root / ".venv/bin/gunicorn").string(),
+                   "--chdir",
+                   backend_dir.string(),
+                   request.python_module,
+                   "--bind",
+                   "127.0.0.1:" + request.port
+               })
+            << "\n";
     }
 
     out << "Restart=always\n"
@@ -901,7 +989,10 @@ bool valid_deploy_request(const DeployRequest& request, std::string* error_messa
     if (!trusted_project_root(request.project_root, request.user, error_message)) {
         return false;
     }
-    if (request.service_desc.empty() || request.service_desc.size() > 200 || request.service_desc.find('\0') != std::string::npos) {
+    if (request.service_desc.empty() ||
+        request.service_desc.size() > 200 ||
+        request.service_desc.find('\0') != std::string::npos ||
+        contains_disallowed_unit_whitespace(request.service_desc)) {
         return fail("invalid service description");
     }
     if (!request.skip_certbot && (request.email.empty() || request.email.size() > 255 || request.email.find('@') == std::string::npos)) {
@@ -923,7 +1014,10 @@ bool valid_deploy_request(const DeployRequest& request, std::string* error_messa
         if (!valid_relative_path(request.go_binary_path)) {
             return fail("invalid go binary path");
         }
-        if (request.go_package.empty() || request.go_package.size() > 200 || request.go_package.find('\0') != std::string::npos) {
+        if (request.go_package.empty() ||
+            request.go_package.size() > 200 ||
+            request.go_package.find('\0') != std::string::npos ||
+            contains_disallowed_unit_whitespace(request.go_package)) {
             return fail("invalid go package");
         }
     } else if (stack == DeployStack::Streamlit) {

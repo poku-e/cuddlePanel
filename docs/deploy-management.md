@@ -62,6 +62,7 @@ Validation and safety rules:
 - `project_root` must be an existing absolute directory.
 - `project_root` must resolve under `CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS`, may not be world-writable, and must be owned by `root` or the requested deploy user.
 - Any stack-specific build working directory, such as `vite_root`, must also resolve inside that trusted project root after canonicalization.
+- Fields that are written into systemd units reject control whitespace such as `\r`, `\n`, and `\t`, and the generated unit file now quotes or escapes unit values and `ExecStart` arguments.
 - Stack-specific path fields must be relative paths without `..`.
 - `python_module` must be a bounded token such as `app:app`.
 - Cloudflare DNS creation requires a valid IPv4 public address.
