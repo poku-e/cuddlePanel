@@ -3,6 +3,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace cuddle {
 
@@ -53,5 +54,6 @@ bool valid_deploy_request(const DeployRequest& request, std::string* error_messa
 DeployStack deploy_stack_from_string(const std::string& value);
 std::string deploy_stack_to_string(DeployStack stack);
 DeployResult run_deploy_site(const DeployRequest& request);
+std::vector<std::string> deploy_allowed_roots();
 
 }

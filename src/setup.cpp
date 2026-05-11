@@ -95,6 +95,30 @@ bool validate_first_run_config(const FirstRunConfig& config, std::string* error_
         }
         return false;
     }
+    if (config.deploy_allowed_roots.empty() || config.deploy_allowed_roots.size() > 1024) {
+        if (error_message) {
+            *error_message = "invalid deploy allowed roots";
+        }
+        return false;
+    }
+    std::stringstream deploy_roots(config.deploy_allowed_roots);
+    std::string deploy_root;
+    bool has_deploy_root = false;
+    while (std::getline(deploy_roots, deploy_root, ',')) {
+        if (deploy_root.empty() || !valid_absolute_path_field(deploy_root, 512)) {
+            if (error_message) {
+                *error_message = "invalid deploy allowed roots";
+            }
+            return false;
+        }
+        has_deploy_root = true;
+    }
+    if (!has_deploy_root) {
+        if (error_message) {
+            *error_message = "invalid deploy allowed roots";
+        }
+        return false;
+    }
     if (!valid_absolute_path_field(config.systemctl_bin, 512)) {
         if (error_message) {
             *error_message = "invalid systemctl path";
@@ -277,6 +301,7 @@ FirstRunConfig current_first_run_config() {
     config.port = env_or_default("CUDDLEPANEL_PORT", "8080");
     config.secure_cookies = std::getenv("CUDDLEPANEL_SECURE_COOKIES") != nullptr;
     config.deploy_systemd_unit_dir = env_or_default("CUDDLEPANEL_DEPLOY_SYSTEMD_DIR", "/etc/systemd/system");
+    config.deploy_allowed_roots = env_or_default("CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS", "/home,/opt,/srv");
     config.systemctl_bin = env_or_default("CUDDLEPANEL_SYSTEMCTL_BIN", "/bin/systemctl");
     config.certbot_bin = env_or_default("CUDDLEPANEL_CERTBOT_BIN", "/usr/bin/certbot");
     config.python3_bin = env_or_default("CUDDLEPANEL_PYTHON3_BIN", "/usr/bin/python3");
@@ -318,6 +343,7 @@ std::optional<FirstRunConfig> first_run_config_from_form(const std::map<std::str
     config.port = get("port");
     config.secure_cookies = truthy(get("secure_cookies"));
     config.deploy_systemd_unit_dir = get("deploy_systemd_unit_dir");
+    config.deploy_allowed_roots = get("deploy_allowed_roots");
     config.systemctl_bin = get("systemctl_bin");
     config.certbot_bin = get("certbot_bin");
     config.python3_bin = get("python3_bin");
@@ -373,6 +399,7 @@ bool write_first_run_env_file(const FirstRunConfig& config,
     file << env_line("CUDDLEPANEL_SECURE_COOKIES", config.secure_cookies ? "1" : "");
     file << "\n# Native deploy engine\n";
     file << env_line("CUDDLEPANEL_DEPLOY_SYSTEMD_DIR", config.deploy_systemd_unit_dir);
+    file << env_line("CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS", config.deploy_allowed_roots);
     file << env_line("CUDDLEPANEL_SYSTEMCTL_BIN", config.systemctl_bin);
     file << env_line("CUDDLEPANEL_CERTBOT_BIN", config.certbot_bin);
     file << env_line("CUDDLEPANEL_PYTHON3_BIN", config.python3_bin);
@@ -420,6 +447,7 @@ void apply_first_run_config(const FirstRunConfig& config) {
         unsetenv("CUDDLEPANEL_SECURE_COOKIES");
     }
     setenv("CUDDLEPANEL_DEPLOY_SYSTEMD_DIR", config.deploy_systemd_unit_dir.c_str(), 1);
+    setenv("CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS", config.deploy_allowed_roots.c_str(), 1);
     setenv("CUDDLEPANEL_SYSTEMCTL_BIN", config.systemctl_bin.c_str(), 1);
     setenv("CUDDLEPANEL_CERTBOT_BIN", config.certbot_bin.c_str(), 1);
     setenv("CUDDLEPANEL_PYTHON3_BIN", config.python3_bin.c_str(), 1);

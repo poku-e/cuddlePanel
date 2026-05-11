@@ -4,10 +4,12 @@
 #include <array>
 #include <cctype>
 #include <cstdlib>
+#include <grp.h>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <cstdio>
+#include <pwd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -28,13 +30,27 @@ struct CloudflareRecord {
     bool found = false;
 };
 
+struct UserContext {
+    uid_t uid = 0;
+    gid_t gid = 0;
+    std::string username;
+    std::string home;
+};
+
+std::vector<std::string> deploy_allowed_roots_impl();
+
 std::string env_or_default(const char* name, const std::string& fallback) {
     const char* configured = std::getenv(name);
     return configured && *configured ? configured : fallback;
 }
 
 bool truthy(const std::string& value) {
-    return value == "1" || value == "true" || value == "on" || value == "yes";
+    std::string lower_value;
+    lower_value.reserve(value.size());
+    for (char c : value) {
+        lower_value += std::tolower(static_cast<unsigned char>(c));
+    }
+    return lower_value == "1" || lower_value == "true" || lower_value == "on" || lower_value == "yes";
 }
 
 bool valid_basic_token(const std::string& value, size_t max_length) {
@@ -148,7 +164,128 @@ std::filesystem::path resolve_child_path(const std::string& base, const std::str
     return std::filesystem::path(base) / child;
 }
 
-CommandResult run_command(const std::vector<std::string>& args, const std::string& cwd = {}) {
+bool starts_with_path(const std::filesystem::path& path, const std::filesystem::path& root) {
+    auto path_it = path.begin();
+    auto root_it = root.begin();
+    for (; root_it != root.end(); ++root_it, ++path_it) {
+        if (path_it == path.end() || *path_it != *root_it) {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::optional<UserContext> lookup_user_context(const std::string& username) {
+    passwd* pw = getpwnam(username.c_str());
+    if (!pw) {
+        return std::nullopt;
+    }
+    return UserContext{
+        pw->pw_uid,
+        pw->pw_gid,
+        pw->pw_name ? pw->pw_name : username,
+        pw->pw_dir ? pw->pw_dir : "/"
+    };
+}
+
+std::optional<std::filesystem::path> trusted_project_root(const std::string& project_root,
+                                                          const std::string& deploy_user,
+                                                          std::string* error_message) {
+    auto fail = [error_message](const std::string& message) -> std::optional<std::filesystem::path> {
+        if (error_message) {
+            *error_message = message;
+        }
+        return std::nullopt;
+    };
+
+    std::error_code ec;
+    const auto input = std::filesystem::path(project_root);
+    if (!std::filesystem::exists(input, ec) || !std::filesystem::is_directory(input, ec)) {
+        return fail("project root does not exist");
+    }
+
+    const auto normalized = std::filesystem::weakly_canonical(input, ec);
+    if (ec || normalized.empty()) {
+        return fail("project root is invalid");
+    }
+
+    bool allowed = false;
+    for (const auto& root_string : deploy_allowed_roots_impl()) {
+        const auto root = std::filesystem::weakly_canonical(root_string, ec);
+        if (ec) {
+            ec.clear();
+            continue;
+        }
+        if (starts_with_path(normalized, root)) {
+            allowed = true;
+            break;
+        }
+    }
+    if (!allowed) {
+        return fail("project root is outside allowed deploy roots");
+    }
+
+    struct stat st {};
+    if (stat(normalized.c_str(), &st) != 0) {
+        return fail("unable to inspect project root");
+    }
+    if ((st.st_mode & S_IWOTH) != 0) {
+        return fail("project root may not be world-writable");
+    }
+
+    const auto deploy_context = lookup_user_context(deploy_user);
+    if (!deploy_context) {
+        return fail("deploy user does not exist");
+    }
+    if (st.st_uid != 0 && st.st_uid != deploy_context->uid) {
+        return fail("project root must be owned by root or the deploy user");
+    }
+    return normalized;
+}
+
+std::optional<std::filesystem::path> trusted_child_directory(const std::filesystem::path& root,
+                                                             const std::string& child,
+                                                             std::string* error_message) {
+    auto fail = [error_message](const std::string& message) -> std::optional<std::filesystem::path> {
+        if (error_message) {
+            *error_message = message;
+        }
+        return std::nullopt;
+    };
+
+    std::error_code ec;
+    const auto candidate = std::filesystem::weakly_canonical(resolve_child_path(root.string(), child), ec);
+    if (ec || candidate.empty()) {
+        return fail("build working directory is invalid");
+    }
+    if (!std::filesystem::is_directory(candidate, ec) || ec) {
+        return fail("build working directory does not exist");
+    }
+    if (!starts_with_path(candidate, root)) {
+        return fail("build working directory is outside project root");
+    }
+    return candidate;
+}
+
+bool drop_to_user(const UserContext& user) {
+    if (getuid() == user.uid && getgid() == user.gid) {
+        return true;
+    }
+    if (initgroups(user.username.c_str(), user.gid) != 0) {
+        return false;
+    }
+    if (setgid(user.gid) != 0) {
+        return false;
+    }
+    if (setuid(user.uid) != 0) {
+        return false;
+    }
+    return true;
+}
+
+CommandResult run_command(const std::vector<std::string>& args,
+                          const std::string& cwd = {},
+                          const UserContext* run_as = nullptr) {
     CommandResult result;
     if (args.empty()) {
         result.output = "unable to execute empty command";
@@ -174,6 +311,18 @@ CommandResult run_command(const std::vector<std::string>& args, const std::strin
         dup2(pipe_fds[1], STDERR_FILENO);
         close(pipe_fds[0]);
         close(pipe_fds[1]);
+        if (run_as) {
+            clearenv();
+            setenv("HOME", run_as->home.c_str(), 1);
+            setenv("USER", run_as->username.c_str(), 1);
+            setenv("LOGNAME", run_as->username.c_str(), 1);
+            setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
+            setenv("LANG", "C.UTF-8", 1);
+            setenv("LC_ALL", "C.UTF-8", 1);
+            if (!drop_to_user(*run_as)) {
+                _exit(125);
+            }
+        }
         if (!cwd.empty() && chdir(cwd.c_str()) != 0) {
             _exit(126);
         }
@@ -229,6 +378,21 @@ bool write_text_file(const std::filesystem::path& path, const std::string& conte
 
 std::string service_unit_dir() {
     return env_or_default("CUDDLEPANEL_DEPLOY_SYSTEMD_DIR", "/etc/systemd/system");
+}
+
+std::vector<std::string> deploy_allowed_roots_impl() {
+    const char* configured = std::getenv("CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS");
+    const std::string raw = configured && *configured ? configured : "/home,/opt,/srv";
+    std::vector<std::string> roots;
+    std::stringstream stream(raw);
+    std::string item;
+    while (std::getline(stream, item, ',')) {
+        const std::string trimmed = trim_copy(item);
+        if (!trimmed.empty() && trimmed.front() == '/') {
+            roots.push_back(trimmed);
+        }
+    }
+    return roots;
 }
 
 std::string systemctl_bin() {
@@ -405,20 +569,29 @@ bool append_result(std::ostringstream& out, const std::string& title, const Comm
 CommandResult build_stack(const DeployRequest& request) {
     const auto stack = deploy_stack_from_string_impl(request.stack);
     const std::filesystem::path project_root(request.project_root);
+    const auto deploy_user = lookup_user_context(request.user);
+    if (!deploy_user) {
+        return {false, 1, "deploy user does not exist"};
+    }
+    std::string trusted_root_error;
+    const auto trusted_root = trusted_project_root(request.project_root, request.user, &trusted_root_error);
+    if (!trusted_root) {
+        return {false, 1, trusted_root_error.empty() ? "project root is invalid" : trusted_root_error};
+    }
 
     if (stack == DeployStack::NodeJs) {
         if (request.install_dependencies) {
-            auto install = run_command({npm_bin(), "ci"}, project_root.string());
+            auto install = run_command({npm_bin(), "ci"}, project_root.string(), &*deploy_user);
             if (!install.ok) {
                 return install;
             }
             if (request.run_build) {
-                return run_command({npm_bin(), "run", "build"}, project_root.string());
+                return run_command({npm_bin(), "run", "build"}, project_root.string(), &*deploy_user);
             }
             return install;
         }
         if (request.run_build) {
-            return run_command({npm_bin(), "run", "build"}, project_root.string());
+            return run_command({npm_bin(), "run", "build"}, project_root.string(), &*deploy_user);
         }
         return {true, 0, "nodejs build steps skipped"};
     }
@@ -428,38 +601,59 @@ CommandResult build_stack(const DeployRequest& request) {
             return {true, 0, "golang build skipped"};
         }
         return run_command({go_bin(), "build", "-o", (project_root / request.go_binary_path).string(), request.go_package},
-                           project_root.string());
+                           project_root.string(),
+                           &*deploy_user);
     }
 
     if (stack == DeployStack::Streamlit) {
-        auto venv = run_command({python3_bin(), "-m", "venv", (project_root / ".venv").string()}, project_root.string());
+        auto venv = run_command({python3_bin(), "-m", "venv", (project_root / ".venv").string()},
+                                project_root.string(),
+                                &*deploy_user);
         if (!venv.ok) {
             return venv;
         }
         if (request.install_dependencies) {
             return run_command({(project_root / ".venv/bin/pip").string(), "install", "-r", (project_root / "requirements.txt").string()},
-                               project_root.string());
+                               project_root.string(),
+                               &*deploy_user);
         }
         return venv;
     }
 
-    auto venv = run_command({python3_bin(), "-m", "venv", (project_root / ".venv").string()}, project_root.string());
+    auto venv = run_command({python3_bin(), "-m", "venv", (project_root / ".venv").string()},
+                            project_root.string(),
+                            &*deploy_user);
     if (!venv.ok) {
         return venv;
     }
     if (request.install_dependencies) {
         auto pip = run_command({(project_root / ".venv/bin/pip").string(), "install", "-r", (project_root / "requirements.txt").string()},
-                               project_root.string());
+                               project_root.string(),
+                               &*deploy_user);
         if (!pip.ok) {
             return pip;
         }
-        auto npm_install = run_command({npm_bin(), "ci"}, resolve_child_path(request.project_root, request.vite_root).string());
+        std::string vite_error;
+        const auto vite_workdir = trusted_child_directory(*trusted_root, request.vite_root, &vite_error);
+        if (!vite_workdir) {
+            return {false, 1, vite_error.empty() ? "build working directory is invalid" : vite_error};
+        }
+        auto npm_install = run_command({npm_bin(), "ci"},
+                                       vite_workdir->string(),
+                                       &*deploy_user);
         if (!npm_install.ok) {
             return npm_install;
         }
     }
     if (request.run_build) {
-        return run_command({npm_bin(), "run", "build"}, resolve_child_path(request.project_root, request.vite_root).string());
+        std::string vite_error;
+        const auto vite_workdir = trusted_child_directory(*trusted_root, request.vite_root, &vite_error);
+        if (!vite_workdir) {
+            return {false, 1, vite_error.empty() ? "build working directory is invalid" : vite_error};
+        }
+        return run_command({npm_bin(), "run", "build"},
+                           vite_workdir->string(),
+                           &*deploy_user);
     }
     return venv;
 }
@@ -701,8 +895,11 @@ bool valid_deploy_request(const DeployRequest& request, std::string* error_messa
     if (!valid_absolute_path(request.project_root)) {
         return fail("invalid project root");
     }
-    if (!std::filesystem::is_directory(request.project_root)) {
-        return fail("project root does not exist");
+    if (!lookup_user_context(request.user)) {
+        return fail("deploy user does not exist");
+    }
+    if (!trusted_project_root(request.project_root, request.user, error_message)) {
+        return false;
     }
     if (request.service_desc.empty() || request.service_desc.size() > 200 || request.service_desc.find('\0') != std::string::npos) {
         return fail("invalid service description");
@@ -768,6 +965,10 @@ DeployStack deploy_stack_from_string(const std::string& value) {
 
 std::string deploy_stack_to_string(DeployStack stack) {
     return stack_value(stack);
+}
+
+std::vector<std::string> deploy_allowed_roots() {
+    return deploy_allowed_roots_impl();
 }
 
 DeployResult run_deploy_site(const DeployRequest& request) {

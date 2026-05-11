@@ -11,6 +11,7 @@ struct FirstRunConfig {
     std::string port;
     bool secure_cookies = false;
     std::string deploy_systemd_unit_dir;
+    std::string deploy_allowed_roots;
     std::string systemctl_bin;
     std::string certbot_bin;
     std::string python3_bin;

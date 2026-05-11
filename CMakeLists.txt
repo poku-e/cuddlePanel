@@ -30,6 +30,15 @@ add_library(cuddle_core
     src/codex_runner.cpp
     src/deploy_runner.cpp
     src/http.cpp
+    src/http_handlers_auth.cpp
+    src/http_handlers_codex.cpp
+    src/http_handlers_deploy.cpp
+    src/http_handlers_nginx.cpp
+    src/http_handlers_page.cpp
+    src/http_handlers_services.cpp
+    src/http_handlers_system.cpp
+    src/http_handlers_terminal.cpp
+    src/http_handlers_users.cpp
     src/log.cpp
     src/nginx_store.cpp
     src/service_store.cpp

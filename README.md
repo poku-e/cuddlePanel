@@ -77,6 +77,7 @@ The repo includes a tracked `.env` file documenting the runtime environment vari
 - `CUDDLEPANEL_SECURE_COOKIES`
 - nginx paths and binary overrides
 - native deploy engine tool paths and optional Cloudflare defaults
+- native deploy roots that are trusted for app builds
 - system administration command and file overrides
 - terminal runtime policy
 - Codex runner path, workspace, model, and timeout
@@ -84,6 +85,7 @@ The repo includes a tracked `.env` file documenting the runtime environment vari
 ## Notes
 
 - High-risk actions are protected by server-side permission checks.
+- Native deploy build steps run as the requested deploy user, and the deploy engine only accepts project roots under `CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS`.
 - The terminal uses PTY sessions rather than raw command passthrough.
 - System file actions are constrained by allowlisted roots.
 - `make build` uses the hardened release profile and will pack `bin/server` with UPX when `upx` is available.

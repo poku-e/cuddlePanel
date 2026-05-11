@@ -214,3 +214,23 @@
 
 - Gave the System administration table its own visual treatment with roomier cell padding, a softer bordered wrapper, and a clearer striped admin-grid pattern.
 - Kept the change scoped to the System page so the denser tables on other operational pages can stay compact while the host-account view becomes easier to scan.
+
+## Deploy Privilege Split
+
+- Hardened the native deploy engine so build and dependency-install steps now execute as the requested deploy user instead of the panel's root context.
+- Added `CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS` to first-run setup, tracked env files, and deploy validation so native deploys only accept trusted project roots that stay inside configured deploy roots and are not world-writable.
+- Updated deploy and first-run docs plus the README to explain the new two-phase deploy model and trusted-root requirement.
+
+## Deploy Child Path Guard
+
+- Hardened Python + Vite deploy builds to canonicalize `vite_root` before running npm commands and reject symlinked working directories that escape the trusted project root.
+- Added a focused deploy test that exercises a symlinked child directory escape attempt and verifies the deploy run fails.
+
+## HTTP Layer Refactor — Route Table, RequestContext, Domain Split
+
+- Replaced the ~250-line if-chain router in `src/http.cpp` with a `std::vector<Route>` table and a 20-line dispatch loop registered via `App::build_routes()`.
+- Introduced `RequestContext` (resolved once per request) carrying all store references plus `require_auth()` and `require_permission()` helpers, eliminating per-handler session/permission boilerplate.
+- Moved all 38 handler methods off the `App` class into free functions in eight focused domain files: `http_handlers_auth.cpp`, `http_handlers_page.cpp`, `http_handlers_users.cpp`, `http_handlers_services.cpp`, `http_handlers_nginx.cpp`, `http_handlers_system.cpp`, `http_handlers_terminal.cpp`, `http_handlers_codex.cpp`, and `http_handlers_deploy.cpp`.
+- `App` class is now reduced to constructor + `handle()` + private store references + `routes_`.
+- `src/http.cpp` shrank from 1823 lines to ~400; all nine handler files together total comparable line count but each file covers a single domain.
+- Updated `CMakeLists.txt` to include all nine new handler source files in the `cuddle_core` static library.

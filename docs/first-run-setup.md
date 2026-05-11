@@ -20,6 +20,7 @@ Environment scope in this phase:
   - `CUDDLEPANEL_SECURE_COOKIES`
 - Native deploy engine:
   - `CUDDLEPANEL_DEPLOY_SYSTEMD_DIR`
+  - `CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS`
   - `CUDDLEPANEL_SYSTEMCTL_BIN`
   - `CUDDLEPANEL_CERTBOT_BIN`
   - `CUDDLEPANEL_PYTHON3_BIN`
@@ -70,6 +71,7 @@ Dependency status behavior:
 Safety rules:
 - Shell-exported environment variables still take precedence over `.env` values on future starts.
 - The setup page writes a controlled `.env` file and does not accept arbitrary environment keys.
+- Deploy roots should stay narrow and trusted because only directories under `CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS` may be used for native deploy runs.
 - First-run setup remains available only until the first user exists.
 
 Gotchas and debugging:

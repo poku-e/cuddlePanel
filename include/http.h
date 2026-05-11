@@ -15,6 +15,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace cuddle {
 
@@ -31,6 +32,17 @@ struct HttpResponse {
     std::map<std::string, std::string> headers;
     std::string body;
 };
+
+// HTTP response factories – usable from any handler file.
+HttpResponse json_response(int status, const std::string& body);
+HttpResponse redirect_response(const std::string& location);
+HttpResponse page_response(const std::string& file);
+
+// Encoding / parsing utilities shared across handler files.
+std::string json_escape(const std::string& value);
+std::string html_escape(const std::string& value);
+std::string url_decode(const std::string& value);
+std::map<std::string, std::string> parse_form(const std::string& body);
 
 struct SessionState {
     std::string username;
@@ -56,6 +68,47 @@ private:
     std::map<std::string, SessionState> sessions_;
 };
 
+// Resolved per-request context passed to every route handler.
+// Eliminates repeated session lookups and auth/permission boilerplate.
+struct RequestContext {
+    const HttpRequest&             request;
+    std::string                    session_token;
+    std::optional<std::string>     username;
+    UserStore&                     users;
+    ServiceStore&                  services;
+    NginxStore&                    nginx;
+    SystemAdmin&                   system_admin;
+    TerminalManager&               terminal;
+    CodexProjectStore&             codex_projects;
+    CodexConversationManager&      codex_conversations;
+    SessionStore&                  sessions;
+
+    // Returns a 401 response when no authenticated user, or nullopt if OK.
+    std::optional<HttpResponse> require_auth() const;
+
+    // Returns an error response when the user lacks the given permission,
+    // or nullopt if OK.  Also enforces authentication.
+    std::optional<HttpResponse> require_permission(const std::string& page,
+                                                   PermissionLevel level) const;
+};
+
+// Handler signature: (resolved context, url-decoded path id-segment) → response.
+using RouteHandler = std::function<HttpResponse(const RequestContext&, const std::string&)>;
+
+// A registered route entry.  The router tests them in registration order.
+//   method – HTTP method to match; empty = any method.
+//   prefix – matched against the start of the request path.
+//   suffix – if non-empty, matched against the end of the segment after prefix;
+//            the id between prefix and suffix is url-decoded and passed to the handler.
+//   exact  – if true, the full path must equal prefix (no id extraction).
+struct Route {
+    std::string  method;
+    std::string  prefix;
+    std::string  suffix;
+    bool         exact   = false;
+    RouteHandler handler;
+};
+
 class App {
 public:
     App(UserStore& users,
@@ -66,60 +119,23 @@ public:
         CodexProjectStore& codex_projects,
         CodexConversationManager& codex_conversations,
         SessionStore& sessions);
+
     HttpResponse handle(const HttpRequest& request);
 
 private:
-    UserStore& users_;
-    ServiceStore& services_;
-    NginxStore& nginx_;
-    SystemAdmin& system_admin_;
-    TerminalManager& terminal_;
-    CodexProjectStore& codex_projects_;
-    CodexConversationManager& codex_conversations_;
-    SessionStore& sessions_;
+    UserStore&                  users_;
+    ServiceStore&               services_;
+    NginxStore&                 nginx_;
+    SystemAdmin&                system_admin_;
+    TerminalManager&            terminal_;
+    CodexProjectStore&          codex_projects_;
+    CodexConversationManager&   codex_conversations_;
+    SessionStore&               sessions_;
 
-    HttpResponse page(const std::string& file) const;
-    HttpResponse json(int status, const std::string& body) const;
-    HttpResponse redirect(const std::string& location) const;
-    std::optional<std::string> current_user(const HttpRequest& request) const;
-    HttpResponse api_page(const HttpRequest& request, const std::string& page_name) const;
-    HttpResponse api_setup_status(const HttpRequest& request) const;
-    HttpResponse api_users(const HttpRequest& request) const;
-    HttpResponse api_user_permissions(const HttpRequest& request, const std::string& username) const;
-    HttpResponse api_delete_user(const HttpRequest& request, const std::string& username) const;
-    HttpResponse api_services(const HttpRequest& request) const;
-    HttpResponse api_update_service(const HttpRequest& request, const std::string& name) const;
-    HttpResponse api_service_action(const HttpRequest& request, const std::string& name) const;
-    HttpResponse api_system_users(const HttpRequest& request) const;
-    HttpResponse api_system_user_action(const HttpRequest& request, const std::string& username) const;
-    HttpResponse api_system_authorized_keys(const HttpRequest& request, const std::string& username) const;
-    HttpResponse api_system_path_action(const HttpRequest& request) const;
-    HttpResponse api_nginx_sites(const HttpRequest& request) const;
-    HttpResponse api_update_nginx_site(const HttpRequest& request, const std::string& name) const;
-    HttpResponse api_nginx_action(const HttpRequest& request, const std::string& name) const;
-    HttpResponse api_codex_projects(const HttpRequest& request) const;
-    HttpResponse api_codex_conversations(const HttpRequest& request) const;
-    HttpResponse api_codex_conversation_read(const HttpRequest& request, const std::string& conversation_id) const;
-    HttpResponse api_codex_conversation_transcript(const HttpRequest& request, const std::string& conversation_id) const;
-    HttpResponse api_codex_conversation_history(const HttpRequest& request, const std::string& conversation_id) const;
-    HttpResponse api_codex_conversation_send(const HttpRequest& request, const std::string& conversation_id) const;
-    HttpResponse api_codex_conversation_close(const HttpRequest& request, const std::string& conversation_id) const;
-    HttpResponse api_codex_run(const HttpRequest& request) const;
-    HttpResponse api_deploy_run(const HttpRequest& request) const;
-    HttpResponse api_totp_setup_info(const HttpRequest& request) const;
-    HttpResponse api_totp_confirm(const HttpRequest& request) const;
-    HttpResponse api_terminal_totp_verify(const HttpRequest& request) const;
-    HttpResponse api_terminal_create(const HttpRequest& request) const;
-    HttpResponse api_terminal_read(const HttpRequest& request, const std::string& session_id) const;
-    HttpResponse api_terminal_write(const HttpRequest& request, const std::string& session_id) const;
-    HttpResponse api_terminal_resize(const HttpRequest& request, const std::string& session_id) const;
-    HttpResponse api_terminal_close(const HttpRequest& request, const std::string& session_id) const;
+    std::vector<Route> routes_;
+    void build_routes();
 };
 
 bool run_server(App& app, int port);
-std::map<std::string, std::string> parse_form(const std::string& body);
-std::string url_decode(const std::string& value);
-std::string html_escape(const std::string& value);
-std::string json_escape(const std::string& value);
 
 }

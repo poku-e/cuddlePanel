@@ -12,6 +12,7 @@ int main() {
         {"port", "18080"},
         {"secure_cookies", "1"},
         {"deploy_systemd_unit_dir", "/etc/systemd/system"},
+        {"deploy_allowed_roots", "/home,/opt,/srv"},
         {"systemctl_bin", "/bin/systemctl"},
         {"certbot_bin", "/usr/bin/certbot"},
         {"python3_bin", "/usr/bin/python3"},
@@ -58,6 +59,7 @@ int main() {
     assert(content.find("CUDDLEPANEL_PORT=18080") != std::string::npos);
     assert(content.find("CUDDLEPANEL_SECURE_COOKIES=1") != std::string::npos);
     assert(content.find("CUDDLEPANEL_DEPLOY_SYSTEMD_DIR=/etc/systemd/system") != std::string::npos);
+    assert(content.find("CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS=/home,/opt,/srv") != std::string::npos);
     assert(content.find("CUDDLEPANEL_CODEX_BIN=/usr/bin/codex") != std::string::npos);
     std::filesystem::remove(path);
 
