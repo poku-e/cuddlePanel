@@ -107,6 +107,32 @@
     </div>
 </div>
 
+<div class="modal fade" id="systemDeleteUserModal" tabindex="-1" aria-labelledby="systemDeleteUserModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title h5 mb-1" id="systemDeleteUserModalTitle">Delete host account</h3>
+                    <div class="small text-secondary">Remove the selected host account after explicit confirmation.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="systemDeleteUserForm">
+                <div class="modal-body vstack gap-3">
+                    <label class="cp-label">Username<input class="cp-input" id="systemDeleteUsername" name="username" readonly></label>
+                    <div class="small text-secondary">This uses <code>userdel</code> on the server. Deleting a home directory is optional and recursive.</div>
+                    <label class="cp-toggle"><input type="checkbox" id="systemDeleteHome" name="delete_home"{{disabled_attr}}> <span>Delete the user's home directory recursively</span></label>
+                    <div id="systemDeleteMessage" class="small"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-danger" type="submit"{{disabled_attr}}>Delete account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="systemPathModal" tabindex="-1" aria-labelledby="systemPathModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">

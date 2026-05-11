@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -35,7 +36,9 @@ public:
                                    bool system_account) const;
     SystemActionResult read_authorized_keys(const std::string& username, std::string* content_out) const;
     SystemActionResult write_authorized_keys(const std::string& username, const std::string& content) const;
-    SystemActionResult run_user_action(const std::string& username, const std::string& action) const;
+    SystemActionResult run_user_action(const std::string& username,
+                                       const std::string& action,
+                                       bool delete_home) const;
     SystemActionResult run_path_action(const std::string& action,
                                        const std::string& path,
                                        const std::string& owner,
@@ -45,6 +48,7 @@ public:
     std::vector<std::string> allowed_path_roots() const;
 
 private:
+    mutable std::mutex account_command_mutex_;
     std::string passwd_path_;
     std::string group_path_;
     std::string shadow_path_;

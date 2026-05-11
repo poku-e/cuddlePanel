@@ -135,6 +135,10 @@ std::string gpasswd_binary() {
     return env_or_default("CUDDLEPANEL_GPASSWD_BIN", "/usr/bin/gpasswd");
 }
 
+std::string userdel_binary() {
+    return env_or_default("CUDDLEPANEL_USERDEL_BIN", "/usr/sbin/userdel");
+}
+
 std::string chown_binary() {
     return env_or_default("CUDDLEPANEL_CHOWN_BIN", "/bin/chown");
 }
@@ -249,6 +253,7 @@ SystemActionResult SystemAdmin::create_user(const std::string& username,
                                             const std::string& shell,
                                             const std::string& home,
                                             bool system_account) const {
+    std::lock_guard<std::mutex> lock(account_command_mutex_);
     if (!valid_system_username(username)) {
         return {false, "invalid username"};
     }
@@ -343,11 +348,14 @@ SystemActionResult SystemAdmin::write_authorized_keys(const std::string& usernam
     return {true, "authorized_keys saved"};
 }
 
-SystemActionResult SystemAdmin::run_user_action(const std::string& username, const std::string& action) const {
+SystemActionResult SystemAdmin::run_user_action(const std::string& username,
+                                                const std::string& action,
+                                                bool delete_home) const {
+    std::lock_guard<std::mutex> lock(account_command_mutex_);
     if (!valid_system_username(username)) {
         return {false, "invalid username"};
     }
-    if (username == "root" && (action == "lock" || action == "revoke-sudo")) {
+    if (username == "root" && (action == "lock" || action == "revoke-sudo" || action == "delete")) {
         return {false, "refusing to modify root in this way"};
     }
     if (!find_user(username)) {
@@ -365,6 +373,14 @@ SystemActionResult SystemAdmin::run_user_action(const std::string& username, con
     }
     if (action == "revoke-sudo") {
         return capture_command({gpasswd_binary(), "-d", username, "sudo"});
+    }
+    if (action == "delete") {
+        std::vector<std::string> args{userdel_binary()};
+        if (delete_home) {
+            args.push_back("-r");
+        }
+        args.push_back(username);
+        return capture_command(args);
     }
     return {false, "invalid system user action"};
 }

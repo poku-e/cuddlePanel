@@ -218,6 +218,28 @@
 ## Deploy Privilege Split
 
 - Hardened the native deploy engine so build and dependency-install steps now execute as the requested deploy user instead of the panel's root context.
+
+## System Account List Focus
+
+- Updated the System administration Accounts tab to render only login-enabled host accounts so `nologin` entries no longer crowd the main operator table.
+- Sorted any remaining system accounts with interactive shells after normal login users to keep the dashboard focused on day-to-day admin accounts first.
+- Documented that the backend still returns the full passwd-derived dataset while the dashboard applies the operator-focused filter client-side.
+
+## System Account Deletion
+
+- Added host-account deletion to the System administration Accounts tab with a dedicated confirmation modal and an explicit checkbox for recursive home-directory removal.
+- Extended the backend system user action handler to support a validated `delete` action through `userdel`, with `root` protected from deletion and home removal only enabled when the request opts in.
+- Documented the new delete workflow, the `CUDDLEPANEL_USERDEL_BIN` override, and the recursive-delete safety rule in the system administration docs and README.
+
+## System Action Error Surfacing
+
+- Updated the shared AJAX API helpers to surface backend `output` messages on non-2xx responses instead of collapsing system-action failures into the generic `Request failed`.
+- This keeps host-account delete failures actionable in the dashboard by showing the underlying `userdel` reason directly in the modal and toast flow.
+
+## Serialized Account Mutations
+
+- Serialized System-page account creation and account-mutation commands inside the backend so overlapping dashboard requests cannot race for `/etc/passwd` or `/etc/group` locks.
+- Hardened the delete-account modal to allow only one in-flight submit at a time, reducing accidental duplicate `userdel` requests from repeated clicks.
 - Added `CUDDLEPANEL_DEPLOY_ALLOWED_ROOTS` to first-run setup, tracked env files, and deploy validation so native deploys only accept trusted project roots that stay inside configured deploy roots and are not world-writable.
 - Updated deploy and first-run docs plus the README to explain the new two-phase deploy model and trusted-root requirement.
 
@@ -239,4 +261,3 @@
 - `App` class is now reduced to constructor + `handle()` + private store references + `routes_`.
 - `src/http.cpp` shrank from 1823 lines to ~400; all nine handler files together total comparable line count but each file covers a single domain.
 - Updated `CMakeLists.txt` to include all nine new handler source files in the `cuddle_core` static library.
-

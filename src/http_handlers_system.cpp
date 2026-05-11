@@ -60,7 +60,8 @@ HttpResponse handle_system_user_action(const RequestContext& ctx, const std::str
     }
     if (auto err = ctx.require_permission("system", PermissionLevel::Manage)) return *err;
     auto form = parse_form(ctx.request.body);
-    const auto result = ctx.system_admin.run_user_action(username, form["action"]);
+    const bool delete_home = form["delete_home"] == "on";
+    const auto result = ctx.system_admin.run_user_action(username, form["action"], delete_home);
     std::ostringstream out;
     out << "{\"ok\":" << (result.ok ? "true" : "false")
         << ",\"output\":\"" << json_escape(result.output) << "\"}";

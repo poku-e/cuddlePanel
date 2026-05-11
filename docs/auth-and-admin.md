@@ -67,7 +67,7 @@ Workflow:
 - The Users page loads dashboard users into a dense table, opens create and permission-edit flows in Bootstrap modals, and performs mutations through AJAX without leaving `/dashboard`.
 - User deletion now requires an explicit browser confirmation before the dashboard sends the destructive request.
 - The Services page loads allowlisted systemd services into an operations table, uses a shared output accordion for runtime feedback, and performs edits through a Bootstrap modal.
-- The System page loads host accounts into a table, uses Bootstrap tabs for account vs. file workflows, manages sudo-group membership through AJAX, and constrains path ownership and mode changes to configured roots.
+- The System page loads host accounts into a table, uses Bootstrap tabs for account vs. file workflows, manages sudo-group membership and account deletion through AJAX, and constrains path ownership and mode changes to configured roots.
 - The System page also provides an `authorized_keys` editor for login users, with the target file derived from each account's home directory on the server.
 - The Nginx page loads allowlisted site configs into a table, edits full config content in a Bootstrap modal, and performs file updates, enable/disable, config tests, and reloads through AJAX.
 - The Deploy page now runs a native stack-aware deploy engine through `/api/deploy/run`, writing systemd and nginx configuration directly and optionally creating or updating a Cloudflare DNS record.
@@ -99,6 +99,7 @@ Hidden dependencies and configuration:
 - Runtime state lives in `data/users.db`, created with `0600` permissions when possible.
 - Service registry state lives in `data/services.db`.
 - System account data reads from the configured passwd, group, and shadow files, and system file actions are limited by `CUDDLEPANEL_SYSTEM_ALLOWED_ROOTS`.
+- System account deletion uses the configured `userdel` binary and only removes home directories when the request explicitly opts into the recursive delete flag.
 - Nginx registry state lives in `data/nginx.db`.
 - The deploy engine uses configured paths for `systemctl`, `certbot`, `python3`, `npm`, `node`, `go`, `curl`, and the target systemd unit directory.
 - The terminal shell defaults to `/bin/bash` and can be overridden with `CUDDLEPANEL_TERMINAL_SHELL`.

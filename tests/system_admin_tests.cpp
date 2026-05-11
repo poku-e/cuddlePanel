@@ -43,6 +43,7 @@ int main() {
     setenv("CUDDLEPANEL_PASSWD_BIN", "/bin/true", 1);
     setenv("CUDDLEPANEL_USERMOD_BIN", "/bin/true", 1);
     setenv("CUDDLEPANEL_GPASSWD_BIN", "/bin/true", 1);
+    setenv("CUDDLEPANEL_USERDEL_BIN", "/bin/true", 1);
     setenv("CUDDLEPANEL_CHOWN_BIN", "/bin/true", 1);
     setenv("CUDDLEPANEL_CHMOD_BIN", "/bin/true", 1);
 
@@ -76,12 +77,16 @@ int main() {
 
     const auto create_result = admin.create_user("deploy", "/bin/bash", "/home/deploy", false);
     assert(create_result.ok);
-    const auto lock_result = admin.run_user_action("alice", "lock");
+    const auto lock_result = admin.run_user_action("alice", "lock", false);
     assert(lock_result.ok);
-    const auto sudo_result = admin.run_user_action("alice", "grant-sudo");
+    const auto sudo_result = admin.run_user_action("alice", "grant-sudo", false);
     assert(sudo_result.ok);
-    const auto root_reject = admin.run_user_action("root", "lock");
+    const auto delete_result = admin.run_user_action("alice", "delete", true);
+    assert(delete_result.ok);
+    const auto root_reject = admin.run_user_action("root", "lock", false);
     assert(!root_reject.ok);
+    const auto root_delete_reject = admin.run_user_action("root", "delete", true);
+    assert(!root_delete_reject.ok);
 
     const auto chown_result = admin.run_path_action("chown",
                                                     alice_home.string(),

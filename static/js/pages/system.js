@@ -5,11 +5,27 @@ import {showErrorToast, showSuccessToast} from "../core/toast.js";
 let systemUsers = [];
 let selectedAuthorizedKeysUser = "";
 let createModal = null;
+let deleteModal = null;
 let pathModal = null;
 let keysModal = null;
+let deleteRequestInFlight = false;
 
 function canManage() {
     return document.getElementById("systemPageState")?.dataset.canManage === "1";
+}
+
+function visibleSystemUsers(users) {
+    return [...users]
+        .filter((user) => user.login_user)
+        .sort((left, right) => {
+            if (left.system_account !== right.system_account) {
+                return left.system_account ? 1 : -1;
+            }
+            if (left.uid !== right.uid) {
+                return left.uid - right.uid;
+            }
+            return left.username.localeCompare(right.username);
+        });
 }
 
 function systemUserRowMarkup(user) {
@@ -32,6 +48,7 @@ function systemUserRowMarkup(user) {
                         <button class="btn btn-outline-warning system-action-button" data-action="${user.in_sudo ? "revoke-sudo" : "grant-sudo"}" type="button" ${(canManage() && user.username !== "root") ? "" : "disabled"}>${user.in_sudo ? "Revoke sudo" : "Grant sudo"}</button>
                     </div>
                     <button class="btn btn-outline-primary btn-sm system-keys-button" type="button" ${(canManage() && user.login_user) ? "" : "disabled"}>Keys</button>
+                    <button class="btn btn-outline-danger btn-sm system-delete-button" type="button" ${(canManage() && user.username !== "root") ? "" : "disabled"}>Delete</button>
                 </div>
             </td>
         </tr>
@@ -45,16 +62,17 @@ function setSelectedAuthorizedKeysUser(username) {
 
 function renderSystemUsers(payload) {
     systemUsers = payload.users;
+    const usersForTable = visibleSystemUsers(payload.users);
     const rootsText = payload.allowedRoots.join(", ");
     document.getElementById("systemAllowedRoots").textContent = `Allowed path roots: ${rootsText}`;
     document.getElementById("systemAllowedRootsInline").textContent = rootsText;
 
     const host = document.getElementById("systemUsersHost");
-    if (!payload.users.length) {
-        host.innerHTML = '<tr><td colspan="6" class="text-secondary">No host accounts found.</td></tr>';
+    if (!usersForTable.length) {
+        host.innerHTML = '<tr><td colspan="6" class="text-secondary">No login-enabled host accounts found.</td></tr>';
         return;
     }
-    host.innerHTML = payload.users.map(systemUserRowMarkup).join("");
+    host.innerHTML = usersForTable.map(systemUserRowMarkup).join("");
 }
 
 async function refreshSystemPage() {
@@ -124,6 +142,19 @@ function wireSystemRows() {
             await loadAuthorizedKeys(row.dataset.systemUsername);
         });
     });
+
+    document.querySelectorAll(".system-delete-button").forEach((button) => {
+        button.addEventListener("click", () => {
+            const row = button.closest("[data-system-username]");
+            const username = row.dataset.systemUsername;
+            document.getElementById("systemDeleteUsername").value = username;
+            document.getElementById("systemDeleteHome").checked = false;
+            const message = document.getElementById("systemDeleteMessage");
+            message.textContent = `Confirm deletion for ${username}.`;
+            message.className = "small text-secondary";
+            deleteModal.show();
+        });
+    });
 }
 
 export async function initSystemPage() {
@@ -133,10 +164,15 @@ export async function initSystemPage() {
     }
 
     createModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemCreateUserModal"));
+    deleteModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemDeleteUserModal"));
     pathModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemPathModal"));
     keysModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemAuthorizedKeysModal"));
 
     const createMessage = document.getElementById("systemCreateMessage");
+    const deleteForm = document.getElementById("systemDeleteUserForm");
+    const deleteMessage = document.getElementById("systemDeleteMessage");
+    const deleteUsernameField = document.getElementById("systemDeleteUsername");
+    const deleteSubmitButton = deleteForm.querySelector('button[type="submit"]');
     const pathForm = document.getElementById("systemPathActionForm");
     const pathMessage = document.getElementById("systemPathMessage");
     const pathOutput = document.getElementById("systemPathOutput");
@@ -218,6 +254,45 @@ export async function initSystemPage() {
             pathMessage.className = "small text-danger";
             document.getElementById("systemPathSummaryMessage").textContent = error.message;
             showErrorToast(error.message);
+        }
+    });
+
+    deleteForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!deleteUsernameField.value) {
+            deleteMessage.textContent = "Choose an account first.";
+            deleteMessage.className = "small text-danger";
+            return;
+        }
+        if (deleteRequestInFlight) {
+            return;
+        }
+        deleteRequestInFlight = true;
+        deleteSubmitButton.disabled = true;
+        deleteMessage.textContent = "";
+        try {
+            const payload = await postParams(`/api/system/users/${encodeURIComponent(deleteUsernameField.value)}/action`, {
+                action: "delete",
+                delete_home: document.getElementById("systemDeleteHome").checked ? "on" : ""
+            });
+            deleteMessage.textContent = payload.output;
+            deleteMessage.className = "small text-success";
+            showSuccessToast(payload.output || "System account deleted.");
+            deleteModal.hide();
+            if (selectedAuthorizedKeysUser === deleteUsernameField.value) {
+                setSelectedAuthorizedKeysUser("");
+                document.getElementById("authorizedKeysSummaryMessage").textContent = "Choose a login user from Accounts.";
+                document.getElementById("authorizedKeysUsername").value = "";
+                document.getElementById("authorizedKeysContent").value = "";
+            }
+            await refreshSystemPage();
+        } catch (error) {
+            deleteMessage.textContent = error.message;
+            deleteMessage.className = "small text-danger";
+            showErrorToast(error.message);
+        } finally {
+            deleteRequestInFlight = false;
+            deleteSubmitButton.disabled = !canManage();
         }
     });
 

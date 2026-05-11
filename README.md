@@ -15,7 +15,7 @@ cuddlePanel is an internal server administration panel built in C++ with a Boots
 - Per-page `view` / `manage` permissions
 - User administration
 - Service registry and systemd control
-- System administration for host users, sudo group membership, constrained `chown` / `chmod`, and `authorized_keys`
+- System administration for host users, sudo group membership, host-account deletion, constrained `chown` / `chmod`, and `authorized_keys`
 - Nginx site management
 - Project-scoped Codex conversations with maintenance-mode fallback, streamed output, in-thread approvals, transcript export, and restart-time resume
 - Native stack-aware deploy workflow for Node.js, Golang, Streamlit, and Python + Vite, with optional Cloudflare DNS updates

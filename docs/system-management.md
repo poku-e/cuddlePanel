@@ -14,12 +14,16 @@ Workflow:
 - The System page loads host account data through `/api/system/users`.
 - The page uses Bootstrap nav tabs for `Accounts` and `Files` so account operations and file-management tools stay visually separate.
 - Account listing reads the configured passwd, group, and shadow sources and returns username, uid, gid, home, shell, system-account classification, sudo-group membership, and lock state in a compact table.
+- The `Accounts` tab intentionally renders only login-enabled users. Entries with `nologin` or `false` shells stay out of the main dashboard list, and any remaining system accounts with interactive shells are sorted after normal login users.
 - Creating an account opens in a Bootstrap modal, uses `useradd` directly, and keeps the account list visible in the background. Normal users are created with a home directory. System accounts are created with `-r -M`.
 - Account actions support:
   - `lock`
   - `unlock`
   - `grant-sudo`
   - `revoke-sudo`
+  - `delete`
+- Account deletion opens in a dedicated confirmation modal. Operators can optionally request recursive home-directory removal, which maps to `userdel -r` on the server.
+- Account creation and account-mutation commands are serialized inside the panel process so overlapping dashboard requests do not race each other for `/etc/passwd` and `/etc/group` locks.
 - SSH key management supports reading, creating, and replacing `~/.ssh/authorized_keys` for login users only, with the editor opened in a Bootstrap modal from an account row or the Files tab summary card.
 - Sudo management in this phase is group-based only. cuddlePanel manages membership in the `sudo` group and does not edit `/etc/sudoers` or drop-in sudoers files.
 - Ownership and mode changes run through a dedicated Bootstrap modal launched from the Files tab:
@@ -37,6 +41,7 @@ Hidden dependencies and configuration:
   - `CUDDLEPANEL_PASSWD_BIN`
   - `CUDDLEPANEL_USERMOD_BIN`
   - `CUDDLEPANEL_GPASSWD_BIN`
+  - `CUDDLEPANEL_USERDEL_BIN`
   - `CUDDLEPANEL_CHOWN_BIN`
   - `CUDDLEPANEL_CHMOD_BIN`
 - File ownership and mode changes are limited to roots from `CUDDLEPANEL_SYSTEM_ALLOWED_ROOTS`.
@@ -48,11 +53,12 @@ Hidden dependencies and configuration:
 - `authorized_keys` content is written directly under the selected user's home directory after that home path is resolved on the server.
 
 Safety rules:
-- The `root` account cannot be locked and cannot have sudo access revoked through the panel.
+- The `root` account cannot be locked, deleted, or have sudo access revoked through the panel.
 - Unknown actions are rejected server-side.
 - Account names, shell paths, home paths, owner names, group names, and octal modes are all validated before execution.
 - `authorized_keys` editing is limited to login users with interactive shells and non-system UIDs. cuddlePanel does not expose arbitrary file editing under `.ssh/`.
 - Commands are executed with direct `execv` argument vectors, not through a shell.
+- Recursive home deletion is only available through the explicit delete-account confirmation modal; it is never implied by a plain account delete request.
 - New `.ssh` directories are created with `0700` and `authorized_keys` files with `0600`, then assigned to the target account's uid and gid.
 
 Gotchas and debugging:
@@ -61,3 +67,4 @@ Gotchas and debugging:
 - Recursive `chown` and `chmod` are powerful even with path allowlists. Keep `system:manage` narrowly assigned.
 - `authorized_keys` is treated as structured operator data, not as a general-purpose text editor surface. Keep the server-side username-to-home resolution authoritative.
 - The page keeps account actions in cards and moves larger write operations into modals on purpose. If the layout starts drifting back toward stacked forms, preserve the tab-and-modal organization instead of reintroducing every tool inline.
+- The API still returns all parsed passwd entries because backend actions and tests rely on the full dataset; the dashboard applies the login-user filter at render time to keep the operator view focused.
