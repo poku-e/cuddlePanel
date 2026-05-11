@@ -91,7 +91,7 @@ User management workflow:
 Hidden dependencies and configuration:
 - Requires libsodium development headers and library at build time.
 - Requires OpenSSL libcrypto for HMAC-SHA1 TOTP generation and verification.
-- Uses a locally vendored compiled Bootstrap CSS asset at `static/vendor/bootstrap/5.3.8/bootstrap.min.css` so dashboard styling does not depend on a CSS CDN at runtime.
+- Uses locally vendored compiled Bootstrap CSS at `static/vendor/bootstrap/5.3.8/bootstrap.min.css` plus the Bootswatch Pulse theme at `static/vendor/bootswatch/5.3.8/pulse.bootstrap.min.css`, so the UI keeps a consistent themed Bootstrap layer without depending on a CSS CDN at runtime.
 - A checked-in repo `.env` file now lists every runtime environment variable, is auto-loaded by the server from the current working directory when present, and is written during first-run setup.
 - Dashboard shell templates live under `templates/`, and page-specific AJAX content templates live under `templates/pages/`.
 - Frontend behavior is split between `static/js/core/` helpers, `static/js/pages/` page modules, and the top-level `static/app.js` bootstrap entrypoint.

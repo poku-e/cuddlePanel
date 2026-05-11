@@ -26,6 +26,7 @@ cuddlePanel is an internal server administration panel built in C++ with a Boots
 
 - Backend: C++17
 - Frontend: Bootstrap CSS, modular JavaScript, AJAX page loading
+- Theme: locally vendored Bootswatch Pulse layered on top of Bootstrap
 - Templates: reusable shell partials plus page templates under `templates/pages/`
 - Data storage: local flat files under `data/`
 

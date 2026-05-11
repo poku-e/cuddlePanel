@@ -199,3 +199,18 @@
 - Reworked the Users, Services, Nginx, and System pages away from stacked custom cards and into denser Bootstrap-style table layouts with modal-based editing flows.
 - Replaced the fragile custom System tabs with Bootstrap nav tabs, and converted account creation, path actions, SSH key editing, service editing, and nginx config editing into Bootstrap modals.
 - Flattened the visual styling toward a more restrained enterprise admin look, added shared output accordions for service and nginx runtime feedback, and refreshed the Deploy tabs to use Bootstrap nav-tab presentation.
+
+## Bootswatch Pulse Theme
+
+- Vendored the official Bootswatch Pulse theme locally at `static/vendor/bootswatch/5.3.8/pulse.bootstrap.min.css`.
+- Applied Pulse after the base Bootstrap stylesheet on the login, onboarding, 2FA setup, and dashboard shells so the whole UI shares the same themed Bootstrap layer.
+
+## Card Spacing Pass
+
+- Increased shared padding inside auth cards, dashboard cards, and subpanels so the page surfaces have more breathing room without changing the underlying workflows.
+- Added a slightly tighter mobile override so smaller screens still feel comfortable without wasting vertical space.
+
+## System Table Refinement
+
+- Gave the System administration table its own visual treatment with roomier cell padding, a softer bordered wrapper, and a clearer striped admin-grid pattern.
+- Kept the change scoped to the System page so the denser tables on other operational pages can stay compact while the host-account view becomes easier to scan.

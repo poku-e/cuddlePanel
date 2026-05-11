@@ -93,7 +93,7 @@ body {
     background: var(--cp-panel);
     border: 1px solid var(--cp-line);
     border-radius: 8px;
-    padding: 28px;
+    padding: 32px;
     box-shadow: 0 18px 45px rgba(23, 32, 51, 0.12);
 }
 
@@ -305,7 +305,7 @@ body {
     border: 1px solid var(--cp-line);
     border-radius: 6px;
     background: var(--cp-panel);
-    padding: 16px;
+    padding: 22px;
 }
 
 .cp-card h2 {
@@ -371,6 +371,39 @@ body {
     vertical-align: middle;
 }
 
+.system-table-wrap {
+    border-color: #c9d2f0;
+    background:
+        linear-gradient(180deg, rgba(245, 247, 255, 0.82) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.system-admin-table {
+    --bs-table-bg: transparent;
+    --bs-table-striped-bg: #f7f9fc;
+    --bs-table-hover-bg: #eef3ff;
+    --bs-table-border-color: #dbe2f0;
+}
+
+.system-admin-table thead th {
+    background: #eef2ff;
+    color: #334155;
+    border-bottom-width: 1px;
+    padding: 0.95rem 1rem;
+}
+
+.system-admin-table tbody td {
+    padding: 0.95rem 1rem;
+}
+
+.system-admin-table tbody tr:nth-child(even) td {
+    background: rgba(248, 250, 252, 0.8);
+}
+
+.system-admin-table code {
+    font-size: 0.84rem;
+    color: #475467;
+}
+
 .cp-nav-tabs {
     border-bottom-color: var(--cp-line);
 }
@@ -391,7 +424,7 @@ body {
     border: 1px solid var(--cp-line);
     border-radius: 6px;
     background: #fff;
-    padding: 14px;
+    padding: 18px;
 }
 
 .cp-summary-list {
@@ -638,5 +671,13 @@ body {
 
     .cp-toolbar {
         flex-direction: column;
+    }
+
+    .cp-card {
+        padding: 18px;
+    }
+
+    .auth-card {
+        padding: 24px;
     }
 }
