@@ -5,10 +5,14 @@ import {showErrorToast, showSuccessToast} from "../core/toast.js";
 let systemUsers = [];
 let selectedAuthorizedKeysUser = "";
 let createModal = null;
+let editModal = null;
+let securityModal = null;
 let deleteModal = null;
 let pathModal = null;
 let keysModal = null;
 let deleteRequestInFlight = false;
+let editRequestInFlight = false;
+let securityRequestInFlight = false;
 
 function canManage() {
     return document.getElementById("systemPageState")?.dataset.canManage === "1";
@@ -44,6 +48,8 @@ function systemUserRowMarkup(user) {
             <td class="text-end">
                 <div class="btn-toolbar justify-content-end gap-1">
                     <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary system-edit-button" type="button" ${(canManage() && user.username !== "root") ? "" : "disabled"}>Edit</button>
+                        <button class="btn btn-outline-primary system-security-button" type="button" ${(canManage() && user.username !== "root") ? "" : "disabled"}>Security</button>
                         <button class="btn btn-outline-secondary system-action-button" data-action="${user.locked ? "unlock" : "lock"}" type="button" ${canManage() ? "" : "disabled"}>${user.locked ? "Unlock" : "Lock"}</button>
                         <button class="btn btn-outline-warning system-action-button" data-action="${user.in_sudo ? "revoke-sudo" : "grant-sudo"}" type="button" ${(canManage() && user.username !== "root") ? "" : "disabled"}>${user.in_sudo ? "Revoke sudo" : "Grant sudo"}</button>
                     </div>
@@ -53,6 +59,48 @@ function systemUserRowMarkup(user) {
             </td>
         </tr>
     `;
+}
+
+function openEditModal(username) {
+    const user = systemUsers.find((entry) => entry.username === username);
+    if (!user) {
+        showErrorToast("Unable to load the selected account.");
+        return;
+    }
+    document.getElementById("systemEditUsername").value = user.username;
+    document.getElementById("systemEditComment").value = user.comment || "";
+    document.getElementById("systemEditShell").value = user.shell || "";
+    document.getElementById("systemEditHome").value = user.home || "";
+    document.getElementById("systemEditMoveHome").checked = false;
+    document.getElementById("systemEditPrimaryGroup").value = user.primary_group || "";
+    document.getElementById("systemEditSecondaryGroups").value = (user.secondary_groups || []).join(",");
+    const message = document.getElementById("systemEditMessage");
+    message.textContent = `Editing ${username}.`;
+    message.className = "small";
+    editModal.show();
+}
+
+function openSecurityModal(username) {
+    const user = systemUsers.find((entry) => entry.username === username);
+    if (!user) {
+        showErrorToast("Unable to load the selected account.");
+        return;
+    }
+    document.getElementById("systemSecurityUsername").value = user.username;
+    document.getElementById("systemSecurityPassword").value = "";
+    document.getElementById("systemSecurityForcePasswordChange").checked = user.password_change_required;
+    document.getElementById("systemSecurityExpiresOn").value = user.expires_on || "";
+    document.getElementById("systemSecurityClearExpiration").checked = !user.expires_on;
+    document.getElementById("systemSecurityExpiresOn").disabled = !user.expires_on || !canManage();
+    document.getElementById("systemSecurityCurrentState").textContent = [
+        user.locked ? "Locked" : "Unlocked",
+        user.password_change_required ? "password change required" : "password change not required",
+        user.expires_on ? `expires ${user.expires_on}` : "no expiration set"
+    ].join(", ");
+    const message = document.getElementById("systemSecurityMessage");
+    message.textContent = `Updating security settings for ${username}.`;
+    message.className = "small";
+    securityModal.show();
 }
 
 function setSelectedAuthorizedKeysUser(username) {
@@ -120,6 +168,20 @@ async function loadAuthorizedKeys(username) {
 }
 
 function wireSystemRows() {
+    document.querySelectorAll(".system-edit-button").forEach((button) => {
+        button.addEventListener("click", () => {
+            const row = button.closest("[data-system-username]");
+            openEditModal(row.dataset.systemUsername);
+        });
+    });
+
+    document.querySelectorAll(".system-security-button").forEach((button) => {
+        button.addEventListener("click", () => {
+            const row = button.closest("[data-system-username]");
+            openSecurityModal(row.dataset.systemUsername);
+        });
+    });
+
     document.querySelectorAll(".system-action-button").forEach((button) => {
         button.addEventListener("click", async () => {
             const row = button.closest("[data-system-username]");
@@ -164,11 +226,24 @@ export async function initSystemPage() {
     }
 
     createModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemCreateUserModal"));
+    editModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemEditUserModal"));
+    securityModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemSecurityUserModal"));
     deleteModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemDeleteUserModal"));
     pathModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemPathModal"));
     keysModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemAuthorizedKeysModal"));
 
     const createMessage = document.getElementById("systemCreateMessage");
+    const editForm = document.getElementById("systemEditUserForm");
+    const editMessage = document.getElementById("systemEditMessage");
+    const editUsernameField = document.getElementById("systemEditUsername");
+    const editSubmitButton = editForm.querySelector('button[type="submit"]');
+    const securityForm = document.getElementById("systemSecurityUserForm");
+    const securityMessage = document.getElementById("systemSecurityMessage");
+    const securityUsernameField = document.getElementById("systemSecurityUsername");
+    const securityPasswordField = document.getElementById("systemSecurityPassword");
+    const securityExpiresOnField = document.getElementById("systemSecurityExpiresOn");
+    const securityClearExpirationField = document.getElementById("systemSecurityClearExpiration");
+    const securitySubmitButton = securityForm.querySelector('button[type="submit"]');
     const deleteForm = document.getElementById("systemDeleteUserForm");
     const deleteMessage = document.getElementById("systemDeleteMessage");
     const deleteUsernameField = document.getElementById("systemDeleteUsername");
@@ -233,6 +308,66 @@ export async function initSystemPage() {
             createMessage.textContent = error.message;
             createMessage.className = "small";
             showErrorToast(error.message);
+        }
+    });
+
+    editForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!editUsernameField.value) {
+            editMessage.textContent = "Choose an account first.";
+            editMessage.className = "small";
+            return;
+        }
+        if (editRequestInFlight) {
+            return;
+        }
+        editRequestInFlight = true;
+        editSubmitButton.disabled = true;
+        editMessage.textContent = "";
+        try {
+            const payload = await postForm(`/api/system/users/${encodeURIComponent(editUsernameField.value)}/edit`, editForm);
+            editMessage.textContent = payload.output;
+            editMessage.className = "small";
+            showSuccessToast(payload.output || "System account updated.");
+            editModal.hide();
+            await refreshSystemPage();
+        } catch (error) {
+            editMessage.textContent = error.message;
+            editMessage.className = "small";
+            showErrorToast(error.message);
+        } finally {
+            editRequestInFlight = false;
+            editSubmitButton.disabled = !canManage();
+        }
+    });
+
+    securityForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!securityUsernameField.value) {
+            securityMessage.textContent = "Choose an account first.";
+            securityMessage.className = "small";
+            return;
+        }
+        if (securityRequestInFlight) {
+            return;
+        }
+        securityRequestInFlight = true;
+        securitySubmitButton.disabled = true;
+        securityMessage.textContent = "";
+        try {
+            const payload = await postForm(`/api/system/users/${encodeURIComponent(securityUsernameField.value)}/security`, securityForm);
+            securityMessage.textContent = payload.output;
+            securityMessage.className = "small";
+            showSuccessToast(payload.output || "Account security updated.");
+            securityModal.hide();
+            await refreshSystemPage();
+        } catch (error) {
+            securityMessage.textContent = error.message;
+            securityMessage.className = "small";
+            showErrorToast(error.message);
+        } finally {
+            securityRequestInFlight = false;
+            securitySubmitButton.disabled = !canManage();
         }
     });
 
@@ -331,9 +466,13 @@ export async function initSystemPage() {
     usernameField.addEventListener("input", syncHomeField);
     systemAccountField.addEventListener("change", syncHomeField);
     actionField.addEventListener("change", syncPathFields);
+    securityClearExpirationField.addEventListener("change", () => {
+        securityExpiresOnField.disabled = securityClearExpirationField.checked || !canManage();
+    });
 
     setSelectedAuthorizedKeysUser("");
     syncHomeField();
     syncPathFields();
+    securityExpiresOnField.disabled = securityClearExpirationField.checked || !canManage();
     await refreshSystemPage();
 }

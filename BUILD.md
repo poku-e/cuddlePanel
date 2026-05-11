@@ -224,6 +224,18 @@
 - Removed Bootstrap text emphasis classes from dashboard page templates and page-specific JavaScript render paths so page text now renders without color or font-weight utility emphasis.
 - Kept the cleanup scoped to `templates/pages/*` and `static/js/pages/*`, leaving layout and workflow behavior unchanged.
 
+## System Account Edit Phase 1
+
+- Added a phase-1 account edit flow on the System page for shell, home path, optional home move behavior, GECOS comment, primary group, and supplementary groups.
+- Extended the backend system account model and JSON payload to include comment and group membership data, and added a dedicated `usermod`-backed edit endpoint with server-side validation and root-account protection.
+- Expanded the focused system admin test to verify parsed account metadata and the generated `usermod` arguments for the new edit workflow.
+
+## System Account Security Phase 2
+
+- Added a phase-2 security modal on the System page for password reset, force-password-change on next login, and account expiration management.
+- Extended the backend system account payload with password-change-required and expiration metadata, and added a dedicated security endpoint that uses validated `chpasswd` and `chage` commands while keeping `root` out of scope.
+- Expanded the focused system admin test to verify shadow-derived lifecycle metadata plus the generated `chpasswd` and `chage` inputs for the new security workflow.
+
 ## System Account List Focus
 
 - Updated the System administration Accounts tab to render only login-enabled host accounts so `nologin` entries no longer crowd the main operator table.

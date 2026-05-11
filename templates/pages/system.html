@@ -107,6 +107,67 @@
     </div>
 </div>
 
+<div class="modal fade" id="systemEditUserModal" tabindex="-1" aria-labelledby="systemEditUserModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title h5 mb-1" id="systemEditUserModalTitle">Edit host account</h3>
+                    <div class="small">Update shell, home directory, comment, and group membership for the selected account.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="systemEditUserForm">
+                <div class="modal-body vstack gap-3">
+                    <label class="cp-label">Username<input class="cp-input" id="systemEditUsername" name="username" readonly></label>
+                    <label class="cp-label">Comment<input class="cp-input" id="systemEditComment" name="comment" maxlength="256"{{disabled_attr}}></label>
+                    <label class="cp-label">Shell<input class="cp-input" id="systemEditShell" name="shell" required maxlength="512"{{disabled_attr}}></label>
+                    <label class="cp-label">Home directory<input class="cp-input" id="systemEditHome" name="home" required maxlength="512"{{disabled_attr}}></label>
+                    <label class="cp-toggle"><input type="checkbox" id="systemEditMoveHome" name="move_home"{{disabled_attr}}> <span>Move existing home contents to the new directory</span></label>
+                    <label class="cp-label">Primary group<input class="cp-input" id="systemEditPrimaryGroup" name="primary_group" required maxlength="64"{{disabled_attr}}></label>
+                    <label class="cp-label">Supplementary groups<input class="cp-input" id="systemEditSecondaryGroups" name="secondary_groups" maxlength="512" placeholder="sudo,deploy,www-data"{{disabled_attr}}></label>
+                    <div class="small">Supplementary groups are comma-separated. Leave blank to clear all non-primary groups.</div>
+                    <div id="systemEditMessage" class="small"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit"{{disabled_attr}}>Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="systemSecurityUserModal" tabindex="-1" aria-labelledby="systemSecurityUserModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title h5 mb-1" id="systemSecurityUserModalTitle">Account security</h3>
+                    <div class="small">Reset the password, require a password change on next login, and manage account expiration.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="systemSecurityUserForm">
+                <div class="modal-body vstack gap-3">
+                    <label class="cp-label">Username<input class="cp-input" id="systemSecurityUsername" name="username" readonly></label>
+                    <div class="small">Leave the password blank to keep the current password unchanged.</div>
+                    <label class="cp-label">New password<input class="cp-input" id="systemSecurityPassword" name="password" type="password" minlength="8" maxlength="256"{{disabled_attr}}></label>
+                    <label class="cp-toggle"><input type="checkbox" id="systemSecurityForcePasswordChange" name="force_password_change"{{disabled_attr}}> <span>Require a password change on next login</span></label>
+                    <label class="cp-label">Account expiration date<input class="cp-input" id="systemSecurityExpiresOn" name="expires_on" type="date"{{disabled_attr}}></label>
+                    <label class="cp-toggle"><input type="checkbox" id="systemSecurityClearExpiration" name="clear_expiration"{{disabled_attr}}> <span>Clear account expiration</span></label>
+                    <div id="systemSecurityCurrentState" class="small">Current lifecycle state will appear here.</div>
+                    <div id="systemSecurityMessage" class="small"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit"{{disabled_attr}}>Save security settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="systemDeleteUserModal" tabindex="-1" aria-labelledby="systemDeleteUserModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">

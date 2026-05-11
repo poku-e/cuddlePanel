@@ -13,6 +13,12 @@ int main() {
     const fs::path srv_root = temp_root / "srv";
     const fs::path alice_home = home_root / "alice";
     const fs::path app_root = srv_root / "app";
+    const fs::path usermod_log = temp_root / "usermod.log";
+    const fs::path usermod_script = temp_root / "fake-usermod.sh";
+    const fs::path chpasswd_log = temp_root / "chpasswd.log";
+    const fs::path chpasswd_script = temp_root / "fake-chpasswd.sh";
+    const fs::path chage_log = temp_root / "chage.log";
+    const fs::path chage_script = temp_root / "fake-chage.sh";
 
     fs::remove_all(temp_root);
     fs::create_directories(alice_home);
@@ -27,21 +33,57 @@ int main() {
     {
         std::ofstream group(temp_root / "group");
         group << "root:x:0:\n";
+        group << "alice:x:1000:\n";
+        group << "deploy:x:1001:alice\n";
         group << "sudo:x:27:alice\n";
+        group << "www-data:x:33:alice\n";
     }
     {
         std::ofstream shadow(temp_root / "shadow");
         shadow << "root:!:20000:0:99999:7:::\n";
-        shadow << "alice:$6$hash:20000:0:99999:7:::\n";
+        shadow << "alice:$6$hash:0:0:99999:7::25000:\n";
         shadow << "daemon:!*:20000:0:99999:7:::\n";
     }
+
+    {
+        std::ofstream script(usermod_script);
+        script << "#!/bin/sh\n";
+        script << "printf '%s\\n' \"$@\" > \"" << usermod_log.string() << "\"\n";
+    }
+    {
+        std::ofstream script(chpasswd_script);
+        script << "#!/bin/sh\n";
+        script << "cat > \"" << chpasswd_log.string() << "\"\n";
+    }
+    {
+        std::ofstream script(chage_script);
+        script << "#!/bin/sh\n";
+        script << "printf '%s\\n' \"$@\" >> \"" << chage_log.string() << "\"\n";
+    }
+    fs::permissions(usermod_script,
+                    fs::perms::owner_exec | fs::perms::owner_read | fs::perms::owner_write |
+                    fs::perms::group_exec | fs::perms::group_read |
+                    fs::perms::others_exec | fs::perms::others_read,
+                    fs::perm_options::replace);
+    fs::permissions(chpasswd_script,
+                    fs::perms::owner_exec | fs::perms::owner_read | fs::perms::owner_write |
+                    fs::perms::group_exec | fs::perms::group_read |
+                    fs::perms::others_exec | fs::perms::others_read,
+                    fs::perm_options::replace);
+    fs::permissions(chage_script,
+                    fs::perms::owner_exec | fs::perms::owner_read | fs::perms::owner_write |
+                    fs::perms::group_exec | fs::perms::group_read |
+                    fs::perms::others_exec | fs::perms::others_read,
+                    fs::perm_options::replace);
 
     setenv("CUDDLEPANEL_SYSTEM_ALLOWED_ROOTS",
            (home_root.string() + "," + srv_root.string()).c_str(),
            1);
     setenv("CUDDLEPANEL_USERADD_BIN", "/bin/true", 1);
     setenv("CUDDLEPANEL_PASSWD_BIN", "/bin/true", 1);
-    setenv("CUDDLEPANEL_USERMOD_BIN", "/bin/true", 1);
+    setenv("CUDDLEPANEL_USERMOD_BIN", usermod_script.c_str(), 1);
+    setenv("CUDDLEPANEL_CHPASSWD_BIN", chpasswd_script.c_str(), 1);
+    setenv("CUDDLEPANEL_CHAGE_BIN", chage_script.c_str(), 1);
     setenv("CUDDLEPANEL_GPASSWD_BIN", "/bin/true", 1);
     setenv("CUDDLEPANEL_USERDEL_BIN", "/bin/true", 1);
     setenv("CUDDLEPANEL_CHOWN_BIN", "/bin/true", 1);
@@ -60,6 +102,14 @@ int main() {
     assert(alice->in_sudo);
     assert(!alice->system_account);
     assert(alice->login_user);
+    assert(alice->comment == "Alice");
+    assert(alice->primary_group == "alice");
+    assert(alice->secondary_groups.size() == 3);
+    assert(alice->secondary_groups[0] == "deploy");
+    assert(alice->secondary_groups[1] == "sudo");
+    assert(alice->secondary_groups[2] == "www-data");
+    assert(alice->password_change_required);
+    assert(!alice->expires_on.empty());
 
     auto daemon = admin.find_user("daemon");
     assert(daemon);
@@ -77,6 +127,42 @@ int main() {
 
     const auto create_result = admin.create_user("deploy", "/bin/bash", "/home/deploy", false);
     assert(create_result.ok);
+    const auto update_result = admin.update_user("alice",
+                                                 "/bin/zsh",
+                                                 "/srv/alice",
+                                                 true,
+                                                 "Alice Admin",
+                                                 "deploy",
+                                                 {"sudo", "www-data", "deploy"});
+    assert(update_result.ok);
+    {
+        std::ifstream log_file(usermod_log);
+        std::string log((std::istreambuf_iterator<char>(log_file)), std::istreambuf_iterator<char>());
+        assert(log.find("-s\n/bin/zsh\n") != std::string::npos);
+        assert(log.find("-m\n-d\n/srv/alice\n") != std::string::npos);
+        assert(log.find("-c\nAlice Admin\n") != std::string::npos);
+        assert(log.find("-g\ndeploy\n") != std::string::npos);
+        assert(log.find("-G\nsudo,www-data\n") != std::string::npos);
+        assert(log.find("\nalice\n") != std::string::npos || log.rfind("alice\n") != std::string::npos);
+    }
+    const auto security_result = admin.update_user_security("alice",
+                                                            "Sup3rSecure!",
+                                                            true,
+                                                            true,
+                                                            false,
+                                                            "2030-12-25");
+    assert(security_result.ok);
+    {
+        std::ifstream log_file(chpasswd_log);
+        std::string log((std::istreambuf_iterator<char>(log_file)), std::istreambuf_iterator<char>());
+        assert(log == "alice:Sup3rSecure!\n");
+    }
+    {
+        std::ifstream log_file(chage_log);
+        std::string log((std::istreambuf_iterator<char>(log_file)), std::istreambuf_iterator<char>());
+        assert(log.find("-d\n0\nalice\n") != std::string::npos);
+        assert(log.find("-E\n2030-12-25\nalice\n") != std::string::npos);
+    }
     const auto lock_result = admin.run_user_action("alice", "lock", false);
     assert(lock_result.ok);
     const auto sudo_result = admin.run_user_action("alice", "grant-sudo", false);

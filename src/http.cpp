@@ -350,6 +350,8 @@ HttpResponse handle_update_service(const RequestContext&, const std::string&);
 HttpResponse handle_service_action(const RequestContext&, const std::string&);
 
 HttpResponse handle_system_users(const RequestContext&, const std::string&);
+HttpResponse handle_system_user_update(const RequestContext&, const std::string&);
+HttpResponse handle_system_user_security(const RequestContext&, const std::string&);
 HttpResponse handle_system_user_action(const RequestContext&, const std::string&);
 HttpResponse handle_system_authorized_keys(const RequestContext&, const std::string&);
 HttpResponse handle_system_path_action(const RequestContext&, const std::string&);
@@ -422,6 +424,8 @@ void App::build_routes() {
     routes_.push_back({"",     "/api/system/users",         "",                 true,  handle_system_users});
     routes_.push_back({"",     "/api/system/path-action",   "",                 true,  handle_system_path_action});
     routes_.push_back({"",     "/api/system/users/",        "/authorized-keys", false, handle_system_authorized_keys});
+    routes_.push_back({"",     "/api/system/users/",        "/edit",            false, handle_system_user_update});
+    routes_.push_back({"",     "/api/system/users/",        "/security",        false, handle_system_user_security});
     routes_.push_back({"",     "/api/system/users/",        "/action",          false, handle_system_user_action});
     // nginx
     routes_.push_back({"",     "/api/nginx/sites",          "",                 true,  handle_nginx_sites});

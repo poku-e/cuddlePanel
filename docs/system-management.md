@@ -5,6 +5,8 @@ Purpose: define the constrained system-administration surface for cuddlePanel. T
 Routes and access:
 - `GET /api/system/users`: requires `system:view`.
 - `POST /api/system/users`: requires `system:manage`.
+- `POST /api/system/users/<username>/edit`: requires `system:manage`.
+- `POST /api/system/users/<username>/security`: requires `system:manage`.
 - `POST /api/system/users/<username>/action`: requires `system:manage`.
 - `GET /api/system/users/<username>/authorized-keys`: requires `system:manage`.
 - `POST /api/system/users/<username>/authorized-keys`: requires `system:manage`.
@@ -16,6 +18,8 @@ Workflow:
 - Account listing reads the configured passwd, group, and shadow sources and returns username, uid, gid, home, shell, system-account classification, sudo-group membership, and lock state in a compact table.
 - The `Accounts` tab intentionally renders only login-enabled users. Entries with `nologin` or `false` shells stay out of the main dashboard list, and any remaining system accounts with interactive shells are sorted after normal login users.
 - Creating an account opens in a Bootstrap modal, uses `useradd` directly, and keeps the account list visible in the background. Normal users are created with a home directory. System accounts are created with `-r -M`.
+- Editing an account opens in a dedicated Bootstrap modal and updates shell, home path, optional home move behavior, GECOS comment, primary group, and supplementary groups through `usermod`.
+- Account security opens in a dedicated Bootstrap modal and covers password reset, force-password-change on next login, and account expiration using `chpasswd` and `chage`.
 - Account actions support:
   - `lock`
   - `unlock`
@@ -40,6 +44,8 @@ Hidden dependencies and configuration:
   - `CUDDLEPANEL_USERADD_BIN`
   - `CUDDLEPANEL_PASSWD_BIN`
   - `CUDDLEPANEL_USERMOD_BIN`
+  - `CUDDLEPANEL_CHPASSWD_BIN`
+  - `CUDDLEPANEL_CHAGE_BIN`
   - `CUDDLEPANEL_GPASSWD_BIN`
   - `CUDDLEPANEL_USERDEL_BIN`
   - `CUDDLEPANEL_CHOWN_BIN`
@@ -54,8 +60,10 @@ Hidden dependencies and configuration:
 
 Safety rules:
 - The `root` account cannot be locked, deleted, or have sudo access revoked through the panel.
+- The `root` account is also excluded from the phase-1 edit flow so shell, home, and group changes for the most sensitive account still require an out-of-band host workflow.
+- The `root` account is excluded from the phase-2 security flow as well, so password and expiration changes for the most sensitive account still require a direct host workflow.
 - Unknown actions are rejected server-side.
-- Account names, shell paths, home paths, owner names, group names, and octal modes are all validated before execution.
+- Account names, shell paths, home paths, GECOS comments, owner names, group names, passwords, ISO expiration dates, and octal modes are all validated before execution.
 - `authorized_keys` editing is limited to login users with interactive shells and non-system UIDs. cuddlePanel does not expose arbitrary file editing under `.ssh/`.
 - Commands are executed with direct `execv` argument vectors, not through a shell.
 - Recursive home deletion is only available through the explicit delete-account confirmation modal; it is never implied by a plain account delete request.

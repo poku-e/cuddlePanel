@@ -25,6 +25,8 @@ Routes and access:
 - `POST /api/services/<name>/action`: requires `services:manage`.
 - `GET /api/system/users`: requires `system:view`.
 - `POST /api/system/users`: requires `system:manage`.
+- `POST /api/system/users/<username>/edit`: requires `system:manage`.
+- `POST /api/system/users/<username>/security`: requires `system:manage`.
 - `POST /api/system/users/<username>/action`: requires `system:manage`.
 - `GET /api/system/users/<username>/authorized-keys`: requires `system:manage`.
 - `POST /api/system/users/<username>/authorized-keys`: requires `system:manage`.
@@ -67,7 +69,7 @@ Workflow:
 - The Users page loads dashboard users into a dense table, opens create and permission-edit flows in Bootstrap modals, and performs mutations through AJAX without leaving `/dashboard`.
 - User deletion now requires an explicit browser confirmation before the dashboard sends the destructive request.
 - The Services page loads allowlisted systemd services into an operations table, uses a shared output accordion for runtime feedback, and performs edits through a Bootstrap modal.
-- The System page loads host accounts into a table, uses Bootstrap tabs for account vs. file workflows, manages sudo-group membership and account deletion through AJAX, and constrains path ownership and mode changes to configured roots.
+- The System page loads host accounts into a table, uses Bootstrap tabs for account vs. file workflows, manages account edits, password and lifecycle controls, sudo-group membership, and account deletion through AJAX, and constrains path ownership and mode changes to configured roots.
 - The System page also provides an `authorized_keys` editor for login users, with the target file derived from each account's home directory on the server.
 - The Nginx page loads allowlisted site configs into a table, edits full config content in a Bootstrap modal, and performs file updates, enable/disable, config tests, and reloads through AJAX.
 - The Deploy page now runs a native stack-aware deploy engine through `/api/deploy/run`, writing systemd and nginx configuration directly and optionally creating or updating a Cloudflare DNS record.
