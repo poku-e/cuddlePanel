@@ -33,6 +33,7 @@ int main() {
     fs::create_directories("tmp-service-data");
     const fs::path fake_systemctl = fs::path("tmp-service-data") / "fake-systemctl.sh";
     const fs::path action_log = fs::path("tmp-service-data") / "systemctl-actions.log";
+    const fs::path show_log = fs::path("tmp-service-data") / "systemctl-show.log";
     const fs::path unit_root = fs::absolute(fs::path("tmp-service-data") / "systemd");
     fs::create_directories(unit_root);
     const fs::path nginx_unit = unit_root / "nginx.service";
@@ -49,24 +50,38 @@ int main() {
         std::ofstream script(fake_systemctl);
         script << "#!/bin/sh\n";
         script << "if [ \"$1\" = \"list-unit-files\" ]; then\n";
-        script << "  printf 'nginx.service enabled\\nredis.service disabled\\n'\n";
+        script << "  printf 'nginx.service enabled\\nautovt@.service alias\\nredis.service disabled\\n'\n";
         script << "  exit 0\n";
         script << "fi\n";
         script << "if [ \"$1\" = \"show\" ]; then\n";
-        script << "  unit=\"$2\"\n";
-        script << "  if [ \"$unit\" = \"nginx.service\" ]; then\n";
-        script << "    cat <<'EOF'\n";
+        script << "  shift\n";
+        script << "  units=''\n";
+        script << "  while [ \"$#\" -gt 0 ]; do\n";
+        script << "    case \"$1\" in\n";
+        script << "      --*) break ;;\n";
+        script << "      *) units=\"$units $1\" ;;\n";
+        script << "    esac\n";
+        script << "    shift\n";
+        script << "  done\n";
+        script << "  printf '%s\\n' \"$units\" >> \"" << show_log.string() << "\"\n";
+        script << "  for unit in $units; do\n";
+        script << "    if [ \"$unit\" = \"nginx.service\" ]; then\n";
+        script << "      cat <<'EOF'\n";
         script << "Id=nginx.service\nDescription=Nginx Web Server\nLoadState=loaded\nActiveState=active\nSubState=running\nUnitFileState=enabled\nFragmentPath=" << nginx_unit.string() << "\n";
         script << "EOF\n";
-        script << "    exit 0\n";
-        script << "  fi\n";
-        script << "  if [ \"$unit\" = \"redis.service\" ]; then\n";
-        script << "    cat <<'EOF'\n";
+        script << "      printf '\\n'\n";
+        script << "      continue\n";
+        script << "    fi\n";
+        script << "    if [ \"$unit\" = \"redis.service\" ]; then\n";
+        script << "      cat <<'EOF'\n";
         script << "Id=redis.service\nDescription=Redis In-Memory Store\nLoadState=loaded\nActiveState=inactive\nSubState=dead\nUnitFileState=disabled\nFragmentPath=" << redis_unit.string() << "\n";
         script << "EOF\n";
-        script << "    exit 0\n";
-        script << "  fi\n";
-        script << "  exit 1\n";
+        script << "      printf '\\n'\n";
+        script << "      continue\n";
+        script << "    fi\n";
+        script << "    exit 1\n";
+        script << "  done\n";
+        script << "  exit 0\n";
         script << "fi\n";
         script << "if [ \"$1\" = \"is-active\" ]; then\n";
         script << "  if [ \"$2\" = \"nginx.service\" ]; then printf 'active\\n'; else printf 'inactive\\n'; fi\n";
@@ -88,6 +103,14 @@ int main() {
     assert(discovered[0].unit == "nginx.service");
     assert(discovered[0].active_state == "active");
     assert(discovered[0].unit_file_state == "enabled");
+
+    {
+        std::ifstream show_file(show_log);
+        std::string show_calls((std::istreambuf_iterator<char>(show_file)), std::istreambuf_iterator<char>());
+        assert(show_calls.find(" nginx.service autovt@.service redis.service") != std::string::npos);
+        assert(show_calls.find(" autovt@.service") != std::string::npos);
+        assert(show_calls.find(" redis.service") != std::string::npos);
+    }
 
     const auto redis = cuddle::discover_service("redis.service");
     assert(redis);

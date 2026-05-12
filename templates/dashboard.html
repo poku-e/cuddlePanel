@@ -15,7 +15,17 @@
         <aside id="sidebar"></aside>
         <div class="app-main">
             <header id="header"></header>
-            <main id="content" class="content-region" aria-live="polite"></main>
+            <div class="content-stage">
+                <main id="content" class="content-region" aria-live="polite"></main>
+                <div id="dashboardLoadingOverlay" class="cp-loading-overlay" hidden aria-hidden="true">
+                    <div class="cp-loading-overlay-panel" role="status" aria-live="polite" aria-atomic="true">
+                        <div class="spinner" aria-hidden="true">
+                            <div class="spinner1"></div>
+                        </div>
+                        <div class="cp-loading-overlay-message" id="dashboardLoadingMessage">Loading page...</div>
+                    </div>
+                </div>
+            </div>
             <footer id="footer"></footer>
         </div>
     </div>

@@ -18,7 +18,7 @@ Workflow:
 - Clicking a service name or `Manage` opens a dedicated service detail page for that unit.
 - The detail page is tabbed:
   - `Overview`: summary cards plus quick `start`, `stop`, `restart`, `enable`, and `disable` actions.
-  - `Manage Service`: a structured editor for common `Unit`, `Service`, and `Install` directives, grouped into accordion sections so operators can open one directive family at a time. Saving this tab rewrites the unit with a normalized layout.
+  - `Manage Service`: a simplified structured editor for common `Unit`, `Service`, and `Install` directives. The tab uses inner sub-tabs for those three major sections, with accordions directly inside each sub-tab so operators only see one directive family at a time without another outer shell around the editor.
   - `Advanced`: direct editing of the discovered service unit file content with a code-style textarea.
   - `Runtime`: most recent command output for that service.
   - `Unit`: read-only metadata such as fragment path, load state, active state, sub-state, and enablement.
@@ -39,7 +39,7 @@ Hidden dependencies and configuration:
 - `CUDDLEPANEL_SERVICE_UNIT_ROOTS` can override the editable systemd unit roots as a colon-delimited list. The default roots are `/etc/systemd/system`, `/usr/lib/systemd/system`, and `/lib/systemd/system`.
 - Service discovery uses:
   - `systemctl list-unit-files --type=service`
-  - `systemctl show <unit> --property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,FragmentPath`
+  - Batched `systemctl show <unit...> --property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,FragmentPath`
 - Unit-file saves also call `systemctl daemon-reload`, and the combined output is surfaced back to the dashboard as text for operator debugging.
 
 Gotchas and debugging:
@@ -47,4 +47,4 @@ Gotchas and debugging:
 - Structured `Manage Service` saves intentionally normalize ordering and drop comments. Use `Advanced` when you need exact comments, spacing, or directives not covered by the structured form.
 - The direct editor only writes the discovered fragment file. It does not manage drop-in directories or create new unit files in arbitrary paths.
 - A bad unit file can still be saved and then fail at `daemon-reload`; keep the runtime output visible so operators can recover quickly.
-- If service discovery feels slow on hosts with many units, batch metadata retrieval through a more efficient `systemctl show` strategy instead of widening the command surface.
+- Discovery batches service metadata retrieval through shared `systemctl show` calls, and falls back to smaller groups when template or host-specific units cause a batch lookup to fail. Very large hosts may still need future caching if operators refresh the page frequently.

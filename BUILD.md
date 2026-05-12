@@ -350,6 +350,29 @@
 - Added a dedicated Chinese debugging section to `AGENTS.md` that requires exact reproduction, failing-layer identification, root-cause-only fixes, regression coverage, and explicit verification for bug work.
 - Included a reusable Chinese prompt template in `AGENTS.md` so future debugging requests push the agent toward proof-first diagnosis instead of speculative patches.
 
+## Services JS Syntax Fix
+
+- Fixed a `services.js` template-literal syntax error in the `Manage Service` accordion copy that was breaking page initialization in the browser.
+
+## Manage Service Simplification
+
+- Simplified the `Manage Service` tab by removing extra side cards and reducing helper copy, while keeping the directive groups available through a cleaner accordion layout.
+- Flattened the section styling so the service editor reads as a lighter single workspace instead of nested cards and dense callouts.
+- Split the `Manage Service` editor into `Unit`, `Service`, and `Install` sub-tabs, each with its own accordion groups, so operators only focus on one major section at a time.
+- Removed the extra outer shell around each sub-tab editor so the accordions sit directly in the tab pane with less visual nesting.
+
+## Services Discovery Batching
+
+- Reworked host service discovery so the panel batches service metadata retrieval through shared `systemctl show` calls instead of shelling out once per discovered unit.
+- Expanded the service test fixture to verify that discovery fetches multiple units in a single metadata call while preserving the existing detail and action behavior.
+- Hardened the batcher so template or host-specific units that break a shared `systemctl show` call only force smaller fallback groups instead of causing later services to disappear from the list.
+
+## Dashboard Loading Overlay
+
+- Added a shared full-screen dashboard loading overlay with a dark translucent backdrop, animated spinner, and loading message while AJAX page fetches and page initializers are still running.
+- Hooked the overlay into both initial dashboard boot and later `loadPage()` navigation so page transitions no longer flash plain `Loading...` text.
+- Scoped the overlay to the main content region so the sidebar, header, and footer remain visible while page content is loading.
+
 ## Codex CLI Flag Compatibility
 
 - Hardened Codex conversation startup and resume so cuddlePanel only passes `--skip-git-repo-check` when the configured host Codex CLI advertises support for that flag.

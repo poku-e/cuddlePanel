@@ -16,6 +16,8 @@
 #include <unistd.h>
 
 namespace cuddle {
+std::optional<DiscoveredService> discover_service(const std::string& unit);
+
 namespace {
 
 std::vector<std::string> split(const std::string& value, char delimiter) {
@@ -291,11 +293,144 @@ std::map<std::string, std::string> parse_key_value_output(const std::string& out
     return values;
 }
 
+std::vector<std::map<std::string, std::string>> parse_key_value_records(const std::string& output) {
+    std::vector<std::map<std::string, std::string>> records;
+    std::map<std::string, std::string> current;
+    std::stringstream stream(output);
+    std::string line;
+    auto flush_current = [&]() {
+        if (!current.empty()) {
+            records.push_back(current);
+            current.clear();
+        }
+    };
+
+    while (std::getline(stream, line)) {
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (line.empty()) {
+            flush_current();
+            continue;
+        }
+        const auto pos = line.find('=');
+        if (pos == std::string::npos) {
+            continue;
+        }
+        const std::string key = line.substr(0, pos);
+        if (key == "Id" && current.count("Id") != 0) {
+            flush_current();
+        }
+        current[key] = line.substr(pos + 1);
+    }
+    flush_current();
+    return records;
+}
+
 std::string service_display_name(const std::string& unit) {
     if (unit.size() > 8 && unit.rfind(".service") == unit.size() - 8) {
         return unit.substr(0, unit.size() - 8);
     }
     return unit;
+}
+
+std::optional<DiscoveredService> discovered_service_from_values(const std::map<std::string, std::string>& values,
+                                                                const std::string& fallback_unit,
+                                                                const std::string& fallback_unit_file_state = "") {
+    const auto id_it = values.find("Id");
+    const std::string discovered_unit = id_it == values.end() ? fallback_unit : id_it->second;
+    if (!valid_service_unit(discovered_unit)) {
+        return std::nullopt;
+    }
+    return DiscoveredService{
+        service_display_name(discovered_unit),
+        discovered_unit,
+        values.count("Description") ? values.at("Description") : "",
+        values.count("ActiveState") ? values.at("ActiveState") : "unknown",
+        values.count("SubState") ? values.at("SubState") : "",
+        values.count("UnitFileState") ? values.at("UnitFileState") : (fallback_unit_file_state.empty() ? "unknown" : fallback_unit_file_state),
+        values.count("LoadState") ? values.at("LoadState") : "unknown",
+        values.count("FragmentPath") ? values.at("FragmentPath") : ""
+    };
+}
+
+void merge_discovered_unit_file_states(const std::vector<std::pair<std::string, std::string>>& units,
+                                       size_t start,
+                                       size_t end,
+                                       std::map<std::string, DiscoveredService>* discovered) {
+    for (size_t i = start; i < end; ++i) {
+        const auto& unit = units[i].first;
+        const auto& unit_file_state = units[i].second;
+        auto it = discovered->find(unit);
+        if (it == discovered->end()) {
+            continue;
+        }
+        if (it->second.unit_file_state.empty() || it->second.unit_file_state == "unknown") {
+            it->second.unit_file_state = unit_file_state;
+        }
+    }
+}
+
+void discover_services_batch_into(const std::vector<std::pair<std::string, std::string>>& units,
+                                  size_t start,
+                                  size_t end,
+                                  std::map<std::string, DiscoveredService>* discovered) {
+    if (start >= end) {
+        return;
+    }
+    if (end - start == 1) {
+        auto detail = discover_service(units[start].first);
+        if (detail) {
+            if (detail->unit_file_state.empty() || detail->unit_file_state == "unknown") {
+                detail->unit_file_state = units[start].second;
+            }
+            (*discovered)[detail->unit] = *detail;
+        }
+        return;
+    }
+
+    std::vector<std::string> args{
+        systemctl_binary(),
+        "show"
+    };
+    args.reserve(2 + (end - start) + 2);
+    for (size_t i = start; i < end; ++i) {
+        args.push_back(units[i].first);
+    }
+    args.push_back("--no-pager");
+    args.push_back("--property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,FragmentPath");
+
+    const auto result = capture_command(args);
+    if (!result.ok) {
+        const size_t midpoint = start + ((end - start) / 2);
+        discover_services_batch_into(units, start, midpoint, discovered);
+        discover_services_batch_into(units, midpoint, end, discovered);
+        return;
+    }
+
+    const auto records = parse_key_value_records(result.output);
+    for (const auto& values : records) {
+        const auto record = discovered_service_from_values(values, "");
+        if (!record) {
+            continue;
+        }
+        (*discovered)[record->unit] = *record;
+    }
+}
+
+std::map<std::string, DiscoveredService> discover_services_batch(const std::vector<std::pair<std::string, std::string>>& units) {
+    std::map<std::string, DiscoveredService> discovered;
+    if (units.empty()) {
+        return discovered;
+    }
+
+    constexpr size_t kBatchSize = 64;
+    for (size_t start = 0; start < units.size(); start += kBatchSize) {
+        const size_t end = std::min(units.size(), start + kBatchSize);
+        discover_services_batch_into(units, start, end, &discovered);
+        merge_discovered_unit_file_states(units, start, end, &discovered);
+    }
+    return discovered;
 }
 
 }
@@ -477,21 +612,7 @@ std::optional<DiscoveredService> discover_service(const std::string& unit) {
         "--property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,FragmentPath"
     });
     const auto values = parse_key_value_output(result.output);
-    const auto id_it = values.find("Id");
-    const std::string discovered_unit = id_it == values.end() ? unit : id_it->second;
-    if (!valid_service_unit(discovered_unit)) {
-        return std::nullopt;
-    }
-    return DiscoveredService{
-        service_display_name(discovered_unit),
-        discovered_unit,
-        values.count("Description") ? values.at("Description") : "",
-        values.count("ActiveState") ? values.at("ActiveState") : "unknown",
-        values.count("SubState") ? values.at("SubState") : "",
-        values.count("UnitFileState") ? values.at("UnitFileState") : "unknown",
-        values.count("LoadState") ? values.at("LoadState") : "unknown",
-        values.count("FragmentPath") ? values.at("FragmentPath") : ""
-    };
+    return discovered_service_from_values(values, unit);
 }
 
 std::vector<DiscoveredService> discover_services() {
@@ -503,7 +624,7 @@ std::vector<DiscoveredService> discover_services() {
         "--no-pager",
         "--plain"
     });
-    std::vector<DiscoveredService> services;
+    std::vector<std::pair<std::string, std::string>> units;
     std::stringstream stream(result.output);
     std::string line;
     while (std::getline(stream, line)) {
@@ -518,14 +639,18 @@ std::vector<DiscoveredService> discover_services() {
         if (!valid_service_unit(unit)) {
             continue;
         }
-        auto detail = discover_service(unit);
-        if (!detail) {
+        units.push_back({unit, unit_file_state});
+    }
+
+    std::vector<DiscoveredService> services;
+    const auto discovered = discover_services_batch(units);
+    services.reserve(discovered.size());
+    for (const auto& [unit, unit_file_state] : units) {
+        const auto it = discovered.find(unit);
+        if (it == discovered.end()) {
             continue;
         }
-        if (detail->unit_file_state.empty()) {
-            detail->unit_file_state = unit_file_state;
-        }
-        services.push_back(*detail);
+        services.push_back(it->second);
     }
     std::sort(services.begin(), services.end(), [](const DiscoveredService& left, const DiscoveredService& right) {
         if (left.active_state != right.active_state) {

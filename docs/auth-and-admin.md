@@ -72,6 +72,7 @@ Workflow:
 - HTTP routing now ignores URL query strings when matching page paths, and `GET /login?...` is actively redirected to a clean `/login` URL so leaked credential-style query params are removed before the login page is served.
 - If a remembered or deep-linked service or system-user page no longer exists, the dashboard falls back to the parent list page instead of leaving the operator on a hard 404 after login.
 - Dashboard page bodies are rendered from `templates/pages/*.html`, while `static/app.js` now boots a set of smaller `static/js/*` frontend modules after injection.
+- Dashboard page loads now show a shared loading overlay with a spinner and status message over the main content region while AJAX page fetches and page initializers are still running.
 - Auth screens and dashboard actions now use a shared toast notification layer for success and error feedback in addition to any inline status text.
 - All privileged pages are checked on the server before content is returned.
 - The Users page loads dashboard users into a dense table, opens create and permission-edit flows in Bootstrap modals, and performs mutations through AJAX without leaving `/dashboard`.

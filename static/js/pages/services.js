@@ -383,33 +383,39 @@ function renderManageOverview() {
             <article class="service-manage-overview-card">
                 <div class="service-manage-overview-label">${escapeHtml(sectionConfig.section)}</div>
                 <div class="service-manage-overview-value">${filledCount}/${sectionFieldCount(sectionConfig)}</div>
-                <div class="service-manage-overview-note">${groupCount} accordion ${groupCount === 1 ? "group" : "groups"} in ${escapeHtml(sectionConfig.title.toLowerCase())}</div>
+                <div class="service-manage-overview-note">${groupCount} ${groupCount === 1 ? "group" : "groups"}</div>
             </article>
         `;
     }).join("");
 }
 
 function renderManageSections() {
-    const host = document.getElementById("serviceManageSections");
-    if (!host || !serviceUnitConfigCache) {
+    const tabsHost = document.getElementById("serviceManageSectionTabs");
+    const contentHost = document.getElementById("serviceManageSectionContent");
+    if (!tabsHost || !contentHost || !serviceUnitConfigCache) {
         return;
     }
     renderManageOverview();
-    host.innerHTML = SERVICE_MANAGE_SCHEMA.map((sectionConfig) => {
+    tabsHost.innerHTML = SERVICE_MANAGE_SCHEMA.map((sectionConfig, index) => `
+        <li class="nav-item" role="presentation">
+            <button class="nav-link ${index === 0 ? "active" : ""}" id="service-manage-subtab-${escapeHtml(sectionConfig.section.toLowerCase())}" data-bs-toggle="tab" data-bs-target="#service-manage-subpanel-${escapeHtml(sectionConfig.section.toLowerCase())}" type="button" role="tab" aria-controls="service-manage-subpanel-${escapeHtml(sectionConfig.section.toLowerCase())}" aria-selected="${index === 0 ? "true" : "false"}">
+                ${escapeHtml(sectionConfig.section)}
+            </button>
+        </li>
+    `).join("");
+    contentHost.innerHTML = SERVICE_MANAGE_SCHEMA.map((sectionConfig, sectionIndex) => {
         const fieldMap = sectionFieldMap(sectionConfig);
         const knownKeys = new Set(sectionConfig.fields.map((field) => field.key));
         const extraLines = additionalDirectiveBlock(sectionConfig.section, knownKeys);
         const accordionId = `service-manage-accordion-${sectionConfig.section.toLowerCase()}`;
         return `
-            <section class="service-manage-section">
+            <div class="tab-pane fade ${sectionIndex === 0 ? "show active" : ""}" id="service-manage-subpanel-${escapeHtml(sectionConfig.section.toLowerCase())}" role="tabpanel" aria-labelledby="service-manage-subtab-${escapeHtml(sectionConfig.section.toLowerCase())}" tabindex="0">
                 <div class="service-manage-section-head">
                     <div>
                         <h4 class="h6 mb-1">${escapeHtml(sectionConfig.title)}</h4>
-                        <div class="small">${escapeHtml(sectionConfig.description)}</div>
                     </div>
                     <div class="service-manage-section-meta">
-                        <span>${sectionFilledCount(sectionConfig)} populated</span>
-                        <span>${sectionFieldCount(sectionConfig)} fields</span>
+                        <span>${sectionFilledCount(sectionConfig)}/${sectionFieldCount(sectionConfig)}</span>
                     </div>
                 </div>
                 <div class="accordion service-manage-accordion" id="${escapeHtml(accordionId)}">
@@ -419,7 +425,6 @@ function renderManageSections() {
                                 <button class="accordion-button ${index === 0 ? "" : "collapsed"} service-manage-accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#${escapeHtml(`${accordionId}-${index}`)}" aria-expanded="${index === 0 ? "true" : "false"}" aria-controls="${escapeHtml(`${accordionId}-${index}`)}">
                                     <span>
                                         <span class="service-manage-accordion-title">${escapeHtml(group.title)}</span>
-                                        <span class="service-manage-accordion-note">${escapeHtml(group.description)}</span>
                                     </span>
                                 </button>
                             </h5>
@@ -437,7 +442,6 @@ function renderManageSections() {
                             <button class="accordion-button collapsed service-manage-accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#${escapeHtml(`${accordionId}-extra`)}" aria-expanded="false" aria-controls="${escapeHtml(`${accordionId}-extra`)}">
                                 <span>
                                     <span class="service-manage-accordion-title">Additional directives</span>
-                                    <span class="service-manage-accordion-note">Use raw `Key=Value` lines for directives not covered above.</span>
                                 </span>
                             </button>
                         </h5>
@@ -451,7 +455,7 @@ function renderManageSections() {
                         </div>
                     </div>
                 </div>
-            </section>
+            </div>
         `;
     }).join("");
 }
@@ -560,10 +564,9 @@ function clearServiceUnitConfig(message, isError = false) {
     if (editor) {
         editor.value = "";
     }
-    const sectionsHost = document.getElementById("serviceManageSections");
-    if (sectionsHost) {
-        sectionsHost.innerHTML = "";
-    }
+    document.getElementById("serviceManageOverview")?.replaceChildren();
+    document.getElementById("serviceManageSectionTabs")?.replaceChildren();
+    document.getElementById("serviceManageSectionContent")?.replaceChildren();
     setStatusMessage("serviceManageMessage", message, isError);
     setStatusMessage("serviceAdvancedMessage", message, isError);
 }
