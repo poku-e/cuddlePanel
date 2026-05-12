@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <mutex>
 #include <poll.h>
 #include <sstream>
 #include <string_view>
@@ -311,6 +312,11 @@ std::string read_text_file(const std::string& path) {
     return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 }
 
+bool command_output_mentions_skip_git_repo_check(const std::vector<std::string>& args) {
+    const auto result = run_command_capture(args, "", kGitProbeTimeoutSeconds, false);
+    return result.output.find("--skip-git-repo-check") != std::string::npos;
+}
+
 }
 
 CodexRuntimeConfig codex_runtime_config() {
@@ -320,6 +326,31 @@ CodexRuntimeConfig codex_runtime_config() {
     config.model = env_or_default("CUDDLEPANEL_CODEX_MODEL", "");
     config.timeout_seconds = env_or_default_int("CUDDLEPANEL_CODEX_TIMEOUT_SECONDS", 180);
     return config;
+}
+
+bool codex_cli_supports_skip_git_repo_check(const CodexRuntimeConfig& config) {
+    static std::mutex cache_mutex;
+    static std::map<std::string, bool> cache;
+
+    {
+        std::lock_guard<std::mutex> lock(cache_mutex);
+        const auto found = cache.find(config.binary_path);
+        if (found != cache.end()) {
+            return found->second;
+        }
+    }
+
+    bool supported = false;
+    if (valid_absolute_path(config.binary_path, 512) && access(config.binary_path.c_str(), X_OK) == 0) {
+        supported =
+            command_output_mentions_skip_git_repo_check({config.binary_path, "--help"}) ||
+            command_output_mentions_skip_git_repo_check({config.binary_path, "resume", "--help"}) ||
+            command_output_mentions_skip_git_repo_check({config.binary_path, "exec", "--help"});
+    }
+
+    std::lock_guard<std::mutex> lock(cache_mutex);
+    cache[config.binary_path] = supported;
+    return supported;
 }
 
 std::optional<CodexRequest> codex_request_from_form(const std::map<std::string, std::string>& form,

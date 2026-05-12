@@ -219,6 +219,11 @@
 
 - Hardened the native deploy engine so build and dependency-install steps now execute as the requested deploy user instead of the panel's root context.
 
+## System Users JSON Fix
+
+- Fixed the `/api/system/users` JSON payload so account records close the `expires_on` string correctly and the System dashboard page can render again.
+- Added a regression test that calls the real system-users HTTP handler and verifies the response still includes a valid `expires_on` fragment plus `allowedRoots`.
+
 ## Dashboard Text Class Cleanup
 
 - Removed Bootstrap text emphasis classes from dashboard page templates and page-specific JavaScript render paths so page text now renders without color or font-weight utility emphasis.
@@ -285,3 +290,35 @@
 - Added dynamic dashboard loading for account-specific system pages plus new backend routes for per-user page HTML, account detail JSON, and audit history.
 - Kept existing host-account mutations behind the same validated backend commands while reorganizing the UI around a single account-focused workflow instead of several row modals.
 - Added a simple panel-local audit trail for successful account mutations, SSH key saves, and user-scoped file actions, stored in `data/system_account_audit.log` by default.
+
+## System Page Error Cleanup
+
+- Removed the temporary raw-response diagnostics from dashboard page-load failures so the System administration UI no longer renders raw JSON or payload fragments to operators.
+- Kept invalid-response details in the browser console for debugging while restoring friendly in-page and toast error messages.
+
+## System JSON Fix
+
+- Fixed malformed JSON from the System administration account-list API by restoring the missing closing quote on the `expires_on` field in the host-user serializer.
+- Added a small regression check around escaped system-account JSON field formatting while keeping the System admin focused test suite green.
+
+## User Logfiles Tab
+
+- Added a `Logfiles` tab to the dedicated System user-management page so operators can inspect supported shell history files for a host account without leaving the dashboard.
+- Added a read-only `GET /api/system/users/<username>/logfiles` endpoint backed by a fixed allowlist of history filenames under the resolved home directory, with home-boundary checks and a 128 KB tail cap per file.
+- Updated system management and auth docs plus the README to describe the new per-user logfile workflow.
+
+## User Logfiles Layout
+
+- Reworked the System user `Logfiles` tab into a two-column review layout with a fixed file table on the left and a dedicated scrollable preview pane on the right.
+- Added sticky table headers, active-row highlighting, keyboard-selectable logfile rows, and a mobile fallback that stacks the file list above the preview.
+
+## Privileges Tab Refresh
+
+- Redesigned the System user `Privileges` tab into a more advanced posture view with summary cards, cleaner group presentation, and a dedicated group-based sudo action area.
+- Kept the backend permission model unchanged while making the privilege state easier to audit on desktop and mobile.
+
+## Codex CLI Flag Compatibility
+
+- Hardened Codex conversation startup and resume so cuddlePanel only passes `--skip-git-repo-check` when the configured host Codex CLI advertises support for that flag.
+- Expanded the Codex chat test fixture to mimic CLIs that reject the flag, covering the compatibility path behind the dashboard Codex page.
+- Updated the Codex management doc to document the runtime probe and the debugging clue for hosts running older or different Codex CLI builds.

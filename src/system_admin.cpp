@@ -6,6 +6,7 @@
 #include <array>
 #include <cctype>
 #include <cerrno>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -74,6 +75,71 @@ std::optional<std::filesystem::path> authorized_keys_path_for(const SystemAccoun
         return std::nullopt;
     }
     return home / ".ssh" / "authorized_keys";
+}
+
+struct UserHistoryCandidate {
+    const char* name;
+    const char* label;
+};
+
+constexpr std::array<UserHistoryCandidate, 4> kUserHistoryCandidates{{
+    {".bash_history", "Bash history"},
+    {".zsh_history",  "Zsh history"},
+    {".sh_history",   "POSIX shell history"},
+    {".ash_history",  "BusyBox shell history"},
+}};
+
+constexpr std::uintmax_t kMaxUserLogfileBytes = 128 * 1024;
+
+bool read_tail_text_file(const std::filesystem::path& path,
+                         std::string* content_out,
+                         bool* truncated_out) {
+    if (!content_out || !truncated_out) {
+        return false;
+    }
+    std::error_code error;
+    const auto size = std::filesystem::file_size(path, error);
+    if (error) {
+        return false;
+    }
+
+    std::ifstream file(path, std::ios::binary);
+    if (!file.good()) {
+        return false;
+    }
+
+    *truncated_out = size > kMaxUserLogfileBytes;
+    const auto bytes_to_read = static_cast<std::streamoff>(*truncated_out ? kMaxUserLogfileBytes : size);
+    const auto start_offset = static_cast<std::streamoff>(*truncated_out ? size - kMaxUserLogfileBytes : 0);
+    file.seekg(start_offset, std::ios::beg);
+    std::string content(static_cast<size_t>(bytes_to_read), '\0');
+    file.read(content.data(), bytes_to_read);
+    content.resize(static_cast<size_t>(file.gcount()));
+    if (*truncated_out) {
+        const auto first_newline = content.find('\n');
+        if (first_newline != std::string::npos && first_newline + 1 < content.size()) {
+            content.erase(0, first_newline + 1);
+        }
+    }
+    *content_out = std::move(content);
+    return true;
+}
+
+std::optional<std::filesystem::path> resolved_user_history_path(const std::filesystem::path& home,
+                                                                const std::string& filename) {
+    const auto requested = home / filename;
+    std::error_code error;
+    if (!std::filesystem::exists(requested, error) || error) {
+        return std::nullopt;
+    }
+    const auto resolved = std::filesystem::weakly_canonical(requested, error);
+    if (error || resolved.empty() || !starts_with_path(resolved, home)) {
+        return std::nullopt;
+    }
+    if (!std::filesystem::is_regular_file(resolved, error) || error) {
+        return std::nullopt;
+    }
+    return resolved;
 }
 
 SystemActionResult capture_command(const std::vector<std::string>& args) {
@@ -609,6 +675,45 @@ SystemActionResult SystemAdmin::read_authorized_keys(const std::string& username
         return {false, "authorized_keys content is invalid or too large"};
     }
     return {true, "authorized_keys loaded"};
+}
+
+SystemActionResult SystemAdmin::read_user_logfiles(const std::string& username,
+                                                   std::vector<SystemUserLogFile>* files_out) const {
+    if (!files_out) {
+        return {false, "missing output buffer"};
+    }
+    files_out->clear();
+    const auto user = find_user(username);
+    if (!user) {
+        return {false, "system user not found"};
+    }
+    if (!is_login_user_record(*user)) {
+        return {false, "logfiles are only available for login-enabled users"};
+    }
+
+    std::error_code error;
+    const auto home = std::filesystem::weakly_canonical(std::filesystem::path(user->home), error);
+    if (error || home.empty() || !std::filesystem::is_directory(home, error) || error) {
+        return {false, "unable to resolve the user home directory"};
+    }
+
+    for (const auto& candidate : kUserHistoryCandidates) {
+        const auto history_path = resolved_user_history_path(home, candidate.name);
+        if (!history_path) {
+            continue;
+        }
+        std::string content;
+        bool truncated = false;
+        if (!read_tail_text_file(*history_path, &content, &truncated)) {
+            continue;
+        }
+        files_out->push_back(SystemUserLogFile{candidate.name, candidate.label, content, truncated});
+    }
+
+    if (files_out->empty()) {
+        return {true, "no supported history files were found in the user home directory"};
+    }
+    return {true, "user logfiles loaded"};
 }
 
 SystemActionResult SystemAdmin::write_authorized_keys(const std::string& username, const std::string& content) const {

@@ -24,6 +24,7 @@ Routes and access:
 - `POST /api/services/<name>`: requires `services:manage`.
 - `POST /api/services/<name>/action`: requires `services:manage`.
 - `GET /api/system/users`: requires `system:view`.
+- `GET /api/system/users/<username>/logfiles`: requires `system:view`.
 - `POST /api/system/users`: requires `system:manage`.
 - `POST /api/system/users/<username>/edit`: requires `system:manage`.
 - `POST /api/system/users/<username>/security`: requires `system:manage`.
@@ -69,8 +70,8 @@ Workflow:
 - The Users page loads dashboard users into a dense table, opens create and permission-edit flows in Bootstrap modals, and performs mutations through AJAX without leaving `/dashboard`.
 - User deletion now requires an explicit browser confirmation before the dashboard sends the destructive request.
 - The Services page loads allowlisted systemd services into an operations table, uses a shared output accordion for runtime feedback, and performs edits through a Bootstrap modal.
-- The System page loads host accounts into a table, uses Bootstrap tabs for account vs. file workflows, manages account edits, password and lifecycle controls, sudo-group membership, and account deletion through AJAX, and constrains path ownership and mode changes to configured roots.
-- The System page also provides an `authorized_keys` editor for login users, with the target file derived from each account's home directory on the server.
+- The System page loads host accounts into a table, uses Bootstrap tabs for account vs. file workflows, manages account edits, password and lifecycle controls, a richer privilege posture view with group-based sudo actions, and account deletion through AJAX, and constrains path ownership and mode changes to configured roots.
+- The System page also provides an `authorized_keys` editor plus a read-only `Logfiles` tab for supported shell history files under each login user's resolved home directory.
 - The Nginx page loads allowlisted site configs into a table, edits full config content in a Bootstrap modal, and performs file updates, enable/disable, config tests, and reloads through AJAX.
 - The Deploy page now runs a native stack-aware deploy engine through `/api/deploy/run`, writing systemd and nginx configuration directly and optionally creating or updating a Cloudflare DNS record.
 - The Codex page now manages project-scoped conversations, starts an interactive Codex CLI session in the selected project root or maintenance workdir, persists transcript and audit data, and resumes the same Codex thread after a panel restart when a stored session id is available.

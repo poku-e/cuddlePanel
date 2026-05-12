@@ -128,7 +128,7 @@ std::string system_users_json(const SystemAdmin& system_admin) {
             << ",\"locked\":" << (user.locked ? "true" : "false")
             << ",\"password_change_required\":" << (user.password_change_required ? "true" : "false")
             << ",\"expires_on\":\"" << json_escape(user.expires_on)
-            << "}";
+            << "\"}";
     }
     out << "],\"allowedRoots\":[";
     bool first_root = true;
@@ -209,6 +209,26 @@ std::string system_audit_json(const std::vector<SystemAuditEvent>& events) {
             << "\"}";
     }
     out << "]}";
+    return out.str();
+}
+
+std::string system_user_logfiles_json(const std::vector<SystemUserLogFile>& files,
+                                      const std::string& output) {
+    std::ostringstream out;
+    out << "{\"files\":[";
+    bool first = true;
+    for (const auto& file : files) {
+        if (!first) {
+            out << ",";
+        }
+        first = false;
+        out << "{\"name\":\"" << json_escape(file.name)
+            << "\",\"label\":\"" << json_escape(file.label)
+            << "\",\"content\":\"" << json_escape(file.content)
+            << "\",\"truncated\":" << (file.truncated ? "true" : "false")
+            << "}";
+    }
+    out << "],\"output\":\"" << json_escape(output) << "\"}";
     return out.str();
 }
 
@@ -347,6 +367,16 @@ HttpResponse handle_system_authorized_keys(const RequestContext& ctx, const std:
         return json_response(result.ok ? 200 : 400, out.str());
     }
     return json_response(404, "{\"error\":\"not found\"}");
+}
+
+HttpResponse handle_system_user_logfiles(const RequestContext& ctx, const std::string& username) {
+    if (ctx.request.method != "GET") {
+        return json_response(404, "{\"error\":\"not found\"}");
+    }
+    if (auto err = ctx.require_permission("system", PermissionLevel::View)) return *err;
+    std::vector<SystemUserLogFile> files;
+    const auto result = ctx.system_admin.read_user_logfiles(username, &files);
+    return json_response(result.ok ? 200 : 400, system_user_logfiles_json(files, result.output));
 }
 
 HttpResponse handle_system_user_audit(const RequestContext& ctx, const std::string& username) {

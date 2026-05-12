@@ -1,10 +1,15 @@
 #include "system_admin.h"
+#include "http.h"
 
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+
+namespace cuddle {
+HttpResponse handle_system_users(const RequestContext& ctx, const std::string& id);
+}
 
 int main() {
     namespace fs = std::filesystem;
@@ -117,6 +122,44 @@ int main() {
     assert(daemon->locked);
     assert(!daemon->login_user);
 
+    {
+        const std::filesystem::path user_db = temp_root / "users.db";
+        cuddle::UserStore panel_users(user_db.string());
+        const bool created = panel_users.create_superuser("paneladmin", "PanelAdmin123!");
+        assert(created);
+
+        cuddle::ServiceStore services((temp_root / "services.db").string());
+        cuddle::NginxStore nginx((temp_root / "nginx.db").string(),
+                                 (temp_root / "sites-available").string(),
+                                 (temp_root / "sites-enabled").string());
+        cuddle::TerminalManager terminal;
+        cuddle::CodexProjectStore projects((temp_root / "codex-projects.db").string());
+        cuddle::CodexConversationManager conversations(projects, (temp_root / "codex-conversations.db").string());
+        cuddle::SessionStore sessions;
+        cuddle::HttpRequest request;
+        request.method = "GET";
+        request.path = "/api/system/users";
+        const cuddle::RequestContext ctx{
+            request,
+            "",
+            std::optional<std::string>{"paneladmin"},
+            panel_users,
+            services,
+            nginx,
+            admin,
+            terminal,
+            projects,
+            conversations,
+            sessions
+        };
+        const auto response = cuddle::handle_system_users(ctx, "");
+        assert(response.status == 200);
+        const std::string expires_fragment =
+            std::string("\"expires_on\":\"") + cuddle::json_escape(alice->expires_on) + "\"}";
+        assert(response.body.find(expires_fragment) != std::string::npos);
+        assert(response.body.find("\"allowedRoots\":[") != std::string::npos);
+    }
+
     assert(cuddle::valid_system_username("deploy-user"));
     assert(!cuddle::valid_system_username("../bad"));
     assert(cuddle::valid_mode_string("755"));
@@ -203,6 +246,21 @@ int main() {
     assert(load_keys.ok);
     assert(keys_content == public_key);
     assert(fs::exists(alice_home / ".ssh" / "authorized_keys"));
+
+    {
+        std::ofstream history(alice_home / ".bash_history");
+        history << "ls -la\n";
+        history << "sudo systemctl restart nginx\n";
+    }
+    std::vector<cuddle::SystemUserLogFile> logfiles;
+    const auto load_logfiles = admin.read_user_logfiles("alice", &logfiles);
+    assert(load_logfiles.ok);
+    assert(logfiles.size() == 1);
+    assert(logfiles[0].name == ".bash_history");
+    assert(logfiles[0].label == "Bash history");
+    assert(logfiles[0].content.find("sudo systemctl restart nginx") != std::string::npos);
+    const auto daemon_logfiles = admin.read_user_logfiles("daemon", &logfiles);
+    assert(!daemon_logfiles.ok);
 
     const auto daemon_keys = admin.write_authorized_keys("daemon", public_key);
     assert(!daemon_keys.ok);

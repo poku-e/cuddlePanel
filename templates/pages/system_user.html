@@ -19,6 +19,7 @@
         <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-profile-tab" data-bs-toggle="tab" data-bs-target="#system-user-profile-panel" type="button" role="tab" aria-controls="system-user-profile-panel" aria-selected="false">Profile</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-security-tab" data-bs-toggle="tab" data-bs-target="#system-user-security-panel" type="button" role="tab" aria-controls="system-user-security-panel" aria-selected="false">Security</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-ssh-tab" data-bs-toggle="tab" data-bs-target="#system-user-ssh-panel" type="button" role="tab" aria-controls="system-user-ssh-panel" aria-selected="false">SSH</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-logfiles-tab" data-bs-toggle="tab" data-bs-target="#system-user-logfiles-panel" type="button" role="tab" aria-controls="system-user-logfiles-panel" aria-selected="false">Logfiles</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-privileges-tab" data-bs-toggle="tab" data-bs-target="#system-user-privileges-panel" type="button" role="tab" aria-controls="system-user-privileges-panel" aria-selected="false">Privileges</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-files-tab" data-bs-toggle="tab" data-bs-target="#system-user-files-panel" type="button" role="tab" aria-controls="system-user-files-panel" aria-selected="false">Files</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" id="system-user-audit-tab" data-bs-toggle="tab" data-bs-target="#system-user-audit-panel" type="button" role="tab" aria-controls="system-user-audit-panel" aria-selected="false">Audit</button></li>
@@ -118,15 +119,122 @@
             </section>
         </div>
 
-        <div class="tab-pane fade" id="system-user-privileges-panel" role="tabpanel" aria-labelledby="system-user-privileges-tab" tabindex="0">
+        <div class="tab-pane fade" id="system-user-logfiles-panel" role="tabpanel" aria-labelledby="system-user-logfiles-tab" tabindex="0">
             <section class="cp-subpanel">
-                <h3 class="h6 mb-3">Privilege state</h3>
-                <dl class="cp-summary-list">
-                    <div><dt>Sudo</dt><dd id="systemUserPrivilegesState">Loading...</dd></div>
-                    <div><dt>Supplementary groups</dt><dd id="systemUserPrivilegesGroups">Loading...</dd></div>
-                </dl>
-                <div class="small mt-3">This phase keeps privilege management group-based. cuddlePanel adjusts membership in the <code>sudo</code> group and does not edit <code>/etc/sudoers</code>.</div>
+                <div class="cp-toolbar">
+                    <div>
+                        <h3 class="h6 mb-1">User logfiles</h3>
+                        <div class="small">Browse supported shell history files with a fixed file list and a scrollable preview.</div>
+                    </div>
+                </div>
+                <div id="systemUserLogfilesMessage" class="small mt-3">Loading user logfiles...</div>
+                <div class="system-user-logfiles-layout mt-3">
+                    <div class="cp-table-wrap system-user-logfiles-table-wrap">
+                        <table class="table table-hover align-middle cp-table system-user-logfiles-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Logfile</th>
+                                    <th scope="col">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="systemUserLogfilesHost">
+                                <tr><td colspan="2">No logfile data loaded yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <section class="system-user-logfiles-preview">
+                        <div class="system-user-logfiles-preview-bar">
+                            <div>
+                                <h4 class="h6 mb-1" id="systemUserLogfilesPreviewTitle">Select a logfile</h4>
+                                <div class="small text-secondary" id="systemUserLogfilesPreviewMeta">A preview will appear here.</div>
+                            </div>
+                        </div>
+                        <pre id="systemUserLogfilesPreviewContent" class="service-output system-user-logfiles-output mt-3">No logfile selected.</pre>
+                    </section>
+                </div>
             </section>
+        </div>
+
+        <div class="tab-pane fade" id="system-user-privileges-panel" role="tabpanel" aria-labelledby="system-user-privileges-tab" tabindex="0">
+            <div class="row g-3">
+                <div class="col-12 col-xl-8">
+                    <section class="cp-subpanel h-100">
+                        <div class="cp-toolbar">
+                            <div>
+                                <h3 class="h6 mb-1">Privilege posture</h3>
+                                <div class="small">Review elevated access, account class, and current group membership at a glance.</div>
+                            </div>
+                        </div>
+                        <div class="system-user-privileges-grid mt-3">
+                            <article class="system-user-privilege-card">
+                                <div class="system-user-privilege-label">Sudo access</div>
+                                <div class="system-user-privilege-value" id="systemUserPrivilegesSudoLabel">Loading...</div>
+                                <div class="system-user-privilege-note" id="systemUserPrivilegesSudoDetail">Checking sudo group membership...</div>
+                            </article>
+                            <article class="system-user-privilege-card">
+                                <div class="system-user-privilege-label">Account class</div>
+                                <div class="system-user-privilege-value" id="systemUserPrivilegesAccountType">Loading...</div>
+                                <div class="system-user-privilege-note" id="systemUserPrivilegesLoginState">Checking login state...</div>
+                            </article>
+                            <article class="system-user-privilege-card">
+                                <div class="system-user-privilege-label">Primary group</div>
+                                <div class="system-user-privilege-value" id="systemUserPrivilegesPrimaryGroup">Loading...</div>
+                                <div class="system-user-privilege-note">The primary group remains the account's default ownership context.</div>
+                            </article>
+                            <article class="system-user-privilege-card">
+                                <div class="system-user-privilege-label">Supplementary groups</div>
+                                <div class="system-user-privilege-value" id="systemUserPrivilegesSecondaryGroupCount">Loading...</div>
+                                <div class="system-user-privilege-note" id="systemUserPrivilegesState">Checking group grants...</div>
+                            </article>
+                        </div>
+                    </section>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <section class="cp-subpanel h-100">
+                        <div class="cp-toolbar">
+                            <div>
+                                <h3 class="h6 mb-1">Privilege actions</h3>
+                                <div class="small">Adjust only the supported group-based elevation path from this page.</div>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2 mt-3">
+                            <button class="btn btn-outline-warning" id="systemUserPrivilegesSudoButton" type="button"{{disabled_attr}}>Loading sudo state...</button>
+                        </div>
+                        <div class="system-user-privileges-callout mt-3">
+                            <div class="system-user-privileges-callout-title">Current phase</div>
+                            <div class="small">cuddlePanel manages membership in the <code>sudo</code> group and does not edit <code>/etc/sudoers</code> or sudo drop-ins.</div>
+                        </div>
+                        <div class="system-user-privileges-callout mt-3">
+                            <div class="system-user-privileges-callout-title">Operator note</div>
+                            <div class="small" id="systemUserPrivilegesActionHint">Checking whether this account can be changed from the panel...</div>
+                        </div>
+                    </section>
+                </div>
+                <div class="col-12">
+                    <section class="cp-subpanel">
+                        <div class="cp-toolbar">
+                            <div>
+                                <h3 class="h6 mb-1">Group membership</h3>
+                                <div class="small">Primary and supplementary groups are shown separately so ownership defaults and access grants are easy to audit.</div>
+                            </div>
+                        </div>
+                        <div class="system-user-membership-grid mt-3">
+                            <article class="system-user-membership-panel">
+                                <div class="system-user-privilege-label">Primary group</div>
+                                <div class="system-user-membership-chip-row" id="systemUserPrivilegesPrimaryGroupChips">
+                                    <span class="system-user-membership-chip">Loading...</span>
+                                </div>
+                            </article>
+                            <article class="system-user-membership-panel">
+                                <div class="system-user-privilege-label">Supplementary groups</div>
+                                <div class="system-user-membership-chip-row" id="systemUserPrivilegesGroups">
+                                    <span class="system-user-membership-chip">Loading...</span>
+                                </div>
+                            </article>
+                        </div>
+                    </section>
+                </div>
+            </div>
         </div>
 
         <div class="tab-pane fade" id="system-user-files-panel" role="tabpanel" aria-labelledby="system-user-files-tab" tabindex="0">

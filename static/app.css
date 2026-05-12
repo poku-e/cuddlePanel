@@ -445,6 +445,90 @@ body {
     margin: 2px 0 0;
 }
 
+.system-user-privileges-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.system-user-privilege-card,
+.system-user-membership-panel {
+    border: 1px solid #dbe2f0;
+    border-radius: 10px;
+    background:
+        linear-gradient(180deg, rgba(248, 250, 252, 0.9) 0%, rgba(255, 255, 255, 1) 100%);
+    padding: 16px;
+}
+
+.system-user-privilege-label {
+    color: #667085;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.system-user-privilege-value {
+    margin-top: 8px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.system-user-privilege-note {
+    margin-top: 6px;
+    color: #667085;
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.system-user-privileges-callout {
+    border: 1px solid #dbe2f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    padding: 14px;
+}
+
+.system-user-privileges-callout-title {
+    margin-bottom: 6px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #344054;
+}
+
+.system-user-membership-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.system-user-membership-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.system-user-membership-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 6px 12px;
+    border: 1px solid #c9d2f0;
+    border-radius: 999px;
+    background: #eef3ff;
+    color: #334155;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.system-user-membership-chip.is-empty {
+    border-style: dashed;
+    background: #f8fafc;
+    color: #667085;
+    font-weight: 500;
+}
+
 .permissions-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -624,6 +708,61 @@ body {
     background: #fbfcfe;
 }
 
+.system-user-logfiles-layout {
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.system-user-logfiles-table-wrap {
+    max-height: 520px;
+    overflow: auto;
+}
+
+.system-user-logfiles-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.system-user-logfiles-row {
+    cursor: pointer;
+}
+
+.system-user-logfiles-row:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.18);
+    outline-offset: -3px;
+}
+
+.system-user-logfiles-row.active td {
+    background: #eef3ff;
+}
+
+.system-user-logfiles-preview {
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    border: 1px solid var(--cp-line);
+    border-radius: 6px;
+    background: #fbfcfe;
+    padding: 14px;
+}
+
+.system-user-logfiles-preview-bar {
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e4e7ec;
+}
+
+.system-user-logfiles-output {
+    min-height: 520px;
+    max-height: 520px;
+    margin-top: 12px;
+    overflow: auto;
+    white-space: pre;
+    background: #fff;
+}
+
 .terminal-host {
     min-height: 520px;
     border: 1px solid var(--cp-line);
@@ -665,8 +804,26 @@ body {
         grid-template-columns: 1fr;
     }
 
+    .system-user-privileges-grid,
+    .system-user-membership-grid {
+        grid-template-columns: 1fr;
+    }
+
     .deploy-section-grid {
         grid-template-columns: 1fr;
+    }
+
+    .system-user-logfiles-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .system-user-logfiles-table-wrap,
+    .system-user-logfiles-output {
+        max-height: 360px;
+    }
+
+    .system-user-logfiles-output {
+        min-height: 360px;
     }
 
     .cp-toolbar {

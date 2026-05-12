@@ -7,6 +7,7 @@ Routes and access:
 - `GET /api/system/users/<username>`: requires `system:view`.
 - `GET /api/system/users/<username>/page`: requires `system:view`.
 - `GET /api/system/users/<username>/audit`: requires `system:view`.
+- `GET /api/system/users/<username>/logfiles`: requires `system:view`.
 - `POST /api/system/users`: requires `system:manage`.
 - `POST /api/system/users/<username>/edit`: requires `system:manage`.
 - `POST /api/system/users/<username>/security`: requires `system:manage`.
@@ -27,13 +28,16 @@ Workflow:
   - `Profile`: shell, home path, optional home move behavior, GECOS comment, primary group, and supplementary groups through `usermod`.
   - `Security`: password reset, force-password-change on next login, and account expiration using `chpasswd` and `chage`.
   - `SSH`: `authorized_keys` read/write for login-enabled accounts only.
-  - `Privileges`: group-based sudo state and current supplementary groups.
+  - `Logfiles`: read-only shell history surfaced from supported history files inside the account home directory.
+  - `Privileges`: a richer privilege posture panel for sudo state, account classification, primary vs. supplementary groups, and direct group-based sudo actions.
   - `Files`: per-user constrained `chown` / `chmod`, defaulting to the account home path.
   - `Audit`: panel-originated account history for that user.
 - Account actions support `lock`, `unlock`, `grant-sudo`, `revoke-sudo`, and `delete`.
 - Account deletion still uses a confirmation modal. Operators can optionally request recursive home-directory removal, which maps to `userdel -r` on the server.
 - Account creation and account-mutation commands are serialized inside the panel process so overlapping dashboard requests do not race each other for `/etc/passwd` and `/etc/group` locks.
 - SSH key management supports reading, creating, and replacing `~/.ssh/authorized_keys` for login users only, from the dedicated `SSH` tab.
+- The `Logfiles` tab reads only a fixed allowlist of history filenames under the resolved home directory: `.bash_history`, `.zsh_history`, `.sh_history`, and `.ash_history`.
+- Logfile reads are capped to the newest 128 KB per file and trimmed to a newline boundary when truncated, so large history files do not flood the dashboard.
 - Sudo management in this phase is group-based only. cuddlePanel manages membership in the `sudo` group and does not edit `/etc/sudoers` or drop-in sudoers files.
 - Ownership and mode changes still support the global Files tool on the index page, and they also run from the per-user `Files` tab:
   - `chown` requires an allowed path plus owner and optional group.
@@ -74,6 +78,7 @@ Safety rules:
 - Unknown actions are rejected server-side.
 - Account names, shell paths, home paths, GECOS comments, owner names, group names, passwords, ISO expiration dates, and octal modes are all validated before execution.
 - `authorized_keys` editing is limited to login users with interactive shells and non-system UIDs. cuddlePanel does not expose arbitrary file editing under `.ssh/`.
+- Logfile viewing follows the same account-class restriction as SSH key management: only login users with interactive shells and non-system UIDs qualify.
 - Commands are executed with direct `execv` argument vectors, not through a shell.
 - Recursive home deletion is only available through the explicit delete-account confirmation modal; it is never implied by a plain account delete request.
 - New `.ssh` directories are created with `0700` and `authorized_keys` files with `0600`, then assigned to the target account's uid and gid.
@@ -81,8 +86,10 @@ Safety rules:
 Gotchas and debugging:
 - Some hosts use an admin group other than `sudo`; this phase intentionally targets `sudo` only.
 - If shadow data is unreadable, lock-state reporting falls back to unlocked in the UI rather than failing the whole page load.
+- If the System index shows a client-side `invalid response` error, inspect `GET /api/system/users` first. The dashboard expects a valid JSON document containing both `users` and `allowedRoots`, and malformed account fields will block the page before any rows render.
 - Recursive `chown` and `chmod` are powerful even with path allowlists. Keep `system:manage` narrowly assigned.
 - `authorized_keys` is treated as structured operator data, not as a general-purpose text editor surface. Keep the server-side username-to-home resolution authoritative.
+- If an expected history file does not appear in `Logfiles`, verify that it is a regular file under the resolved home directory. Symlinks that escape the home path are ignored intentionally.
 - The dedicated user page is intentionally tabbed so account management can grow without turning the System index into a wall of modals. Keep new user-scoped features on the per-user page unless they are truly global host tools.
 - The API still returns all parsed passwd entries because backend actions and tests rely on the full dataset; the dashboard applies the login-user filter at render time to keep the operator view focused.
 - Audit history is panel-local. Direct host-side `useradd`, `usermod`, `passwd`, `userdel`, or manual file edits do not appear in the `Audit` tab unless they flowed through cuddlePanel.

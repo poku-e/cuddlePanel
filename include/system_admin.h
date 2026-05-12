@@ -29,6 +29,13 @@ struct SystemActionResult {
     std::string output;
 };
 
+struct SystemUserLogFile {
+    std::string name;
+    std::string label;
+    std::string content;
+    bool truncated = false;
+};
+
 class SystemAdmin {
 public:
     SystemAdmin(std::string passwd_path, std::string group_path, std::string shadow_path);
@@ -53,6 +60,8 @@ public:
                                            bool clear_expiration,
                                            const std::string& expires_on) const;
     SystemActionResult read_authorized_keys(const std::string& username, std::string* content_out) const;
+    SystemActionResult read_user_logfiles(const std::string& username,
+                                          std::vector<SystemUserLogFile>* files_out) const;
     SystemActionResult write_authorized_keys(const std::string& username, const std::string& content) const;
     SystemActionResult run_user_action(const std::string& username,
                                        const std::string& action,

@@ -31,7 +31,7 @@ Runtime behavior:
   - `danger-full-access` sandbox mode
   - approval policy `on-request`
   - the configured model when one is set
-  - `--skip-git-repo-check` automatically for maintenance mode or non-git roots
+  - `--skip-git-repo-check` automatically for maintenance mode or non-git roots, but only when the host Codex CLI advertises support for that flag
 - Approval prompts are handled in-band: they appear in the streamed conversation output, and the operator answers them through the same message box.
 
 Hidden dependencies and configuration:
@@ -53,5 +53,6 @@ Safety and operational rules:
 Gotchas and debugging:
 - Because the page now runs interactive Codex sessions, output may contain terminal control sequences from the CLI.
 - If the host Codex CLI is not logged in, the streamed output will usually show the authentication failure directly.
+- Older or different Codex CLI builds may not support `--skip-git-repo-check`; cuddlePanel now probes `codex --help` and only adds the flag when it is actually available.
 - Session recovery depends on the host Codex CLI session index. If cuddlePanel cannot detect a session id when the conversation starts, the metadata still persists, but restart-time resume may not be available for that specific thread.
 - Codex conversation starts and other runner diagnostics are written to `data/server.log`.

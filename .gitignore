@@ -32,3 +32,4 @@ coverage/
 *.sln
 .env
 data/users.db
+data/codex_conversations.db

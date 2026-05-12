@@ -67,33 +67,81 @@ function persistCurrentPage(page) {
     }
 }
 
+function extractFailureMessage(rawText, fallbackMessage) {
+    const trimmed = rawText.trim();
+    if (!trimmed) {
+        return fallbackMessage;
+    }
+    try {
+        const payload = JSON.parse(trimmed);
+        return payload.error || payload.output || fallbackMessage;
+    } catch {
+        return fallbackMessage;
+    }
+}
+
 export async function loadPage(page) {
     const normalizedPage = normalizePage(page);
     const systemUsername = systemUserFromPage(normalizedPage);
     const content = document.getElementById("content");
     content.innerHTML = "<div>Loading...</div>";
-    const response = await fetch(systemUsername
-        ? `/api/system/users/${encodeURIComponent(systemUsername)}/page`
-        : `/api/page/${encodeURIComponent(normalizedPage)}`);
+    let response;
+    let failureMessage = "Unable to load this page.";
+    if (systemUsername) {
+        const candidateUrls = [
+            `/api/system/users/${encodeURIComponent(systemUsername)}/page`,
+            `/api/page/system-user/${encodeURIComponent(systemUsername)}`
+        ];
+        for (const url of candidateUrls) {
+            response = await fetch(url);
+            if (response.ok || response.status === 401) {
+                break;
+            }
+            try {
+                const payload = await response.clone().json();
+                failureMessage = payload.error || payload.output || failureMessage;
+            } catch {
+                const text = await response.clone().text();
+                failureMessage = extractFailureMessage(text, failureMessage);
+            }
+        }
+    } else {
+        response = await fetch(`/api/page/${encodeURIComponent(normalizedPage)}`);
+        if (!response.ok && response.status !== 401) {
+            try {
+                const payload = await response.clone().json();
+                failureMessage = payload.error || payload.output || failureMessage;
+            } catch {
+                const text = await response.clone().text();
+                failureMessage = extractFailureMessage(text, failureMessage);
+            }
+        }
+    }
     if (response.status === 401) {
         window.location.assign("/login");
         return;
     }
     content.innerHTML = response.ok
         ? await response.text()
-        : "<div class=\"alert alert-danger\">Unable to load this page.</div>";
+        : `<div class="alert alert-danger">${failureMessage}</div>`;
     if (!response.ok) {
-        showErrorToast("Unable to load this page.");
+        showErrorToast(failureMessage);
     }
 
     if (response.ok) {
-        if (systemUsername) {
-            await initSystemUserPage(systemUsername);
-        } else {
-            const initializer = pageInitializers.get(normalizedPage);
-            if (initializer) {
-                await initializer();
+        try {
+            if (systemUsername) {
+                await initSystemUserPage(systemUsername);
+            } else {
+                const initializer = pageInitializers.get(normalizedPage);
+                if (initializer) {
+                    await initializer();
+                }
             }
+        } catch (error) {
+            content.innerHTML = `<div class="alert alert-danger">${error.message || "Unable to initialize this page."}</div>`;
+            showErrorToast(error.message || "Unable to initialize this page.");
+            return;
         }
         persistCurrentPage(normalizedPage);
     }

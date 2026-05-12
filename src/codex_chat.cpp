@@ -439,6 +439,7 @@ std::optional<std::string> CodexConversationManager::spawn_session_locked(const 
                                                                           bool resume_existing,
                                                                           std::string* error_message) {
     const auto config = codex_runtime_config();
+    const bool supports_skip_git_repo_check = codex_cli_supports_skip_git_repo_check(config);
     if (!valid_absolute_path(config.binary_path) || access(config.binary_path.c_str(), X_OK) != 0) {
         if (error_message) {
             *error_message = "codex binary is missing or not executable";
@@ -459,7 +460,8 @@ std::optional<std::string> CodexConversationManager::spawn_session_locked(const 
         }
         args.push_back("--cd");
         args.push_back(conversation.working_directory);
-        if (conversation.maintenance_mode || !is_git_repo_root(conversation.working_directory)) {
+        if (supports_skip_git_repo_check &&
+            (conversation.maintenance_mode || !is_git_repo_root(conversation.working_directory))) {
             args.push_back("--skip-git-repo-check");
         }
     } else {
@@ -474,7 +476,8 @@ std::optional<std::string> CodexConversationManager::spawn_session_locked(const 
             args.push_back("--model");
             args.push_back(config.model);
         }
-        if (conversation.maintenance_mode || !is_git_repo_root(conversation.working_directory)) {
+        if (supports_skip_git_repo_check &&
+            (conversation.maintenance_mode || !is_git_repo_root(conversation.working_directory))) {
             args.push_back("--skip-git-repo-check");
         }
     }

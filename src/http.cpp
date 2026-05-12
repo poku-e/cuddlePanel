@@ -357,6 +357,7 @@ HttpResponse handle_system_user_security(const RequestContext&, const std::strin
 HttpResponse handle_system_user_action(const RequestContext&, const std::string&);
 HttpResponse handle_system_authorized_keys(const RequestContext&, const std::string&);
 HttpResponse handle_system_user_audit(const RequestContext&, const std::string&);
+HttpResponse handle_system_user_logfiles(const RequestContext&, const std::string&);
 HttpResponse handle_system_path_action(const RequestContext&, const std::string&);
 
 HttpResponse handle_nginx_sites(const RequestContext&, const std::string&);
@@ -429,6 +430,7 @@ void App::build_routes() {
     routes_.push_back({"",     "/api/system/path-action",   "",                 true,  handle_system_path_action});
     routes_.push_back({"GET",  "/api/system/users/",        "/page",            false, handle_system_user_page});
     routes_.push_back({"GET",  "/api/system/users/",        "/audit",           false, handle_system_user_audit});
+    routes_.push_back({"GET",  "/api/system/users/",        "/logfiles",        false, handle_system_user_logfiles});
     routes_.push_back({"",     "/api/system/users/",        "/authorized-keys", false, handle_system_authorized_keys});
     routes_.push_back({"",     "/api/system/users/",        "/edit",            false, handle_system_user_update});
     routes_.push_back({"",     "/api/system/users/",        "/security",        false, handle_system_user_security});

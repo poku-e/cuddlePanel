@@ -29,6 +29,7 @@ struct CodexResult {
 };
 
 CodexRuntimeConfig codex_runtime_config();
+bool codex_cli_supports_skip_git_repo_check(const CodexRuntimeConfig& config);
 std::optional<CodexRequest> codex_request_from_form(const std::map<std::string, std::string>& form,
                                                     std::string* error_message = nullptr);
 bool valid_codex_request(const CodexRequest& request, std::string* error_message = nullptr);
