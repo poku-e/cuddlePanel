@@ -14,7 +14,7 @@ cuddlePanel is an internal server administration panel built in C++ with a Boots
 - TOTP 2FA setup for superadmin onboarding and first login for new users
 - Per-page `view` / `manage` permissions
 - User administration
-- Host service discovery and systemd control with dedicated per-service management pages
+- Host service discovery and systemd control with dedicated per-service management pages, structured unit editing, and direct service-file editing
 - System administration for host users through a dedicated per-account user management page with tabs for overview, profile, security, SSH keys, logfiles, privileges, audit history, and a constrained file browser with `chown`, `chmod`, rename, copy/paste, zip, and unzip actions
 - Nginx site management
 - Project-scoped Codex conversations with maintenance-mode fallback, streamed output, in-thread approvals, transcript export, and restart-time resume
@@ -79,6 +79,7 @@ The repo includes a tracked `.env` file documenting the runtime environment vari
 - native deploy engine tool paths and optional Cloudflare defaults
 - native deploy roots that are trusted for app builds
 - system administration command and file overrides
+- service unit root overrides for direct service editing
 - terminal runtime policy
 - Codex runner path, workspace, model, and timeout
 

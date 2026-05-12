@@ -30,8 +30,21 @@ int main() {
     assert(updated->description == "Updated description");
     assert(!store.update_service("missing", "missing", "nginx.service", "Nope"));
 
+    fs::create_directories("tmp-service-data");
     const fs::path fake_systemctl = fs::path("tmp-service-data") / "fake-systemctl.sh";
     const fs::path action_log = fs::path("tmp-service-data") / "systemctl-actions.log";
+    const fs::path unit_root = fs::absolute(fs::path("tmp-service-data") / "systemd");
+    fs::create_directories(unit_root);
+    const fs::path nginx_unit = unit_root / "nginx.service";
+    const fs::path redis_unit = unit_root / "redis.service";
+    {
+        std::ofstream nginx_file(nginx_unit);
+        nginx_file << "[Unit]\nDescription=Nginx Web Server\nAfter=network.target\n\n[Service]\nType=simple\nExecStart=/usr/sbin/nginx -g 'daemon off;'\nRestart=always\n\n[Install]\nWantedBy=multi-user.target\n";
+    }
+    {
+        std::ofstream redis_file(redis_unit);
+        redis_file << "[Unit]\nDescription=Redis In-Memory Store\nAfter=network.target\n\n[Service]\nType=notify\nExecStart=/usr/bin/redis-server /etc/redis/redis.conf\nUser=redis\n\n[Install]\nWantedBy=multi-user.target\n";
+    }
     {
         std::ofstream script(fake_systemctl);
         script << "#!/bin/sh\n";
@@ -43,13 +56,13 @@ int main() {
         script << "  unit=\"$2\"\n";
         script << "  if [ \"$unit\" = \"nginx.service\" ]; then\n";
         script << "    cat <<'EOF'\n";
-        script << "Id=nginx.service\nDescription=Nginx Web Server\nLoadState=loaded\nActiveState=active\nSubState=running\nUnitFileState=enabled\nFragmentPath=/usr/lib/systemd/system/nginx.service\n";
+        script << "Id=nginx.service\nDescription=Nginx Web Server\nLoadState=loaded\nActiveState=active\nSubState=running\nUnitFileState=enabled\nFragmentPath=" << nginx_unit.string() << "\n";
         script << "EOF\n";
         script << "    exit 0\n";
         script << "  fi\n";
         script << "  if [ \"$unit\" = \"redis.service\" ]; then\n";
         script << "    cat <<'EOF'\n";
-        script << "Id=redis.service\nDescription=Redis In-Memory Store\nLoadState=loaded\nActiveState=inactive\nSubState=dead\nUnitFileState=disabled\nFragmentPath=/usr/lib/systemd/system/redis.service\n";
+        script << "Id=redis.service\nDescription=Redis In-Memory Store\nLoadState=loaded\nActiveState=inactive\nSubState=dead\nUnitFileState=disabled\nFragmentPath=" << redis_unit.string() << "\n";
         script << "EOF\n";
         script << "    exit 0\n";
         script << "  fi\n";
@@ -68,6 +81,7 @@ int main() {
                     fs::perms::others_exec | fs::perms::others_read,
                     fs::perm_options::replace);
     setenv("CUDDLEPANEL_SYSTEMCTL_BIN", fake_systemctl.c_str(), 1);
+    setenv("CUDDLEPANEL_SERVICE_UNIT_ROOTS", unit_root.c_str(), 1);
 
     const auto discovered = cuddle::discover_services();
     assert(discovered.size() == 2);
@@ -80,8 +94,18 @@ int main() {
     assert(redis->description == "Redis In-Memory Store");
     assert(redis->unit_file_state == "disabled");
 
+    const auto redis_config = cuddle::load_service_unit_file("redis.service");
+    assert(redis_config);
+    assert(redis_config->path == redis_unit.string());
+    assert(redis_config->sections.count("Service") == 1);
+    assert(redis_config->sections.at("Service").at("ExecStart")[0] == "/usr/bin/redis-server /etc/redis/redis.conf");
+
     const auto status = cuddle::query_service_status("nginx.service");
     assert(status.state == "active");
+
+    const auto save_result = cuddle::save_service_unit_file("redis.service",
+        "[Unit]\nDescription=Redis Cache Service\nAfter=network.target\n\n[Service]\nType=notify\nExecStart=/usr/bin/redis-server /etc/redis/redis.conf --supervised systemd\nRestart=always\nUser=redis\n\n[Install]\nWantedBy=multi-user.target\n");
+    assert(save_result.ok);
 
     const auto enable_result = cuddle::run_service_action("redis.service", "enable");
     assert(enable_result.ok);
@@ -93,8 +117,16 @@ int main() {
     {
         std::ifstream log_file(action_log);
         std::string log((std::istreambuf_iterator<char>(log_file)), std::istreambuf_iterator<char>());
+        assert(log.find("daemon-reload") != std::string::npos);
         assert(log.find("enable redis.service") != std::string::npos);
         assert(log.find("restart nginx.service") != std::string::npos);
+    }
+
+    {
+        std::ifstream redis_file(redis_unit);
+        std::string redis_content((std::istreambuf_iterator<char>(redis_file)), std::istreambuf_iterator<char>());
+        assert(redis_content.find("Description=Redis Cache Service") != std::string::npos);
+        assert(redis_content.find("Restart=always") != std::string::npos);
     }
 
     fs::remove_all("tmp-service-data");

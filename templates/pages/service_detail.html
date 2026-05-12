@@ -16,6 +16,8 @@
 
     <ul class="nav nav-tabs cp-nav-tabs mt-3" role="tablist">
         <li class="nav-item" role="presentation"><button class="nav-link active" id="service-detail-overview-tab" data-bs-toggle="tab" data-bs-target="#service-detail-overview-panel" type="button" role="tab" aria-controls="service-detail-overview-panel" aria-selected="true">Overview</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="service-detail-manage-tab" data-bs-toggle="tab" data-bs-target="#service-detail-manage-panel" type="button" role="tab" aria-controls="service-detail-manage-panel" aria-selected="false">Manage Service</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="service-detail-advanced-tab" data-bs-toggle="tab" data-bs-target="#service-detail-advanced-panel" type="button" role="tab" aria-controls="service-detail-advanced-panel" aria-selected="false">Advanced</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" id="service-detail-runtime-tab" data-bs-toggle="tab" data-bs-target="#service-detail-runtime-panel" type="button" role="tab" aria-controls="service-detail-runtime-panel" aria-selected="false">Runtime</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" id="service-detail-unit-tab" data-bs-toggle="tab" data-bs-target="#service-detail-unit-panel" type="button" role="tab" aria-controls="service-detail-unit-panel" aria-selected="false">Unit</button></li>
     </ul>
@@ -67,6 +69,42 @@
                     </section>
                 </div>
             </div>
+        </div>
+
+        <div class="tab-pane fade" id="service-detail-manage-panel" role="tabpanel" aria-labelledby="service-detail-manage-tab" tabindex="0">
+            <section class="cp-subpanel">
+                <div class="cp-toolbar">
+                    <div>
+                        <h3 class="h6 mb-1">Friendly unit editor</h3>
+                        <div class="small">Edit the unit through structured fields for the most common `Unit`, `Service`, and `Install` directives, then save a clean service file.</div>
+                    </div>
+                    <div class="cp-toolbar-actions">
+                        <button class="btn btn-outline-secondary btn-sm" id="serviceManageReloadButton" type="button">Reload fields</button>
+                        <button class="btn btn-primary btn-sm" id="serviceManageSaveButton" type="button"{{disabled_attr}}>Save service</button>
+                    </div>
+                </div>
+                <div id="serviceManageMessage" class="small mt-3">Loading structured service configuration...</div>
+                <div class="small mt-2">Structured saves rewrite the unit with a normalized layout. Use `Advanced` when you need exact hand-edited formatting or comments.</div>
+                <div class="service-manage-grid mt-3" id="serviceManageSections"></div>
+            </section>
+        </div>
+
+        <div class="tab-pane fade" id="service-detail-advanced-panel" role="tabpanel" aria-labelledby="service-detail-advanced-tab" tabindex="0">
+            <section class="cp-subpanel">
+                <div class="cp-toolbar">
+                    <div>
+                        <h3 class="h6 mb-1">Direct unit file editing</h3>
+                        <div class="small">Edit the discovered service file directly, save it, and run `systemctl daemon-reload` from the panel.</div>
+                    </div>
+                    <div class="cp-toolbar-actions">
+                        <button class="btn btn-outline-secondary btn-sm" id="serviceAdvancedReloadButton" type="button">Reload file</button>
+                        <button class="btn btn-primary btn-sm" id="serviceAdvancedSaveButton" type="button"{{disabled_attr}}>Save file</button>
+                    </div>
+                </div>
+                <div class="small mt-3">Editable path: <code id="serviceDetailEditablePath">Loading...</code></div>
+                <div id="serviceAdvancedMessage" class="small mt-2">Loading unit file content...</div>
+                <textarea class="cp-input cp-textarea cp-codearea service-advanced-editor mt-3" id="serviceAdvancedEditor" spellcheck="false"{{disabled_attr}}></textarea>
+            </section>
         </div>
 
         <div class="tab-pane fade" id="service-detail-runtime-panel" role="tabpanel" aria-labelledby="service-detail-runtime-tab" tabindex="0">

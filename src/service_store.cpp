@@ -3,10 +3,13 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cerrno>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
+#include <string_view>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -87,6 +90,188 @@ std::string trim_copy(const std::string& value) {
         --end;
     }
     return value.substr(start, end - start);
+}
+
+bool path_is_within_root(const std::filesystem::path& path, const std::filesystem::path& root) {
+    std::error_code ec;
+    const auto normalized_path = std::filesystem::weakly_canonical(path, ec);
+    if (ec) {
+        return false;
+    }
+    ec.clear();
+    const auto normalized_root = std::filesystem::weakly_canonical(root, ec);
+    if (ec) {
+        return false;
+    }
+
+    auto path_it = normalized_path.begin();
+    auto root_it = normalized_root.begin();
+    for (; root_it != normalized_root.end(); ++root_it, ++path_it) {
+        if (path_it == normalized_path.end() || *path_it != *root_it) {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::vector<std::filesystem::path> service_unit_roots() {
+    const char* configured = std::getenv("CUDDLEPANEL_SERVICE_UNIT_ROOTS");
+    std::vector<std::filesystem::path> roots;
+    if (configured && *configured) {
+        for (const auto& part : split(configured, ':')) {
+            if (part.empty()) {
+                continue;
+            }
+            roots.emplace_back(std::filesystem::path(part));
+        }
+        if (!roots.empty()) {
+            return roots;
+        }
+    }
+
+    roots.emplace_back("/etc/systemd/system");
+    roots.emplace_back("/usr/lib/systemd/system");
+    roots.emplace_back("/lib/systemd/system");
+    return roots;
+}
+
+std::optional<std::filesystem::path> resolved_editable_unit_path(const DiscoveredService& service) {
+    namespace fs = std::filesystem;
+    if (service.fragment_path.empty()) {
+        return std::nullopt;
+    }
+
+    const fs::path fragment(service.fragment_path);
+    if (!fragment.is_absolute()) {
+        return std::nullopt;
+    }
+    std::error_code ec;
+    if (!fs::exists(fragment, ec) || ec) {
+        return std::nullopt;
+    }
+
+    fs::path resolved = fs::canonical(fragment, ec);
+    if (ec) {
+        resolved = fs::weakly_canonical(fragment, ec);
+        if (ec) {
+            return std::nullopt;
+        }
+    }
+
+    for (const auto& root : service_unit_roots()) {
+        if (path_is_within_root(resolved, root)) {
+            return resolved;
+        }
+    }
+    return std::nullopt;
+}
+
+std::map<std::string, std::map<std::string, std::vector<std::string>>> parse_unit_sections(const std::string& content) {
+    std::map<std::string, std::map<std::string, std::vector<std::string>>> sections;
+    std::stringstream stream(content);
+    std::string line;
+    std::string current_section;
+    std::string continued_line;
+    auto process_line = [&](const std::string& raw_line) {
+        const std::string trimmed = trim_copy(raw_line);
+        if (trimmed.empty() || trimmed[0] == '#' || trimmed[0] == ';') {
+            return;
+        }
+        if (trimmed.front() == '[' && trimmed.back() == ']') {
+            current_section = trim_copy(trimmed.substr(1, trimmed.size() - 2));
+            return;
+        }
+        if (current_section.empty()) {
+            return;
+        }
+        const auto separator = raw_line.find('=');
+        if (separator == std::string::npos) {
+            return;
+        }
+        const std::string key = trim_copy(raw_line.substr(0, separator));
+        const std::string value = trim_copy(raw_line.substr(separator + 1));
+        if (key.empty()) {
+            return;
+        }
+        sections[current_section][key].push_back(value);
+    };
+
+    while (std::getline(stream, line)) {
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (!line.empty() && line.back() == '\\') {
+            continued_line += line.substr(0, line.size() - 1);
+            continued_line += ' ';
+            continue;
+        }
+        if (!continued_line.empty()) {
+            line = continued_line + trim_copy(line);
+            continued_line.clear();
+        }
+        process_line(line);
+    }
+    if (!continued_line.empty()) {
+        process_line(continued_line);
+    }
+    return sections;
+}
+
+bool write_all_bytes(int fd, std::string_view content) {
+    size_t written = 0;
+    while (written < content.size()) {
+        const ssize_t count = write(fd, content.data() + written, content.size() - written);
+        if (count < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return false;
+        }
+        written += static_cast<size_t>(count);
+    }
+    return true;
+}
+
+ServiceActionResult write_file_atomically(const std::filesystem::path& destination, const std::string& content) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const auto parent = destination.parent_path();
+    if (parent.empty() || !fs::exists(parent, ec) || ec) {
+        return {false, "service unit directory is missing"};
+    }
+
+    struct stat existing_stat{};
+    if (stat(destination.c_str(), &existing_stat) != 0) {
+        return {false, "unable to inspect service unit file"};
+    }
+
+    std::string temp_template = (parent / ".cuddle-service-XXXXXX").string();
+    std::vector<char> temp_path(temp_template.begin(), temp_template.end());
+    temp_path.push_back('\0');
+    const int fd = mkstemp(temp_path.data());
+    if (fd < 0) {
+        return {false, "unable to create temporary unit file"};
+    }
+
+    bool success = write_all_bytes(fd, content);
+    if (success && fchmod(fd, existing_stat.st_mode & 0777) != 0) {
+        success = false;
+    }
+    if (success && fsync(fd) != 0) {
+        success = false;
+    }
+    close(fd);
+
+    if (!success) {
+        unlink(temp_path.data());
+        return {false, "unable to write service unit file"};
+    }
+
+    if (rename(temp_path.data(), destination.c_str()) != 0) {
+        unlink(temp_path.data());
+        return {false, "unable to replace service unit file"};
+    }
+    return {true, "service unit file saved"};
 }
 
 std::map<std::string, std::string> parse_key_value_output(const std::string& output) {
@@ -350,6 +535,68 @@ std::vector<DiscoveredService> discover_services() {
         return left.unit < right.unit;
     });
     return services;
+}
+
+std::optional<ServiceUnitFileData> load_service_unit_file(const std::string& unit) {
+    const auto service = discover_service(unit);
+    if (!service) {
+        return std::nullopt;
+    }
+    const auto resolved_path = resolved_editable_unit_path(*service);
+    if (!resolved_path) {
+        return std::nullopt;
+    }
+
+    std::ifstream file(*resolved_path);
+    if (!file.good()) {
+        return std::nullopt;
+    }
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    if (content.size() > 256 * 1024) {
+        return std::nullopt;
+    }
+
+    ServiceUnitFileData data;
+    data.unit = service->unit;
+    data.path = resolved_path->string();
+    data.raw_content = content;
+    data.sections = parse_unit_sections(content);
+    return data;
+}
+
+ServiceActionResult save_service_unit_file(const std::string& unit, const std::string& content) {
+    if (!valid_service_unit(unit)) {
+        return {false, "invalid unit name"};
+    }
+    if (content.empty()) {
+        return {false, "unit file content is required"};
+    }
+    if (content.size() > 256 * 1024) {
+        return {false, "unit file content is too large"};
+    }
+    if (content.find('\0') != std::string::npos) {
+        return {false, "unit file content is invalid"};
+    }
+
+    const auto service = discover_service(unit);
+    if (!service) {
+        return {false, "service not found"};
+    }
+    const auto resolved_path = resolved_editable_unit_path(*service);
+    if (!resolved_path) {
+        return {false, "service unit file is not editable from this panel"};
+    }
+
+    const auto write_result = write_file_atomically(*resolved_path, content);
+    if (!write_result.ok) {
+        return write_result;
+    }
+
+    const auto reload_result = capture_command({systemctl_binary(), "daemon-reload"});
+    if (!reload_result.ok) {
+        return {false, "unit file saved, but daemon-reload failed:\n" + reload_result.output};
+    }
+    return {true, "saved " + resolved_path->string() + "\n" + reload_result.output};
 }
 
 ServiceStatus query_service_status(const std::string& unit) {

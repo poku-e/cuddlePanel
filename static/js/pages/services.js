@@ -3,6 +3,115 @@ import {escapeHtml} from "../core/dom.js";
 import {showErrorToast, showSuccessToast} from "../core/toast.js";
 
 let servicesCache = [];
+let serviceUnitConfigCache = null;
+
+const SERVICE_MANAGE_SCHEMA = [
+    {
+        section: "Unit",
+        title: "Unit relationships",
+        description: "High-level identity, ordering, dependencies, and start-rate behavior.",
+        fields: [
+            {key: "Description", label: "Description", type: "text", placeholder: "Human-friendly summary"},
+            {key: "Documentation", label: "Documentation", type: "textarea", placeholder: "https://docs.example.com/service"},
+            {key: "Wants", label: "Wants", type: "textarea", placeholder: "network-online.target"},
+            {key: "Requires", label: "Requires", type: "textarea", placeholder: "postgresql.service"},
+            {key: "Requisite", label: "Requisite", type: "textarea", placeholder: "docker.service"},
+            {key: "BindsTo", label: "Binds To", type: "textarea", placeholder: "mnt-data.mount"},
+            {key: "PartOf", label: "Part Of", type: "textarea", placeholder: "app-stack.target"},
+            {key: "Conflicts", label: "Conflicts", type: "textarea", placeholder: "legacy-app.service"},
+            {key: "Before", label: "Before", type: "textarea", placeholder: "nginx.service"},
+            {key: "After", label: "After", type: "textarea", placeholder: "network.target"},
+            {key: "OnFailure", label: "On Failure", type: "textarea", placeholder: "alert-mailer.service"},
+            {key: "OnSuccess", label: "On Success", type: "textarea", placeholder: "follow-up.target"},
+            {key: "StartLimitIntervalSec", label: "Start Limit Interval", type: "text", placeholder: "30s"},
+            {key: "StartLimitBurst", label: "Start Limit Burst", type: "text", placeholder: "5"},
+            {key: "ConditionPathExists", label: "Condition Path Exists", type: "textarea", placeholder: "/srv/app/.env"},
+            {key: "ConditionPathIsDirectory", label: "Condition Directory Exists", type: "textarea", placeholder: "/srv/app"},
+            {key: "ConditionUser", label: "Condition User", type: "text", placeholder: "deploy"},
+            {key: "ConditionGroup", label: "Condition Group", type: "text", placeholder: "www-data"},
+            {key: "AssertPathExists", label: "Assert Path Exists", type: "textarea", placeholder: "/srv/app/current"}
+        ]
+    },
+    {
+        section: "Service",
+        title: "Service runtime",
+        description: "Execution model, commands, user context, retries, timeouts, environment, and sandboxing.",
+        fields: [
+            {key: "Type", label: "Service Type", type: "select", options: ["simple", "exec", "forking", "oneshot", "dbus", "notify", "notify-reload", "idle"]},
+            {key: "ExecCondition", label: "ExecCondition", type: "textarea", placeholder: "/usr/bin/test -f /srv/app/.env"},
+            {key: "ExecStartPre", label: "ExecStartPre", type: "textarea", placeholder: "/usr/bin/env bash -lc 'echo preparing'"},
+            {key: "ExecStart", label: "ExecStart", type: "textarea", placeholder: "/usr/bin/node /srv/app/server.js"},
+            {key: "ExecStartPost", label: "ExecStartPost", type: "textarea", placeholder: "/usr/bin/logger app started"},
+            {key: "ExecReload", label: "ExecReload", type: "textarea", placeholder: "/bin/kill -HUP $MAINPID"},
+            {key: "ExecStop", label: "ExecStop", type: "textarea", placeholder: "/bin/kill -TERM $MAINPID"},
+            {key: "ExecStopPost", label: "ExecStopPost", type: "textarea", placeholder: "/usr/bin/logger app stopped"},
+            {key: "Restart", label: "Restart Policy", type: "select", options: ["", "no", "on-success", "on-failure", "on-abnormal", "on-watchdog", "on-abort", "always"]},
+            {key: "RestartSec", label: "Restart Delay", type: "text", placeholder: "5s"},
+            {key: "TimeoutStartSec", label: "Start Timeout", type: "text", placeholder: "60s"},
+            {key: "TimeoutStopSec", label: "Stop Timeout", type: "text", placeholder: "30s"},
+            {key: "TimeoutAbortSec", label: "Abort Timeout", type: "text", placeholder: "2min"},
+            {key: "WatchdogSec", label: "Watchdog", type: "text", placeholder: "0"},
+            {key: "User", label: "Run As User", type: "text", placeholder: "deploy"},
+            {key: "Group", label: "Run As Group", type: "text", placeholder: "deploy"},
+            {key: "DynamicUser", label: "Dynamic User", type: "select", options: ["", "yes", "no"]},
+            {key: "SupplementaryGroups", label: "Supplementary Groups", type: "textarea", placeholder: "www-data"},
+            {key: "WorkingDirectory", label: "Working Directory", type: "text", placeholder: "/srv/app/current"},
+            {key: "RootDirectory", label: "Root Directory", type: "text", placeholder: "/srv/chroot/app"},
+            {key: "Environment", label: "Environment", type: "textarea", placeholder: "NODE_ENV=production"},
+            {key: "EnvironmentFile", label: "Environment Files", type: "textarea", placeholder: "/etc/default/app"},
+            {key: "PassEnvironment", label: "Pass Environment", type: "textarea", placeholder: "HTTP_PROXY HTTPS_PROXY"},
+            {key: "UMask", label: "UMask", type: "text", placeholder: "0027"},
+            {key: "Nice", label: "Nice", type: "text", placeholder: "5"},
+            {key: "StandardInput", label: "Standard Input", type: "text", placeholder: "null"},
+            {key: "StandardOutput", label: "Standard Output", type: "text", placeholder: "journal"},
+            {key: "StandardError", label: "Standard Error", type: "text", placeholder: "journal"},
+            {key: "SyslogIdentifier", label: "Syslog Identifier", type: "text", placeholder: "my-service"},
+            {key: "PIDFile", label: "PID File", type: "text", placeholder: "/run/app.pid"},
+            {key: "RuntimeDirectory", label: "Runtime Directory", type: "textarea", placeholder: "my-service"},
+            {key: "StateDirectory", label: "State Directory", type: "textarea", placeholder: "my-service"},
+            {key: "CacheDirectory", label: "Cache Directory", type: "textarea", placeholder: "my-service"},
+            {key: "LogsDirectory", label: "Logs Directory", type: "textarea", placeholder: "my-service"},
+            {key: "ConfigurationDirectory", label: "Configuration Directory", type: "textarea", placeholder: "my-service"},
+            {key: "ReadWritePaths", label: "Read/Write Paths", type: "textarea", placeholder: "/srv/app/storage"},
+            {key: "ReadOnlyPaths", label: "Read Only Paths", type: "textarea", placeholder: "/srv/app/config"},
+            {key: "InaccessiblePaths", label: "Inaccessible Paths", type: "textarea", placeholder: "/home"},
+            {key: "BindPaths", label: "Bind Paths", type: "textarea", placeholder: "/srv/data:/var/lib/app"},
+            {key: "BindReadOnlyPaths", label: "Bind Read Only Paths", type: "textarea", placeholder: "/etc/ssl:/etc/ssl"},
+            {key: "PrivateTmp", label: "Private Tmp", type: "select", options: ["", "yes", "no"]},
+            {key: "PrivateDevices", label: "Private Devices", type: "select", options: ["", "yes", "no"]},
+            {key: "PrivateNetwork", label: "Private Network", type: "select", options: ["", "yes", "no"]},
+            {key: "PrivateUsers", label: "Private Users", type: "select", options: ["", "yes", "no"]},
+            {key: "ProtectSystem", label: "Protect System", type: "select", options: ["", "no", "yes", "full", "strict"]},
+            {key: "ProtectHome", label: "Protect Home", type: "select", options: ["", "no", "yes", "read-only", "tmpfs"]},
+            {key: "ProtectKernelTunables", label: "Protect Kernel Tunables", type: "select", options: ["", "yes", "no"]},
+            {key: "ProtectKernelModules", label: "Protect Kernel Modules", type: "select", options: ["", "yes", "no"]},
+            {key: "ProtectControlGroups", label: "Protect Control Groups", type: "select", options: ["", "yes", "no"]},
+            {key: "ProtectProc", label: "Protect Proc", type: "select", options: ["", "default", "invisible", "noaccess"]},
+            {key: "ProcSubset", label: "Proc Subset", type: "select", options: ["", "all", "pid"]},
+            {key: "NoNewPrivileges", label: "No New Privileges", type: "select", options: ["", "yes", "no"]},
+            {key: "CapabilityBoundingSet", label: "Capability Bounding Set", type: "textarea", placeholder: "CAP_NET_BIND_SERVICE"},
+            {key: "AmbientCapabilities", label: "Ambient Capabilities", type: "textarea", placeholder: "CAP_NET_BIND_SERVICE"},
+            {key: "DevicePolicy", label: "Device Policy", type: "select", options: ["", "auto", "closed", "strict"]},
+            {key: "LimitNOFILE", label: "Limit NOFILE", type: "text", placeholder: "65535"},
+            {key: "LimitNPROC", label: "Limit NPROC", type: "text", placeholder: "4096"},
+            {key: "MemoryMax", label: "Memory Max", type: "text", placeholder: "1G"},
+            {key: "TasksMax", label: "Tasks Max", type: "text", placeholder: "1024"},
+            {key: "CPUQuota", label: "CPU Quota", type: "text", placeholder: "200%"}
+        ]
+    },
+    {
+        section: "Install",
+        title: "Install targets",
+        description: "Enablement and aliasing directives used by systemctl enable/disable.",
+        fields: [
+            {key: "WantedBy", label: "Wanted By", type: "textarea", placeholder: "multi-user.target"},
+            {key: "RequiredBy", label: "Required By", type: "textarea", placeholder: "app-stack.target"},
+            {key: "Alias", label: "Alias", type: "textarea", placeholder: "my-app.service"},
+            {key: "Also", label: "Also", type: "textarea", placeholder: "my-app-worker.service"},
+            {key: "DefaultInstance", label: "Default Instance", type: "text", placeholder: "main"}
+        ]
+    }
+];
 
 function canManageList() {
     return document.getElementById("servicesPageState")?.dataset.canManage === "1";
@@ -164,6 +273,159 @@ function setDetailText(id, value) {
     }
 }
 
+function setStatusMessage(id, text, isError = false) {
+    const element = document.getElementById(id);
+    if (!element) {
+        return;
+    }
+    element.textContent = text;
+    element.className = isError ? "small text-danger mt-3" : "small mt-3";
+}
+
+function updateRuntimeOutput(meta, output) {
+    setDetailText("serviceDetailRuntimeMeta", meta);
+    setDetailText("serviceDetailRuntimeOutput", output || "No runtime output.");
+}
+
+function directiveValue(sectionName, key) {
+    const values = serviceUnitConfigCache?.sections?.[sectionName]?.[key] || [];
+    return values.join("\n");
+}
+
+function additionalDirectiveBlock(sectionName, knownKeys) {
+    const directives = serviceUnitConfigCache?.sections?.[sectionName] || {};
+    const lines = [];
+    Object.entries(directives).forEach(([key, values]) => {
+        if (knownKeys.has(key)) {
+            return;
+        }
+        values.forEach((value) => {
+            lines.push(`${key}=${value}`);
+        });
+    });
+    return lines.join("\n");
+}
+
+function renderField(sectionName, field) {
+    const inputId = `service-field-${sectionName}-${field.key}`;
+    const escapedId = escapeHtml(inputId);
+    const escapedLabel = escapeHtml(field.label);
+    const escapedPlaceholder = escapeHtml(field.placeholder || "");
+    const escapedName = escapeHtml(`${sectionName}::${field.key}`);
+    const value = directiveValue(sectionName, field.key);
+    const disabled = canManageDetail() ? "" : " disabled";
+    if (field.type === "select") {
+        return `
+            <label class="cp-label service-manage-field">
+                <span>${escapedLabel}</span>
+                <select class="cp-input cp-select" id="${escapedId}" data-service-field="${escapedName}"${disabled}>
+                    ${field.options.map((option) => `<option value="${escapeHtml(option)}"${value === option ? " selected" : ""}>${escapeHtml(option || "Unspecified")}</option>`).join("")}
+                </select>
+            </label>
+        `;
+    }
+    if (field.type === "textarea") {
+        return `
+            <label class="cp-label service-manage-field service-manage-field-wide">
+                <span>${escapedLabel}</span>
+                <textarea class="cp-input cp-textarea service-manage-textarea" id="${escapedId}" data-service-field="${escapedName}" placeholder="${escapedPlaceholder}"${disabled}>${escapeHtml(value)}</textarea>
+            </label>
+        `;
+    }
+    return `
+        <label class="cp-label service-manage-field">
+            <span>${escapedLabel}</span>
+            <input class="cp-input" id="${escapedId}" data-service-field="${escapedName}" value="${escapeHtml(value)}" placeholder="${escapedPlaceholder}"${disabled}>
+        </label>
+    `;
+}
+
+function renderManageSections() {
+    const host = document.getElementById("serviceManageSections");
+    if (!host || !serviceUnitConfigCache) {
+        return;
+    }
+    host.innerHTML = SERVICE_MANAGE_SCHEMA.map((sectionConfig) => {
+        const knownKeys = new Set(sectionConfig.fields.map((field) => field.key));
+        const extraLines = additionalDirectiveBlock(sectionConfig.section, knownKeys);
+        return `
+            <section class="service-manage-section">
+                <div class="service-manage-section-head">
+                    <h4 class="h6 mb-1">${escapeHtml(sectionConfig.title)}</h4>
+                    <div class="small">${escapeHtml(sectionConfig.description)}</div>
+                </div>
+                <div class="service-manage-fields">
+                    ${sectionConfig.fields.map((field) => renderField(sectionConfig.section, field)).join("")}
+                    <label class="cp-label service-manage-field service-manage-field-wide">
+                        <span>Additional ${escapeHtml(sectionConfig.section)} directives</span>
+                        <textarea class="cp-input cp-textarea service-manage-textarea" data-service-extra="${escapeHtml(sectionConfig.section)}" placeholder="Directive=Value&#10;AnotherDirective=Value"${canManageDetail() ? "" : " disabled"}>${escapeHtml(extraLines)}</textarea>
+                    </label>
+                </div>
+            </section>
+        `;
+    }).join("");
+}
+
+function splitTextareaLines(value) {
+    return value.split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
+function appendDirectiveLines(lines, key, value, fieldType) {
+    if (!value) {
+        return;
+    }
+    if (fieldType === "textarea") {
+        splitTextareaLines(value).forEach((line) => {
+            lines.push(`${key}=${line}`);
+        });
+        return;
+    }
+    const normalized = value.trim();
+    if (!normalized) {
+        return;
+    }
+    lines.push(`${key}=${normalized}`);
+}
+
+function collectExtraDirectives(sectionName) {
+    const source = document.querySelector(`[data-service-extra="${sectionName}"]`)?.value || "";
+    return splitTextareaLines(source).map((line) => {
+        const separator = line.indexOf("=");
+        if (separator <= 0) {
+            throw new Error(`Each additional ${sectionName} directive must be written as Key=Value.`);
+        }
+        const key = line.slice(0, separator).trim();
+        if (!/^[A-Za-z][A-Za-z0-9]*$/.test(key)) {
+            throw new Error(`Invalid ${sectionName} directive key: ${key}`);
+        }
+        return `${key}=${line.slice(separator + 1).trim()}`;
+    });
+}
+
+function buildManagedServiceContent() {
+    const parts = [];
+    SERVICE_MANAGE_SCHEMA.forEach((sectionConfig) => {
+        const sectionLines = [];
+        sectionConfig.fields.forEach((field) => {
+            const control = document.querySelector(`[data-service-field="${sectionConfig.section}::${field.key}"]`);
+            if (!control) {
+                return;
+            }
+            appendDirectiveLines(sectionLines, field.key, control.value || "", field.type);
+        });
+        collectExtraDirectives(sectionConfig.section).forEach((line) => {
+            sectionLines.push(line);
+        });
+        if (!sectionLines.length) {
+            return;
+        }
+        parts.push(`[${sectionConfig.section}]`);
+        parts.push(...sectionLines);
+        parts.push("");
+    });
+    return `${parts.join("\n").trimEnd()}\n`;
+}
+
 async function loadServiceDetail(unit) {
     if (!validServiceUnit(unit)) {
         throw new Error("Invalid service unit.");
@@ -188,10 +450,44 @@ async function loadServiceDetail(unit) {
     return service;
 }
 
+async function loadServiceUnitConfig(unit) {
+    const payload = await requestJson(`/api/services/${encodeURIComponent(unit)}/unit-file`);
+    serviceUnitConfigCache = payload.config;
+    setDetailText("serviceDetailEditablePath", serviceUnitConfigCache.path || "Unavailable");
+    const editor = document.getElementById("serviceAdvancedEditor");
+    if (editor) {
+        editor.value = serviceUnitConfigCache.content || "";
+    }
+    renderManageSections();
+    setStatusMessage("serviceManageMessage", `Loaded structured fields from ${serviceUnitConfigCache.path}.`);
+    setStatusMessage("serviceAdvancedMessage", `Loaded ${serviceUnitConfigCache.path}.`);
+}
+
+function clearServiceUnitConfig(message, isError = false) {
+    serviceUnitConfigCache = null;
+    setDetailText("serviceDetailEditablePath", "Unavailable");
+    const editor = document.getElementById("serviceAdvancedEditor");
+    if (editor) {
+        editor.value = "";
+    }
+    const sectionsHost = document.getElementById("serviceManageSections");
+    if (sectionsHost) {
+        sectionsHost.innerHTML = "";
+    }
+    setStatusMessage("serviceManageMessage", message, isError);
+    setStatusMessage("serviceAdvancedMessage", message, isError);
+}
+
+async function saveServiceUnitContent(unit, content, source) {
+    const payload = await postParams(`/api/services/${encodeURIComponent(unit)}/unit-file`, {content});
+    updateRuntimeOutput(`${unit}: ${source}`, payload.output || "Service unit saved.");
+    showSuccessToast(payload.output || "Service unit saved.");
+    await Promise.all([loadServiceDetail(unit), loadServiceUnitConfig(unit)]);
+}
+
 async function runServiceDetailAction(unit, action) {
     const payload = await postParams(`/api/services/${encodeURIComponent(unit)}/action`, {action});
-    setDetailText("serviceDetailRuntimeMeta", `${unit}: ${action}`);
-    setDetailText("serviceDetailRuntimeOutput", payload.output || "No runtime output.");
+    updateRuntimeOutput(`${unit}: ${action}`, payload.output || "No runtime output.");
     showSuccessToast(payload.output || `Service ${action} completed.`);
     await loadServiceDetail(unit);
 }
@@ -218,7 +514,13 @@ export async function initServiceDetailPage(pageUnit) {
     const refresh = async () => {
         try {
             await loadServiceDetail(unit);
+            try {
+                await loadServiceUnitConfig(unit);
+            } catch (error) {
+                clearServiceUnitConfig(error.message, true);
+            }
         } catch (error) {
+            clearServiceUnitConfig(error.message, true);
             showErrorToast(error.message);
             throw error;
         }
@@ -228,14 +530,63 @@ export async function initServiceDetailPage(pageUnit) {
         window.location.hash = "page=services";
     });
     document.getElementById("serviceDetailRefreshButton").addEventListener("click", refresh);
+    document.getElementById("serviceManageReloadButton")?.addEventListener("click", async () => {
+        try {
+            await loadServiceUnitConfig(unit);
+        } catch (error) {
+            clearServiceUnitConfig(error.message, true);
+            showErrorToast(error.message);
+        }
+    });
+    document.getElementById("serviceAdvancedReloadButton")?.addEventListener("click", async () => {
+        try {
+            await loadServiceUnitConfig(unit);
+        } catch (error) {
+            clearServiceUnitConfig(error.message, true);
+            showErrorToast(error.message);
+        }
+    });
+    document.getElementById("serviceManageSaveButton")?.addEventListener("click", async () => {
+        try {
+            setStatusMessage("serviceManageMessage", "Saving structured service configuration...");
+            if (!serviceUnitConfigCache) {
+                throw new Error("This service does not expose an editable unit file.");
+            }
+            const content = buildManagedServiceContent();
+            const editor = document.getElementById("serviceAdvancedEditor");
+            if (editor) {
+                editor.value = content;
+            }
+            await saveServiceUnitContent(unit, content, "managed save");
+            setStatusMessage("serviceManageMessage", "Structured service configuration saved.");
+            setStatusMessage("serviceAdvancedMessage", "Advanced editor refreshed from saved service file.");
+        } catch (error) {
+            setStatusMessage("serviceManageMessage", error.message, true);
+            showErrorToast(error.message);
+        }
+    });
+    document.getElementById("serviceAdvancedSaveButton")?.addEventListener("click", async () => {
+        try {
+            setStatusMessage("serviceAdvancedMessage", "Saving service file...");
+            if (!serviceUnitConfigCache) {
+                throw new Error("This service does not expose an editable unit file.");
+            }
+            const content = document.getElementById("serviceAdvancedEditor")?.value || "";
+            await saveServiceUnitContent(unit, content, "advanced save");
+            setStatusMessage("serviceAdvancedMessage", "Service file saved.");
+            setStatusMessage("serviceManageMessage", "Structured fields refreshed from the saved file.");
+        } catch (error) {
+            setStatusMessage("serviceAdvancedMessage", error.message, true);
+            showErrorToast(error.message);
+        }
+    });
     document.querySelectorAll(".service-detail-action-button").forEach((button) => {
         button.disabled = !canManageDetail();
         button.addEventListener("click", async () => {
             try {
                 await runServiceDetailAction(unit, button.dataset.action);
             } catch (error) {
-                setDetailText("serviceDetailRuntimeMeta", `${unit}: ${button.dataset.action}`);
-                setDetailText("serviceDetailRuntimeOutput", error.message);
+                updateRuntimeOutput(`${unit}: ${button.dataset.action}`, error.message);
                 showErrorToast(error.message);
             }
         });

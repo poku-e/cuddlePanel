@@ -675,6 +675,44 @@ body {
     line-height: 1.35;
 }
 
+.service-manage-grid {
+    display: grid;
+    gap: 18px;
+}
+
+.service-manage-section {
+    border: 1px solid #dbe2f0;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.9) 0%, rgba(255, 255, 255, 1) 100%);
+    padding: 16px;
+}
+
+.service-manage-section-head {
+    margin-bottom: 14px;
+}
+
+.service-manage-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.service-manage-field {
+    margin-bottom: 0;
+}
+
+.service-manage-field-wide {
+    grid-column: 1 / -1;
+}
+
+.service-manage-textarea {
+    min-height: 104px;
+}
+
+.service-advanced-editor {
+    min-height: 520px;
+}
+
 .permissions-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -967,6 +1005,14 @@ body {
 
     .services-results-meta {
         white-space: normal;
+    }
+
+    .service-manage-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .service-advanced-editor {
+        min-height: 360px;
     }
 
     .system-user-files-browser-bar {

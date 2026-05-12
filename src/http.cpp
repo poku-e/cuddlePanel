@@ -349,6 +349,7 @@ HttpResponse handle_delete_user(const RequestContext&, const std::string&);
 
 HttpResponse handle_services(const RequestContext&, const std::string&);
 HttpResponse handle_service_detail(const RequestContext&, const std::string&);
+HttpResponse handle_service_unit_file(const RequestContext&, const std::string&);
 HttpResponse handle_update_service(const RequestContext&, const std::string&);
 HttpResponse handle_service_action(const RequestContext&, const std::string&);
 
@@ -429,6 +430,7 @@ void App::build_routes() {
     // services
     routes_.push_back({"",     "/api/services",             "",                 true,  handle_services});
     routes_.push_back({"GET",  "/api/services/",            "/page",            false, handle_service_page});
+    routes_.push_back({"",     "/api/services/",            "/unit-file",       false, handle_service_unit_file});
     routes_.push_back({"GET",  "/api/services/",            "",                 false, handle_service_detail});
     routes_.push_back({"",     "/api/services/",            "/action",          false, handle_service_action});
     routes_.push_back({"",     "/api/services/",            "",                 false, handle_update_service});

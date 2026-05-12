@@ -22,6 +22,8 @@ Routes and access:
 - `GET /api/services`: requires `services:view`.
 - `GET /api/services/<unit>`: requires `services:view`.
 - `GET /api/services/<unit>/page`: requires `services:view`.
+- `GET /api/services/<unit>/unit-file`: requires `services:view`.
+- `POST /api/services/<unit>/unit-file`: requires `services:manage`.
 - `POST /api/services/<unit>/action`: requires `services:manage`.
 - `GET /api/system/users`: requires `system:view`.
 - `GET /api/system/users/<username>/logfiles`: requires `system:view`.
@@ -71,7 +73,7 @@ Workflow:
 - All privileged pages are checked on the server before content is returned.
 - The Users page loads dashboard users into a dense table, opens create and permission-edit flows in Bootstrap modals, and performs mutations through AJAX without leaving `/dashboard`.
 - User deletion now requires an explicit browser confirmation before the dashboard sends the destructive request.
-- The Services page discovers host systemd services, shows quick runtime actions in the index table, and opens each service into a dedicated tabbed detail page for runtime and enablement control.
+- The Services page discovers host systemd services, shows quick runtime actions in the index table, and opens each service into a dedicated tabbed detail page for runtime, structured unit editing, direct file editing, and enablement control.
 - The System page loads host accounts into a table, uses Bootstrap tabs for account vs. file workflows, manages account edits, password and lifecycle controls, a richer privilege posture view with group-based sudo actions, and account deletion through AJAX, and constrains path ownership and mode changes to configured roots.
 - The System page also provides an `authorized_keys` editor, a read-only `Logfiles` tab for supported shell history files under each login user's resolved home directory, and a constrained file browser for allowed roots.
 - The Nginx page loads allowlisted site configs into a table, edits full config content in a Bootstrap modal, and performs file updates, enable/disable, config tests, and reloads through AJAX.
@@ -102,7 +104,7 @@ Hidden dependencies and configuration:
 - Frontend behavior is split between `static/js/core/` helpers, `static/js/pages/` page modules, and the top-level `static/app.js` bootstrap entrypoint.
 - Shared frontend notifications live in `static/js/core/toast.js` and are mounted dynamically into the active page body.
 - Runtime state lives in `data/users.db`, created with `0600` permissions when possible.
-- Service registry state lives in `data/services.db`.
+- Service unit editing is constrained to discovered fragment files under the allowed service-unit roots and can be overridden for tests or controlled deployments with `CUDDLEPANEL_SERVICE_UNIT_ROOTS`.
 - System account data reads from the configured passwd, group, and shadow files, and system file actions are limited by `CUDDLEPANEL_SYSTEM_ALLOWED_ROOTS`.
 - System account deletion uses the configured `userdel` binary and only removes home directories when the request explicitly opts into the recursive delete flag.
 - Nginx registry state lives in `data/nginx.db`.
@@ -133,6 +135,7 @@ Implemented page keys:
 
 Gotchas and debugging:
 - Do not add management actions that shell out until the handler has both a page `manage` check and strict allowlisted input validation.
+- Direct service editing is intentionally limited to discovered fragment paths under approved roots. Do not widen it to arbitrary paths or drop-in creation without a separate safety design.
 - The System page manages `sudo` group membership, not arbitrary `/etc/sudoers` edits. Keep that distinction clear in both code and UI.
 - UI hiding is never authorization. Add checks in the C++ route before any action.
 - Interactive terminal support should use a PTY implementation with streaming WebSocket/SSE and a constrained execution policy; plain command passthrough is not acceptable.

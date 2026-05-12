@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -34,6 +35,13 @@ struct DiscoveredService {
     std::string fragment_path;
 };
 
+struct ServiceUnitFileData {
+    std::string unit;
+    std::string path;
+    std::string raw_content;
+    std::map<std::string, std::map<std::string, std::vector<std::string>>> sections;
+};
+
 class ServiceStore {
 public:
     explicit ServiceStore(std::string path);
@@ -61,6 +69,8 @@ bool valid_service_description(const std::string& description);
 
 std::vector<DiscoveredService> discover_services();
 std::optional<DiscoveredService> discover_service(const std::string& unit);
+std::optional<ServiceUnitFileData> load_service_unit_file(const std::string& unit);
+ServiceActionResult save_service_unit_file(const std::string& unit, const std::string& content);
 ServiceStatus query_service_status(const std::string& unit);
 ServiceActionResult run_service_action(const std::string& unit, const std::string& action);
 

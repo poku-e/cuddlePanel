@@ -41,6 +41,37 @@ std::string service_detail_json(const DiscoveredService& service) {
     return out.str();
 }
 
+std::string service_unit_file_json(const ServiceUnitFileData& data) {
+    std::ostringstream out;
+    out << "{\"config\":{"
+        << "\"unit\":\"" << json_escape(data.unit)
+        << "\",\"path\":\"" << json_escape(data.path)
+        << "\",\"content\":\"" << json_escape(data.raw_content)
+        << "\",\"sections\":{";
+    bool first_section = true;
+    for (const auto& section : data.sections) {
+        if (!first_section) out << ",";
+        first_section = false;
+        out << "\"" << json_escape(section.first) << "\":{";
+        bool first_key = true;
+        for (const auto& directive : section.second) {
+            if (!first_key) out << ",";
+            first_key = false;
+            out << "\"" << json_escape(directive.first) << "\":[";
+            bool first_value = true;
+            for (const auto& value : directive.second) {
+                if (!first_value) out << ",";
+                first_value = false;
+                out << "\"" << json_escape(value) << "\"";
+            }
+            out << "]";
+        }
+        out << "}";
+    }
+    out << "}}}";
+    return out.str();
+}
+
 } // anonymous namespace
 
 HttpResponse handle_services(const RequestContext& ctx, const std::string&) {
@@ -69,6 +100,27 @@ HttpResponse handle_service_detail(const RequestContext& ctx, const std::string&
         return json_response(404, "{\"error\":\"service not found\"}");
     }
     return json_response(200, service_detail_json(*service));
+}
+
+HttpResponse handle_service_unit_file(const RequestContext& ctx, const std::string& unit) {
+    if (ctx.request.method == "GET") {
+        if (auto err = ctx.require_permission("services", PermissionLevel::View)) return *err;
+        const auto config = load_service_unit_file(unit);
+        if (!config) {
+            return json_response(404, "{\"error\":\"editable service unit file not found\"}");
+        }
+        return json_response(200, service_unit_file_json(*config));
+    }
+    if (ctx.request.method == "POST") {
+        if (auto err = ctx.require_permission("services", PermissionLevel::Manage)) return *err;
+        auto form = parse_form(ctx.request.body);
+        const auto result = save_service_unit_file(unit, form["content"]);
+        std::ostringstream out;
+        out << "{\"ok\":" << (result.ok ? "true" : "false")
+            << ",\"output\":\"" << json_escape(result.output) << "\"}";
+        return json_response(result.ok ? 200 : 400, out.str());
+    }
+    return json_response(404, "{\"error\":\"not found\"}");
 }
 
 HttpResponse handle_update_service(const RequestContext& ctx, const std::string& name) {

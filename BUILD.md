@@ -332,6 +332,11 @@
 - Added a responsive live-search field to the Services index so operators can filter discovered services by name, unit, description, or state as they type.
 - Tightened the Services table styling to feel less blocky while keeping readable padding, secondary runtime detail, and mobile-friendly spacing.
 
+## Services Unit Editing
+
+- Added `Manage Service` and `Advanced` tabs to the per-service detail page so operators can either edit a structured set of unit directives or work directly on the discovered service file.
+- Added constrained service-unit file APIs that only edit discovered fragment paths under approved systemd roots, write atomically, and run `systemctl daemon-reload` after saving.
+
 ## Codex CLI Flag Compatibility
 
 - Hardened Codex conversation startup and resume so cuddlePanel only passes `--skip-git-repo-check` when the configured host Codex CLI advertises support for that flag.
