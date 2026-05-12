@@ -317,6 +317,21 @@
 - Redesigned the System user `Privileges` tab into a more advanced posture view with summary cards, cleaner group presentation, and a dedicated group-based sudo action area.
 - Kept the backend permission model unchanged while making the privilege state easier to audit on desktop and mobile.
 
+## Files Browser
+
+- Expanded the System user `Files` tab into a constrained file browser with right-click actions for rename, copy/paste, zip, unzip, chown, and chmod inside allowed roots.
+- Added server-side browse and file-action endpoints that keep all path resolution inside configured roots, reject unsafe rename components, and avoid shell interpolation for file operations.
+
+## Services Host Discovery
+
+- Reworked the Services workflow to discover host `.service` units from `systemctl` instead of relying on a manually populated panel registry.
+- Added dedicated per-service detail pages with tabs for overview, runtime output, and unit metadata, plus direct `enable`, `disable`, `start`, `stop`, and `restart` actions.
+
+## Services List Polish
+
+- Added a responsive live-search field to the Services index so operators can filter discovered services by name, unit, description, or state as they type.
+- Tightened the Services table styling to feel less blocky while keeping readable padding, secondary runtime detail, and mobile-friendly spacing.
+
 ## Codex CLI Flag Compatibility
 
 - Hardened Codex conversation startup and resume so cuddlePanel only passes `--skip-git-repo-check` when the configured host Codex CLI advertises support for that flag.

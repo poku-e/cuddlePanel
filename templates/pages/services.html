@@ -3,22 +3,29 @@
     <div class="cp-toolbar">
         <div>
             <h2 class="mb-1">Services</h2>
-            <div class="small">Track allowlisted systemd services in a compact operations table.</div>
+            <div class="small">Discover host services from systemd and open a dedicated management page for each unit.</div>
         </div>
         <div class="cp-toolbar-actions">
             <button class="btn btn-outline-secondary btn-sm" id="refreshServicesButton" type="button">Refresh</button>
-            <button class="btn btn-primary btn-sm" id="openCreateServiceModalButton" type="button"{{disabled_attr}}>Register service</button>
         </div>
     </div>
     <div id="servicesMessage" class="small mb-3"></div>
     {{view_only_note}}
-    <div class="table-responsive cp-table-wrap">
-        <table class="table table-sm table-hover align-middle cp-table mb-0">
+    <div class="services-toolbar-row mt-3">
+        <label class="cp-label services-search-field">
+            <span class="small">Search services</span>
+            <input class="cp-input" id="servicesSearchInput" type="search" placeholder="Filter by service, unit, description, or state">
+        </label>
+        <div class="small services-results-meta" id="servicesResultsMeta">Loading services...</div>
+    </div>
+    <div class="table-responsive cp-table-wrap services-table-wrap mt-3">
+        <table class="table table-sm table-hover align-middle cp-table services-table mb-0">
             <thead>
                 <tr>
-                    <th scope="col">Name</th>
+                    <th scope="col">Service</th>
                     <th scope="col">Unit</th>
                     <th scope="col">State</th>
+                    <th scope="col">Enabled</th>
                     <th scope="col">Description</th>
                     <th scope="col" class="text-end">Actions</th>
                 </tr>
@@ -26,46 +33,5 @@
             <tbody id="servicesTableHost"></tbody>
         </table>
     </div>
-    <div class="accordion mt-4" id="servicesOutputAccordion">
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#servicesOutputPanel" aria-expanded="true" aria-controls="servicesOutputPanel">
-                    Recent command output
-                </button>
-            </h2>
-            <div id="servicesOutputPanel" class="accordion-collapse collapse show" data-bs-parent="#servicesOutputAccordion">
-                <div class="accordion-body">
-                    <div id="servicesOutputMeta" class="small mb-2">Select a service action to view runtime output.</div>
-                    <pre id="servicesOutput" class="service-output mt-0">No runtime output yet.</pre>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div class="small mt-3">The list shows discovered <code>.service</code> units from the host. Use <code>Manage</code> to open the dedicated service detail page with runtime and enablement controls.</div>
 </section>
-
-<div class="modal fade" id="serviceEditorModal" tabindex="-1" aria-labelledby="serviceEditorModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h3 class="modal-title h5 mb-1" id="serviceEditorModalTitle">Register service</h3>
-                    <div class="small" id="serviceEditorModalMeta">Create or update a systemd service entry for the dashboard.</div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="serviceEditorForm">
-                <div class="modal-body vstack gap-3">
-                    <input type="hidden" name="original_name">
-                    <label class="cp-label">Panel name<input class="cp-input" name="name" required minlength="3" maxlength="64"{{disabled_attr}}></label>
-                    <label class="cp-label">Systemd unit<input class="cp-input" name="unit" placeholder="example.service" required maxlength="128"{{disabled_attr}}></label>
-                    <label class="cp-label">Description<textarea class="cp-input cp-textarea" name="description" maxlength="200"{{disabled_attr}}></textarea></label>
-                    <div id="serviceEditorMessage" class="small"></div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-primary" type="submit"{{disabled_attr}}>Save service</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>

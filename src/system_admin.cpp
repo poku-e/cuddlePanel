@@ -297,6 +297,65 @@ std::string chmod_binary() {
     return env_or_default("CUDDLEPANEL_CHMOD_BIN", "/bin/chmod");
 }
 
+std::string zip_binary() {
+    return env_or_default("CUDDLEPANEL_ZIP_BIN", "/usr/bin/zip");
+}
+
+std::string unzip_binary() {
+    return env_or_default("CUDDLEPANEL_UNZIP_BIN", "/usr/bin/unzip");
+}
+
+SystemActionResult capture_command_in_dir(const std::vector<std::string>& args,
+                                          const std::string& working_directory) {
+    std::array<char, 256> buffer{};
+    std::string output;
+    int pipe_fds[2];
+    if (pipe(pipe_fds) != 0) {
+        return {false, "unable to execute command"};
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(pipe_fds[0]);
+        close(pipe_fds[1]);
+        return {false, "unable to execute command"};
+    }
+
+    if (pid == 0) {
+        dup2(pipe_fds[1], STDOUT_FILENO);
+        dup2(pipe_fds[1], STDERR_FILENO);
+        close(pipe_fds[0]);
+        close(pipe_fds[1]);
+        if (chdir(working_directory.c_str()) != 0) {
+            _exit(127);
+        }
+
+        std::vector<char*> argv;
+        argv.reserve(args.size() + 1);
+        for (const auto& arg : args) {
+            argv.push_back(const_cast<char*>(arg.c_str()));
+        }
+        argv.push_back(nullptr);
+        execv(argv[0], argv.data());
+        _exit(127);
+    }
+
+    close(pipe_fds[1]);
+    ssize_t read_count = 0;
+    while ((read_count = read(pipe_fds[0], buffer.data(), buffer.size())) > 0) {
+        output.append(buffer.data(), static_cast<size_t>(read_count));
+    }
+    close(pipe_fds[0]);
+
+    int status = 0;
+    waitpid(pid, &status, 0);
+    const bool ok = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+    if (output.empty()) {
+        output = ok ? "command completed successfully" : "command failed";
+    }
+    return {ok, output};
+}
+
 std::vector<std::string> read_lines(const std::string& path) {
     std::ifstream file(path);
     std::vector<std::string> lines;
@@ -323,6 +382,110 @@ std::vector<std::string> sudo_members_from_group_file(const std::string& group_p
         return members;
     }
     return {};
+}
+
+std::string octal_mode_string(std::filesystem::perms perms) {
+    auto digit = [perms](std::filesystem::perms read_bit,
+                         std::filesystem::perms write_bit,
+                         std::filesystem::perms exec_bit) {
+        int value = 0;
+        if ((perms & read_bit) != std::filesystem::perms::none) value += 4;
+        if ((perms & write_bit) != std::filesystem::perms::none) value += 2;
+        if ((perms & exec_bit) != std::filesystem::perms::none) value += 1;
+        return static_cast<char>('0' + value);
+    };
+    std::string out = "000";
+    out[0] = digit(std::filesystem::perms::owner_read, std::filesystem::perms::owner_write, std::filesystem::perms::owner_exec);
+    out[1] = digit(std::filesystem::perms::group_read, std::filesystem::perms::group_write, std::filesystem::perms::group_exec);
+    out[2] = digit(std::filesystem::perms::others_read, std::filesystem::perms::others_write, std::filesystem::perms::others_exec);
+    return out;
+}
+
+bool valid_relative_entry_name(const std::string& name) {
+    return !name.empty() &&
+           name.size() <= 255 &&
+           name != "." &&
+           name != ".." &&
+           name.find('/') == std::string::npos &&
+           name.find('\0') == std::string::npos;
+}
+
+std::optional<std::filesystem::path> canonical_allowed_root_for(const std::filesystem::path& normalized_path) {
+    std::error_code error;
+    for (const auto& root_string : system_allowed_roots()) {
+        const auto root = std::filesystem::weakly_canonical(root_string, error);
+        if (error) {
+            error.clear();
+            continue;
+        }
+        if (starts_with_path(normalized_path, root)) {
+            return root;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::filesystem::path> normalized_allowed_existing_path(const std::string& path) {
+    if (!valid_home_path(path)) {
+        return std::nullopt;
+    }
+    std::error_code error;
+    const auto input = std::filesystem::path(path);
+    if (!std::filesystem::exists(input, error) || error) {
+        return std::nullopt;
+    }
+    const auto normalized = std::filesystem::weakly_canonical(input, error);
+    if (error || normalized.empty()) {
+        return std::nullopt;
+    }
+    if (!canonical_allowed_root_for(normalized)) {
+        return std::nullopt;
+    }
+    return normalized;
+}
+
+std::optional<std::filesystem::path> normalized_allowed_child_path(const std::string& parent_path,
+                                                                   const std::string& child_name) {
+    if (!valid_home_path(parent_path) || !valid_relative_entry_name(child_name)) {
+        return std::nullopt;
+    }
+    const auto parent = normalized_allowed_existing_path(parent_path);
+    if (!parent) {
+        return std::nullopt;
+    }
+    std::error_code error;
+    if (!std::filesystem::is_directory(*parent, error) || error) {
+        return std::nullopt;
+    }
+    const auto candidate = *parent / child_name;
+    if (canonical_allowed_root_for(candidate.lexically_normal())) {
+        return candidate.lexically_normal();
+    }
+    return std::nullopt;
+}
+
+bool contains_symlink(const std::filesystem::path& root_path) {
+    std::error_code error;
+    if (std::filesystem::is_symlink(root_path, error)) {
+        return true;
+    }
+    if (error || !std::filesystem::is_directory(root_path, error) || error) {
+        return false;
+    }
+    for (std::filesystem::recursive_directory_iterator it(root_path,
+             std::filesystem::directory_options::skip_permission_denied, error), end;
+         it != end;
+         it.increment(error)) {
+        if (error) {
+            error.clear();
+            continue;
+        }
+        if (it->is_symlink(error) && !error) {
+            return true;
+        }
+        error.clear();
+    }
+    return false;
 }
 
 struct GroupRecord {
@@ -716,6 +879,79 @@ SystemActionResult SystemAdmin::read_user_logfiles(const std::string& username,
     return {true, "user logfiles loaded"};
 }
 
+SystemActionResult SystemAdmin::browse_files(const std::string& path,
+                                             SystemFileBrowserListing* listing_out) const {
+    if (!listing_out) {
+        return {false, "missing output buffer"};
+    }
+    listing_out->entries.clear();
+    const auto normalized_path = normalized_allowed_existing_path(path);
+    if (!normalized_path) {
+        return {false, "path is outside allowed roots or does not exist"};
+    }
+
+    std::error_code error;
+    if (!std::filesystem::is_directory(*normalized_path, error) || error) {
+        return {false, "path is not a directory"};
+    }
+
+    listing_out->current_path = normalized_path->string();
+    listing_out->parent_path.clear();
+    const auto allowed_root = canonical_allowed_root_for(*normalized_path);
+    if (allowed_root && *normalized_path != *allowed_root) {
+        listing_out->parent_path = normalized_path->parent_path().string();
+    }
+
+    for (std::filesystem::directory_iterator it(*normalized_path,
+             std::filesystem::directory_options::skip_permission_denied, error), end;
+         it != end;
+         it.increment(error)) {
+        if (error) {
+            error.clear();
+            continue;
+        }
+        const auto name = it->path().filename().string();
+        if (!valid_relative_entry_name(name)) {
+            continue;
+        }
+        std::error_code status_error;
+        const auto status = it->symlink_status(status_error);
+        if (status_error) {
+            continue;
+        }
+        const bool is_symlink = status.type() == std::filesystem::file_type::symlink;
+        const bool is_directory = status.type() == std::filesystem::file_type::directory;
+        const bool is_regular = status.type() == std::filesystem::file_type::regular;
+        std::uintmax_t size = 0;
+        if (is_regular) {
+            size = it->file_size(status_error);
+            if (status_error) {
+                size = 0;
+            }
+        }
+        listing_out->entries.push_back(SystemFileEntry{
+            name,
+            it->path().string(),
+            is_symlink ? "symlink" : (is_directory ? "directory" : (is_regular ? "file" : "other")),
+            octal_mode_string(status.permissions()),
+            size,
+            is_directory,
+            is_symlink
+        });
+    }
+
+    std::sort(listing_out->entries.begin(), listing_out->entries.end(), [](const SystemFileEntry& left, const SystemFileEntry& right) {
+        if (left.directory != right.directory) {
+            return left.directory > right.directory;
+        }
+        if (left.symlink != right.symlink) {
+            return left.symlink < right.symlink;
+        }
+        return left.name < right.name;
+    });
+    return {true, "file listing loaded"};
+}
+
 SystemActionResult SystemAdmin::write_authorized_keys(const std::string& username, const std::string& content) const {
     if (!valid_authorized_keys_content(content)) {
         return {false, "invalid authorized_keys content"};
@@ -838,6 +1074,115 @@ SystemActionResult SystemAdmin::run_path_action(const std::string& action,
     }
 
     return {false, "invalid path action"};
+}
+
+SystemActionResult SystemAdmin::run_file_action(const std::string& action,
+                                                const std::string& path,
+                                                const std::string& destination_path,
+                                                const std::string& new_name,
+                                                const std::string& owner,
+                                                const std::string& group,
+                                                const std::string& mode,
+                                                bool recursive) const {
+    const auto normalized_path = normalized_allowed_existing_path(path);
+    if (!normalized_path) {
+        return {false, "path is outside allowed roots or does not exist"};
+    }
+
+    std::error_code error;
+    const auto status = std::filesystem::symlink_status(*normalized_path, error);
+    if (error) {
+        return {false, "unable to inspect target path"};
+    }
+    const bool is_directory = status.type() == std::filesystem::file_type::directory;
+    const bool is_symlink = status.type() == std::filesystem::file_type::symlink;
+
+    if (is_symlink && action != "rename") {
+        return {false, "symlink actions are not supported from the panel"};
+    }
+
+    if (action == "chown" || action == "chmod") {
+        return run_path_action(action, normalized_path->string(), owner, group, mode, recursive);
+    }
+
+    if (action == "rename") {
+        if (!valid_relative_entry_name(new_name)) {
+            return {false, "invalid new name"};
+        }
+        const auto destination = normalized_allowed_child_path(normalized_path->parent_path().string(), new_name);
+        if (!destination) {
+            return {false, "destination is outside allowed roots"};
+        }
+        if (std::filesystem::exists(*destination, error) && !error) {
+            return {false, "destination already exists"};
+        }
+        std::filesystem::rename(*normalized_path, *destination, error);
+        if (error) {
+            return {false, "unable to rename the selected path"};
+        }
+        return {true, "path renamed"};
+    }
+
+    if (action == "copy") {
+        if (is_symlink) {
+            return {false, "copying symlinks is not supported"};
+        }
+        const auto destination_directory = normalized_allowed_existing_path(destination_path);
+        if (!destination_directory) {
+            return {false, "destination directory is outside allowed roots or does not exist"};
+        }
+        if (!std::filesystem::is_directory(*destination_directory, error) || error) {
+            return {false, "destination is not a directory"};
+        }
+        if (is_directory && contains_symlink(*normalized_path)) {
+            return {false, "copying directories that contain symlinks is not supported"};
+        }
+        const auto destination = *destination_directory / normalized_path->filename();
+        if (std::filesystem::exists(destination, error) && !error) {
+            return {false, "destination already exists"};
+        }
+        if (is_directory) {
+            std::filesystem::copy(*normalized_path, destination, std::filesystem::copy_options::recursive, error);
+        } else {
+            std::filesystem::copy_file(*normalized_path, destination, std::filesystem::copy_options::none, error);
+        }
+        if (error) {
+            return {false, "unable to copy the selected path"};
+        }
+        return {true, "path copied"};
+    }
+
+    if (action == "zip") {
+        if (is_symlink) {
+            return {false, "zipping symlinks is not supported"};
+        }
+        if (is_directory && contains_symlink(*normalized_path)) {
+            return {false, "zipping directories that contain symlinks is not supported"};
+        }
+        const auto parent = normalized_path->parent_path();
+        const auto archive_name = normalized_path->filename().string() + ".zip";
+        const auto archive_path = parent / archive_name;
+        if (std::filesystem::exists(archive_path, error) && !error) {
+            return {false, "zip archive already exists"};
+        }
+        return capture_command_in_dir({zip_binary(), "-r", archive_name, normalized_path->filename().string()}, parent.string());
+    }
+
+    if (action == "unzip") {
+        if (normalized_path->extension() != ".zip") {
+            return {false, "only .zip archives can be extracted"};
+        }
+        const auto destination_directory = normalized_allowed_existing_path(destination_path);
+        if (!destination_directory) {
+            return {false, "destination directory is outside allowed roots or does not exist"};
+        }
+        if (!std::filesystem::is_directory(*destination_directory, error) || error) {
+            return {false, "destination is not a directory"};
+        }
+        return capture_command({unzip_binary(), "-o", normalized_path->string(), "-d", destination_directory->string()});
+    }
+
+    return {false, "invalid file action"};
 }
 
 std::vector<std::string> SystemAdmin::allowed_path_roots() const {

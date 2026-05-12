@@ -24,6 +24,10 @@ int main() {
     const fs::path chpasswd_script = temp_root / "fake-chpasswd.sh";
     const fs::path chage_log = temp_root / "chage.log";
     const fs::path chage_script = temp_root / "fake-chage.sh";
+    const fs::path zip_log = temp_root / "zip.log";
+    const fs::path zip_script = temp_root / "fake-zip.sh";
+    const fs::path unzip_log = temp_root / "unzip.log";
+    const fs::path unzip_script = temp_root / "fake-unzip.sh";
 
     fs::remove_all(temp_root);
     fs::create_directories(alice_home);
@@ -65,6 +69,19 @@ int main() {
         script << "#!/bin/sh\n";
         script << "printf '%s\\n' \"$@\" >> \"" << chage_log.string() << "\"\n";
     }
+    {
+        std::ofstream script(zip_script);
+        script << "#!/bin/sh\n";
+        script << "printf '%s\\n' \"$@\" > \"" << zip_log.string() << "\"\n";
+        script << "touch \"$2\"\n";
+    }
+    {
+        std::ofstream script(unzip_script);
+        script << "#!/bin/sh\n";
+        script << "printf '%s\\n' \"$@\" > \"" << unzip_log.string() << "\"\n";
+        script << "mkdir -p \"$4\"\n";
+        script << "touch \"$4/unzipped.txt\"\n";
+    }
     fs::permissions(usermod_script,
                     fs::perms::owner_exec | fs::perms::owner_read | fs::perms::owner_write |
                     fs::perms::group_exec | fs::perms::group_read |
@@ -76,6 +93,16 @@ int main() {
                     fs::perms::others_exec | fs::perms::others_read,
                     fs::perm_options::replace);
     fs::permissions(chage_script,
+                    fs::perms::owner_exec | fs::perms::owner_read | fs::perms::owner_write |
+                    fs::perms::group_exec | fs::perms::group_read |
+                    fs::perms::others_exec | fs::perms::others_read,
+                    fs::perm_options::replace);
+    fs::permissions(zip_script,
+                    fs::perms::owner_exec | fs::perms::owner_read | fs::perms::owner_write |
+                    fs::perms::group_exec | fs::perms::group_read |
+                    fs::perms::others_exec | fs::perms::others_read,
+                    fs::perm_options::replace);
+    fs::permissions(unzip_script,
                     fs::perms::owner_exec | fs::perms::owner_read | fs::perms::owner_write |
                     fs::perms::group_exec | fs::perms::group_read |
                     fs::perms::others_exec | fs::perms::others_read,
@@ -93,6 +120,8 @@ int main() {
     setenv("CUDDLEPANEL_USERDEL_BIN", "/bin/true", 1);
     setenv("CUDDLEPANEL_CHOWN_BIN", "/bin/true", 1);
     setenv("CUDDLEPANEL_CHMOD_BIN", "/bin/true", 1);
+    setenv("CUDDLEPANEL_ZIP_BIN", zip_script.c_str(), 1);
+    setenv("CUDDLEPANEL_UNZIP_BIN", unzip_script.c_str(), 1);
 
     cuddle::SystemAdmin admin((temp_root / "passwd").string(),
                               (temp_root / "group").string(),
@@ -261,6 +290,62 @@ int main() {
     assert(logfiles[0].content.find("sudo systemctl restart nginx") != std::string::npos);
     const auto daemon_logfiles = admin.read_user_logfiles("daemon", &logfiles);
     assert(!daemon_logfiles.ok);
+
+    {
+        std::ofstream notes(alice_home / "notes.txt");
+        notes << "hello world\n";
+    }
+    cuddle::SystemFileBrowserListing listing;
+    const auto browse_home = admin.browse_files(alice_home.string(), &listing);
+    assert(browse_home.ok);
+    assert(listing.current_path == alice_home.string());
+    assert(!listing.entries.empty());
+
+    const auto rename_result = admin.run_file_action("rename",
+                                                     (alice_home / "notes.txt").string(),
+                                                     "",
+                                                     "renamed.txt",
+                                                     "",
+                                                     "",
+                                                     "",
+                                                     false);
+    assert(rename_result.ok);
+    assert(fs::exists(alice_home / "renamed.txt"));
+
+    const auto copy_result = admin.run_file_action("copy",
+                                                   (alice_home / "renamed.txt").string(),
+                                                   app_root.string(),
+                                                   "",
+                                                   "",
+                                                   "",
+                                                   "",
+                                                   false);
+    assert(copy_result.ok);
+    assert(fs::exists(app_root / "renamed.txt"));
+
+    const auto zip_result = admin.run_file_action("zip",
+                                                  app_root.string(),
+                                                  "",
+                                                  "",
+                                                  "",
+                                                  "",
+                                                  "",
+                                                  false);
+    assert(zip_result.ok);
+    assert(fs::exists(srv_root / "app.zip"));
+
+    const fs::path unzip_target = home_root / "unzipped";
+    fs::create_directories(unzip_target);
+    const auto unzip_result = admin.run_file_action("unzip",
+                                                    (srv_root / "app.zip").string(),
+                                                    unzip_target.string(),
+                                                    "",
+                                                    "",
+                                                    "",
+                                                    "",
+                                                    false);
+    assert(unzip_result.ok);
+    assert(fs::exists(unzip_target / "unzipped.txt"));
 
     const auto daemon_keys = admin.write_authorized_keys("daemon", public_key);
     assert(!daemon_keys.ok);

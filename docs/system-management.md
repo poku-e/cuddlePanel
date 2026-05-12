@@ -8,6 +8,7 @@ Routes and access:
 - `GET /api/system/users/<username>/page`: requires `system:view`.
 - `GET /api/system/users/<username>/audit`: requires `system:view`.
 - `GET /api/system/users/<username>/logfiles`: requires `system:view`.
+- `POST /api/system/files/browse`: requires `system:view`.
 - `POST /api/system/users`: requires `system:manage`.
 - `POST /api/system/users/<username>/edit`: requires `system:manage`.
 - `POST /api/system/users/<username>/security`: requires `system:manage`.
@@ -15,6 +16,7 @@ Routes and access:
 - `GET /api/system/users/<username>/authorized-keys`: requires `system:manage`.
 - `POST /api/system/users/<username>/authorized-keys`: requires `system:manage`.
 - `POST /api/system/path-action`: requires `system:manage`.
+- `POST /api/system/files/action`: requires `system:manage`.
 
 Workflow:
 - The System page loads host account data through `/api/system/users`.
@@ -30,7 +32,7 @@ Workflow:
   - `SSH`: `authorized_keys` read/write for login-enabled accounts only.
   - `Logfiles`: read-only shell history surfaced from supported history files inside the account home directory.
   - `Privileges`: a richer privilege posture panel for sudo state, account classification, primary vs. supplementary groups, and direct group-based sudo actions.
-  - `Files`: per-user constrained `chown` / `chmod`, defaulting to the account home path.
+  - `Files`: a per-user constrained file browser rooted in allowed paths, with server-validated `chown`, `chmod`, rename, copy/paste, zip, and unzip actions.
   - `Audit`: panel-originated account history for that user.
 - Account actions support `lock`, `unlock`, `grant-sudo`, `revoke-sudo`, and `delete`.
 - Account deletion still uses a confirmation modal. Operators can optionally request recursive home-directory removal, which maps to `userdel -r` on the server.
@@ -43,6 +45,11 @@ Workflow:
   - `chown` requires an allowed path plus owner and optional group.
   - `chmod` requires an allowed path plus a valid octal mode.
   - Both actions optionally support recursion.
+- The per-user `Files` tab now also provides:
+  - Directory browsing for existing paths inside allowed roots.
+  - Rename within the same parent directory.
+  - Copy/paste into another allowed directory, with destination conflicts rejected.
+  - `zip` creation beside the selected item and `unzip` extraction into the currently opened allowed directory.
 - Successful panel-originated account mutations append a simple per-user audit line to `data/system_account_audit.log` by default, and the `Audit` tab reads from that file.
 
 Hidden dependencies and configuration:
@@ -60,6 +67,8 @@ Hidden dependencies and configuration:
   - `CUDDLEPANEL_USERDEL_BIN`
   - `CUDDLEPANEL_CHOWN_BIN`
   - `CUDDLEPANEL_CHMOD_BIN`
+  - `CUDDLEPANEL_ZIP_BIN`
+  - `CUDDLEPANEL_UNZIP_BIN`
 - The per-user audit log path can be overridden with:
   - `CUDDLEPANEL_SYSTEM_AUDIT_LOG`
 - File ownership and mode changes are limited to roots from `CUDDLEPANEL_SYSTEM_ALLOWED_ROOTS`.
@@ -68,6 +77,7 @@ Hidden dependencies and configuration:
   - `/srv`
   - `/var/www`
 - Paths must already exist, resolve under an allowed root after canonicalization, and avoid traversal outside that root.
+- New names created through rename stay in the same parent directory and are validated as single path components, not arbitrary relative paths.
 - `authorized_keys` content is written directly under the selected user's home directory after that home path is resolved on the server.
 
 Safety rules:
@@ -79,6 +89,7 @@ Safety rules:
 - Account names, shell paths, home paths, GECOS comments, owner names, group names, passwords, ISO expiration dates, and octal modes are all validated before execution.
 - `authorized_keys` editing is limited to login users with interactive shells and non-system UIDs. cuddlePanel does not expose arbitrary file editing under `.ssh/`.
 - Logfile viewing follows the same account-class restriction as SSH key management: only login users with interactive shells and non-system UIDs qualify.
+- File-browser mutations reject symlink targets for most actions, and recursive copy/zip flows reject directories that contain symlinks so the panel does not smuggle references outside allowed roots.
 - Commands are executed with direct `execv` argument vectors, not through a shell.
 - Recursive home deletion is only available through the explicit delete-account confirmation modal; it is never implied by a plain account delete request.
 - New `.ssh` directories are created with `0700` and `authorized_keys` files with `0600`, then assigned to the target account's uid and gid.
@@ -90,6 +101,7 @@ Gotchas and debugging:
 - Recursive `chown` and `chmod` are powerful even with path allowlists. Keep `system:manage` narrowly assigned.
 - `authorized_keys` is treated as structured operator data, not as a general-purpose text editor surface. Keep the server-side username-to-home resolution authoritative.
 - If an expected history file does not appear in `Logfiles`, verify that it is a regular file under the resolved home directory. Symlinks that escape the home path are ignored intentionally.
+- If zip or unzip actions fail unexpectedly, verify that the configured `zip` and `unzip` binaries exist on the host and that the selected archive path is still inside the configured allowed roots.
 - The dedicated user page is intentionally tabbed so account management can grow without turning the System index into a wall of modals. Keep new user-scoped features on the per-user page unless they are truly global host tools.
 - The API still returns all parsed passwd entries because backend actions and tests rely on the full dataset; the dashboard applies the login-user filter at render time to keep the operator view focused.
 - Audit history is panel-local. Direct host-side `useradd`, `usermod`, `passwd`, `userdel`, or manual file edits do not appear in the `Audit` tab unless they flowed through cuddlePanel.

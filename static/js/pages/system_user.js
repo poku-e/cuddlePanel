@@ -91,10 +91,6 @@ function fillPrivileges(user) {
 }
 
 function fillFilesForm(user) {
-    const pathField = document.getElementById("systemUserFilesPath");
-    if (!pathField.dataset.operatorEdited) {
-        pathField.value = user.home || "";
-    }
     document.getElementById("systemUserDeleteUsername").value = user.username;
 }
 
@@ -189,17 +185,21 @@ function renderLogfiles(files) {
     selectLogfile(0);
 }
 
-function syncFilesActionFields() {
-    const actionField = document.getElementById("systemUserFilesAction");
-    const ownerField = document.getElementById("systemUserFilesOwner");
-    const groupField = document.getElementById("systemUserFilesGroup");
-    const modeField = document.getElementById("systemUserFilesMode");
-    const isChown = actionField.value === "chown";
-    ownerField.toggleAttribute("required", isChown);
-    ownerField.toggleAttribute("disabled", !isChown || !canManage());
-    groupField.toggleAttribute("disabled", !isChown || !canManage());
-    modeField.toggleAttribute("required", !isChown);
-    modeField.toggleAttribute("disabled", isChown || !canManage());
+function formatFileSize(size, directory) {
+    if (directory) {
+        return "—";
+    }
+    if (!Number.isFinite(size) || size < 1024) {
+        return `${size} B`;
+    }
+    const units = ["KB", "MB", "GB", "TB"];
+    let value = size;
+    let unitIndex = -1;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+    }
+    return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 async function loadUserDetails(username) {
@@ -291,10 +291,184 @@ export async function initSystemUserPage(pageUsername) {
     const profileForm = document.getElementById("systemUserProfileForm");
     const securityForm = document.getElementById("systemUserSecurityForm");
     const sshForm = document.getElementById("systemUserSshForm");
-    const filesForm = document.getElementById("systemUserFilesForm");
     const deleteForm = document.getElementById("systemUserDeleteForm");
-    const pathField = document.getElementById("systemUserFilesPath");
     const clearExpirationField = document.getElementById("systemUserSecurityClearExpiration");
+    const filesMessage = document.getElementById("systemUserFilesMessage");
+    const filesOutput = document.getElementById("systemUserFilesOutput");
+    const filesBrowserHost = document.getElementById("systemUserFilesBrowserHost");
+    const filesBreadcrumb = document.getElementById("systemUserFilesBreadcrumb");
+    const filesContextMenu = document.getElementById("systemUserFilesContextMenu");
+    const fileActionModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("systemUserFileActionModal"));
+    const fileActionForm = document.getElementById("systemUserFileActionForm");
+    const fileActionMessage = document.getElementById("systemUserFileActionMessage");
+    const fileActionType = document.getElementById("systemUserFileActionType");
+    const fileActionPath = document.getElementById("systemUserFileActionPath");
+    const fileActionDestinationPath = document.getElementById("systemUserFileActionDestinationPath");
+    const fileActionPathDisplay = document.getElementById("systemUserFileActionPathDisplay");
+    const fileActionNewNameField = document.getElementById("systemUserFileActionNewNameField");
+    const fileActionNewName = document.getElementById("systemUserFileActionNewName");
+    const fileActionOwnerField = document.getElementById("systemUserFileActionOwnerField");
+    const fileActionOwner = document.getElementById("systemUserFileActionOwner");
+    const fileActionGroupField = document.getElementById("systemUserFileActionGroupField");
+    const fileActionGroup = document.getElementById("systemUserFileActionGroup");
+    const fileActionModeField = document.getElementById("systemUserFileActionModeField");
+    const fileActionMode = document.getElementById("systemUserFileActionMode");
+    const fileActionRecursiveField = document.getElementById("systemUserFileActionRecursiveField");
+    const fileActionRecursive = document.getElementById("systemUserFileActionRecursive");
+    const fileActionTitle = document.getElementById("systemUserFileActionModalTitle");
+    const fileActionSubtitle = document.getElementById("systemUserFileActionModalSubtitle");
+    const clipboardState = document.getElementById("systemUserFilesClipboardState");
+    const upButton = document.getElementById("systemUserFilesUpButton");
+    let currentDirectory = "";
+    let parentDirectory = "";
+    let currentEntries = [];
+    let selectedEntryPath = "";
+    let fileClipboard = null;
+
+    const updateClipboardState = () => {
+        if (!fileClipboard) {
+            clipboardState.textContent = "Clipboard is empty.";
+            return;
+        }
+        clipboardState.textContent = `Copied ${fileClipboard.name} from ${fileClipboard.path}`;
+    };
+
+    const hideFilesContextMenu = () => {
+        filesContextMenu.hidden = true;
+        filesContextMenu.dataset.entryPath = "";
+    };
+
+    const browseFiles = async (path) => {
+        filesMessage.textContent = "Loading file browser...";
+        hideFilesContextMenu();
+        try {
+            const payload = await postParams("/api/system/files/browse", {path});
+            currentDirectory = payload.currentPath || path;
+            parentDirectory = payload.parentPath || "";
+            currentEntries = payload.entries || [];
+            setText("systemUserFilesCurrentPath", currentDirectory || "Unknown");
+            filesBreadcrumb.textContent = currentDirectory || "Unknown directory";
+            upButton.disabled = !parentDirectory;
+            if (!currentEntries.length) {
+                filesBrowserHost.innerHTML = '<tr><td colspan="4">This directory is empty.</td></tr>';
+            } else {
+                filesBrowserHost.innerHTML = currentEntries.map((entry) => `
+                    <tr class="system-user-files-row${selectedEntryPath === entry.path ? " active" : ""}" data-path="${escapeHtml(entry.path)}" tabindex="0">
+                        <td>
+                            <div class="fw-semibold">${escapeHtml(entry.name)}</div>
+                            <div class="small text-secondary">${entry.symlink ? "Symlink actions are disabled" : (entry.directory ? "Double-click to open" : "Right-click for actions")}</div>
+                        </td>
+                        <td class="small">${escapeHtml(entry.type)}</td>
+                        <td><code>${escapeHtml(entry.mode)}</code></td>
+                        <td class="small">${escapeHtml(formatFileSize(entry.size, entry.directory))}</td>
+                    </tr>
+                `).join("");
+            }
+            filesMessage.textContent = payload.output || "File browser loaded.";
+            for (const row of filesBrowserHost.querySelectorAll(".system-user-files-row")) {
+                const entry = currentEntries.find((item) => item.path === row.dataset.path);
+                row.addEventListener("click", () => {
+                    selectedEntryPath = row.dataset.path;
+                    for (const currentRow of filesBrowserHost.querySelectorAll(".system-user-files-row")) {
+                        currentRow.classList.toggle("active", currentRow.dataset.path === selectedEntryPath);
+                    }
+                });
+                row.addEventListener("dblclick", async () => {
+                    if (entry?.directory && !entry.symlink) {
+                        await browseFiles(entry.path);
+                    }
+                });
+                row.addEventListener("contextmenu", (event) => {
+                    event.preventDefault();
+                    selectedEntryPath = row.dataset.path;
+                    for (const currentRow of filesBrowserHost.querySelectorAll(".system-user-files-row")) {
+                        currentRow.classList.toggle("active", currentRow.dataset.path === selectedEntryPath);
+                    }
+                    filesContextMenu.dataset.entryPath = row.dataset.path;
+                    filesContextMenu.style.left = `${event.clientX}px`;
+                    filesContextMenu.style.top = `${event.clientY}px`;
+                    filesContextMenu.hidden = false;
+                });
+                row.addEventListener("keydown", async (event) => {
+                    if (event.key === "Enter" && entry?.directory && !entry.symlink) {
+                        event.preventDefault();
+                        await browseFiles(entry.path);
+                    }
+                    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+                        event.preventDefault();
+                        const rect = row.getBoundingClientRect();
+                        filesContextMenu.dataset.entryPath = row.dataset.path;
+                        filesContextMenu.style.left = `${rect.left + 24}px`;
+                        filesContextMenu.style.top = `${rect.top + 24}px`;
+                        filesContextMenu.hidden = false;
+                    }
+                });
+            }
+        } catch (error) {
+            filesMessage.textContent = error.message;
+            filesBrowserHost.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
+        }
+    };
+
+    const runImmediateFileAction = async (params, successMessage) => {
+        filesOutput.textContent = "Running file operation...";
+        try {
+            const payload = await postParams("/api/system/files/action", params);
+            filesOutput.textContent = payload.output;
+            filesMessage.textContent = payload.output || successMessage;
+            showSuccessToast(payload.output || successMessage);
+            await loadAudit(username);
+            await browseFiles(currentDirectory || document.getElementById("systemUserOverviewHome").textContent);
+        } catch (error) {
+            filesOutput.textContent = error.message;
+            filesMessage.textContent = error.message;
+            showErrorToast(error.message);
+        }
+    };
+
+    const setFileActionFieldVisibility = ({newName = false, owner = false, group = false, mode = false, recursive = false}) => {
+        fileActionNewNameField.hidden = !newName;
+        fileActionOwnerField.hidden = !owner;
+        fileActionGroupField.hidden = !group;
+        fileActionModeField.hidden = !mode;
+        fileActionRecursiveField.hidden = !recursive;
+        fileActionNewName.required = newName;
+        fileActionOwner.required = owner;
+        fileActionMode.required = mode;
+        fileActionNewName.disabled = !newName;
+        fileActionOwner.disabled = !owner;
+        fileActionGroup.disabled = !group;
+        fileActionMode.disabled = !mode;
+        fileActionRecursive.disabled = !recursive;
+    };
+
+    const openFileActionModal = (action, entry) => {
+        fileActionForm.reset();
+        fileActionMessage.textContent = "";
+        fileActionType.value = action;
+        fileActionPath.value = entry.path;
+        fileActionDestinationPath.value = "";
+        fileActionPathDisplay.value = entry.path;
+        fileActionRecursive.checked = false;
+
+        if (action === "rename") {
+            fileActionTitle.textContent = "Rename file";
+            fileActionSubtitle.textContent = "Rename the selected item within its current directory.";
+            setFileActionFieldVisibility({newName: true});
+            fileActionNewName.value = entry.name;
+        } else if (action === "chown") {
+            fileActionTitle.textContent = "Change ownership";
+            fileActionSubtitle.textContent = "Apply a constrained chown operation to the selected path.";
+            setFileActionFieldVisibility({owner: true, group: true, recursive: entry.directory});
+        } else if (action === "chmod") {
+            fileActionTitle.textContent = "Change mode";
+            fileActionSubtitle.textContent = "Apply a constrained chmod operation to the selected path.";
+            setFileActionFieldVisibility({mode: true, recursive: entry.directory});
+        } else {
+            return;
+        }
+        fileActionModal.show();
+    };
 
     const refreshAll = async () => {
         try {
@@ -310,6 +484,12 @@ export async function initSystemUserPage(pageUsername) {
             } else {
                 renderLogfiles([]);
                 setText("systemUserLogfilesMessage", "Logfiles are available only for login-enabled non-system users.");
+            }
+            if (!currentDirectory) {
+                currentDirectory = user.home || "";
+            }
+            if (currentDirectory) {
+                await browseFiles(currentDirectory);
             }
             if (user.login_user && canManage()) {
                 await loadAuthorizedKeys(username);
@@ -334,9 +514,17 @@ export async function initSystemUserPage(pageUsername) {
         setText("systemUserDeleteMessage", `Confirm deletion for ${username}.`);
         deleteModal.show();
     });
-    document.getElementById("systemUserUseHomePathButton").addEventListener("click", () => {
-        pathField.dataset.operatorEdited = "";
-        pathField.value = document.getElementById("systemUserOverviewHome").textContent;
+    document.getElementById("systemUserUseHomePathButton").addEventListener("click", async () => {
+        currentDirectory = document.getElementById("systemUserOverviewHome").textContent;
+        await browseFiles(currentDirectory);
+    });
+    document.getElementById("systemUserFilesReloadButton").addEventListener("click", async () => {
+        await browseFiles(currentDirectory || document.getElementById("systemUserOverviewHome").textContent);
+    });
+    upButton.addEventListener("click", async () => {
+        if (parentDirectory) {
+            await browseFiles(parentDirectory);
+        }
     });
     document.getElementById("systemUserReloadKeysButton").addEventListener("click", async () => {
         await loadAuthorizedKeys(username);
@@ -417,20 +605,23 @@ export async function initSystemUserPage(pageUsername) {
         }
     });
 
-    filesForm.addEventListener("submit", async (event) => {
+    fileActionForm.addEventListener("submit", async (event) => {
         event.preventDefault();
-        const message = document.getElementById("systemUserFilesMessage");
-        const output = document.getElementById("systemUserFilesOutput");
-        output.textContent = "Running path action...";
+        fileActionMessage.textContent = "";
+        filesOutput.textContent = "Running file operation...";
         try {
-            const payload = await postForm("/api/system/path-action", filesForm);
-            message.textContent = "Path action completed.";
-            output.textContent = payload.output;
-            showSuccessToast(payload.output || "Path action completed.");
+            const payload = await postForm("/api/system/files/action", fileActionForm);
+            fileActionMessage.textContent = payload.output;
+            filesOutput.textContent = payload.output;
+            filesMessage.textContent = payload.output || "File action completed.";
+            showSuccessToast(payload.output || "File action completed.");
+            fileActionModal.hide();
             await loadAudit(username);
+            await browseFiles(currentDirectory || document.getElementById("systemUserOverviewHome").textContent);
         } catch (error) {
-            message.textContent = "Path action failed.";
-            output.textContent = error.message;
+            fileActionMessage.textContent = error.message;
+            filesOutput.textContent = error.message;
+            filesMessage.textContent = error.message;
             showErrorToast(error.message);
         }
     });
@@ -453,15 +644,74 @@ export async function initSystemUserPage(pageUsername) {
         }
     });
 
-    pathField.addEventListener("input", () => {
-        pathField.dataset.operatorEdited = "1";
+    document.addEventListener("click", (event) => {
+        if (!filesContextMenu.hidden && !filesContextMenu.contains(event.target)) {
+            hideFilesContextMenu();
+        }
     });
-    document.getElementById("systemUserFilesAction").addEventListener("change", syncFilesActionFields);
+    document.addEventListener("scroll", hideFilesContextMenu, true);
+    filesContextMenu.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-action]");
+        if (!button) {
+            return;
+        }
+        const action = button.dataset.action;
+        const entry = currentEntries.find((item) => item.path === filesContextMenu.dataset.entryPath);
+        hideFilesContextMenu();
+        if (!entry) {
+            return;
+        }
+        if (action === "copy") {
+            fileClipboard = {path: entry.path, name: entry.name};
+            updateClipboardState();
+            showSuccessToast(`Copied ${entry.name} to the file clipboard.`);
+            return;
+        }
+        if (!canManage()) {
+            showErrorToast("File mutations require system:manage.");
+            return;
+        }
+        if (entry.symlink && action !== "rename") {
+            showErrorToast("Symlink actions are not supported from the panel.");
+            return;
+        }
+        if (action === "paste") {
+            if (!fileClipboard) {
+                showErrorToast("The file clipboard is empty.");
+                return;
+            }
+            await runImmediateFileAction({
+                action: "copy",
+                path: fileClipboard.path,
+                destination_path: currentDirectory,
+                audit_user: username
+            }, "Path copied.");
+            return;
+        }
+        if (action === "zip") {
+            await runImmediateFileAction({
+                action: "zip",
+                path: entry.path,
+                audit_user: username
+            }, "Archive created.");
+            return;
+        }
+        if (action === "unzip") {
+            await runImmediateFileAction({
+                action: "unzip",
+                path: entry.path,
+                destination_path: currentDirectory,
+                audit_user: username
+            }, "Archive extracted.");
+            return;
+        }
+        openFileActionModal(action, entry);
+    });
     clearExpirationField.addEventListener("change", () => {
         document.getElementById("systemUserSecurityExpiresOn").disabled =
             clearExpirationField.checked || !canManage();
     });
 
-    syncFilesActionFields();
+    updateClipboardState();
     await refreshAll();
 }

@@ -341,12 +341,14 @@ HttpResponse handle_terminal_totp_verify(const RequestContext&, const std::strin
 
 HttpResponse handle_api_page(const RequestContext&, const std::string&);
 HttpResponse handle_system_user_page(const RequestContext&, const std::string&);
+HttpResponse handle_service_page(const RequestContext&, const std::string&);
 
 HttpResponse handle_users(const RequestContext&, const std::string&);
 HttpResponse handle_user_permissions(const RequestContext&, const std::string&);
 HttpResponse handle_delete_user(const RequestContext&, const std::string&);
 
 HttpResponse handle_services(const RequestContext&, const std::string&);
+HttpResponse handle_service_detail(const RequestContext&, const std::string&);
 HttpResponse handle_update_service(const RequestContext&, const std::string&);
 HttpResponse handle_service_action(const RequestContext&, const std::string&);
 
@@ -358,6 +360,8 @@ HttpResponse handle_system_user_action(const RequestContext&, const std::string&
 HttpResponse handle_system_authorized_keys(const RequestContext&, const std::string&);
 HttpResponse handle_system_user_audit(const RequestContext&, const std::string&);
 HttpResponse handle_system_user_logfiles(const RequestContext&, const std::string&);
+HttpResponse handle_system_files_browse(const RequestContext&, const std::string&);
+HttpResponse handle_system_files_action(const RequestContext&, const std::string&);
 HttpResponse handle_system_path_action(const RequestContext&, const std::string&);
 
 HttpResponse handle_nginx_sites(const RequestContext&, const std::string&);
@@ -416,6 +420,7 @@ void App::build_routes() {
     routes_.push_back({"POST", "/api/2fa/verify-terminal",  "",                 true,  handle_terminal_totp_verify});
     // pages
     routes_.push_back({"GET",  "/api/page/system-user/",     "",                 false, handle_system_user_page});
+    routes_.push_back({"GET",  "/api/page/service/",         "",                 false, handle_service_page});
     routes_.push_back({"GET",  "/api/page/",                "",                 false, handle_api_page});
     // users
     routes_.push_back({"",     "/api/users",                "",                 true,  handle_users});
@@ -423,11 +428,15 @@ void App::build_routes() {
     routes_.push_back({"",     "/api/users/",               "",                 false, handle_delete_user});
     // services
     routes_.push_back({"",     "/api/services",             "",                 true,  handle_services});
+    routes_.push_back({"GET",  "/api/services/",            "/page",            false, handle_service_page});
+    routes_.push_back({"GET",  "/api/services/",            "",                 false, handle_service_detail});
     routes_.push_back({"",     "/api/services/",            "/action",          false, handle_service_action});
     routes_.push_back({"",     "/api/services/",            "",                 false, handle_update_service});
     // system
     routes_.push_back({"",     "/api/system/users",         "",                 true,  handle_system_users});
     routes_.push_back({"",     "/api/system/path-action",   "",                 true,  handle_system_path_action});
+    routes_.push_back({"POST", "/api/system/files/browse",  "",                 true,  handle_system_files_browse});
+    routes_.push_back({"POST", "/api/system/files/action",  "",                 true,  handle_system_files_action});
     routes_.push_back({"GET",  "/api/system/users/",        "/page",            false, handle_system_user_page});
     routes_.push_back({"GET",  "/api/system/users/",        "/audit",           false, handle_system_user_audit});
     routes_.push_back({"GET",  "/api/system/users/",        "/logfiles",        false, handle_system_user_logfiles});

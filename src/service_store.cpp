@@ -1,9 +1,11 @@
 #include "service_store.h"
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -68,6 +70,47 @@ ServiceActionResult capture_command(const std::vector<std::string>& args) {
         output = ok ? "command completed successfully" : "command failed";
     }
     return {ok, output};
+}
+
+std::string systemctl_binary() {
+    const char* configured = std::getenv("CUDDLEPANEL_SYSTEMCTL_BIN");
+    return configured && *configured ? configured : "/bin/systemctl";
+}
+
+std::string trim_copy(const std::string& value) {
+    size_t start = 0;
+    while (start < value.size() && std::isspace(static_cast<unsigned char>(value[start]))) {
+        ++start;
+    }
+    size_t end = value.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(value[end - 1]))) {
+        --end;
+    }
+    return value.substr(start, end - start);
+}
+
+std::map<std::string, std::string> parse_key_value_output(const std::string& output) {
+    std::map<std::string, std::string> values;
+    std::stringstream stream(output);
+    std::string line;
+    while (std::getline(stream, line)) {
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        const auto pos = line.find('=');
+        if (pos == std::string::npos) {
+            continue;
+        }
+        values[line.substr(0, pos)] = line.substr(pos + 1);
+    }
+    return values;
+}
+
+std::string service_display_name(const std::string& unit) {
+    if (unit.size() > 8 && unit.rfind(".service") == unit.size() - 8) {
+        return unit.substr(0, unit.size() - 8);
+    }
+    return unit;
 }
 
 }
@@ -237,11 +280,83 @@ bool valid_service_description(const std::string& description) {
     return description.size() <= 200;
 }
 
+std::optional<DiscoveredService> discover_service(const std::string& unit) {
+    if (!valid_service_unit(unit)) {
+        return std::nullopt;
+    }
+    const auto result = capture_command({
+        systemctl_binary(),
+        "show",
+        unit,
+        "--no-pager",
+        "--property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,FragmentPath"
+    });
+    const auto values = parse_key_value_output(result.output);
+    const auto id_it = values.find("Id");
+    const std::string discovered_unit = id_it == values.end() ? unit : id_it->second;
+    if (!valid_service_unit(discovered_unit)) {
+        return std::nullopt;
+    }
+    return DiscoveredService{
+        service_display_name(discovered_unit),
+        discovered_unit,
+        values.count("Description") ? values.at("Description") : "",
+        values.count("ActiveState") ? values.at("ActiveState") : "unknown",
+        values.count("SubState") ? values.at("SubState") : "",
+        values.count("UnitFileState") ? values.at("UnitFileState") : "unknown",
+        values.count("LoadState") ? values.at("LoadState") : "unknown",
+        values.count("FragmentPath") ? values.at("FragmentPath") : ""
+    };
+}
+
+std::vector<DiscoveredService> discover_services() {
+    const auto result = capture_command({
+        systemctl_binary(),
+        "list-unit-files",
+        "--type=service",
+        "--no-legend",
+        "--no-pager",
+        "--plain"
+    });
+    std::vector<DiscoveredService> services;
+    std::stringstream stream(result.output);
+    std::string line;
+    while (std::getline(stream, line)) {
+        line = trim_copy(line);
+        if (line.empty()) {
+            continue;
+        }
+        std::stringstream line_stream(line);
+        std::string unit;
+        std::string unit_file_state;
+        line_stream >> unit >> unit_file_state;
+        if (!valid_service_unit(unit)) {
+            continue;
+        }
+        auto detail = discover_service(unit);
+        if (!detail) {
+            continue;
+        }
+        if (detail->unit_file_state.empty()) {
+            detail->unit_file_state = unit_file_state;
+        }
+        services.push_back(*detail);
+    }
+    std::sort(services.begin(), services.end(), [](const DiscoveredService& left, const DiscoveredService& right) {
+        if (left.active_state != right.active_state) {
+            if (left.active_state == "active") return true;
+            if (right.active_state == "active") return false;
+        }
+        return left.unit < right.unit;
+    });
+    return services;
+}
+
 ServiceStatus query_service_status(const std::string& unit) {
     if (!valid_service_unit(unit)) {
         return {"invalid", "invalid unit name"};
     }
-    const auto result = capture_command({"/bin/systemctl", "is-active", unit});
+    const auto result = capture_command({systemctl_binary(), "is-active", unit});
     std::string state = result.output;
     while (!state.empty() && (state.back() == '\n' || state.back() == '\r')) {
         state.pop_back();
@@ -256,10 +371,11 @@ ServiceActionResult run_service_action(const std::string& unit, const std::strin
     if (!valid_service_unit(unit)) {
         return {false, "invalid unit name"};
     }
-    if (action != "start" && action != "stop" && action != "restart") {
+    if (action != "start" && action != "stop" && action != "restart" &&
+        action != "enable" && action != "disable") {
         return {false, "invalid action"};
     }
-    return capture_command({"/bin/systemctl", action, unit});
+    return capture_command({systemctl_binary(), action, unit});
 }
 
 }

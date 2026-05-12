@@ -1,7 +1,7 @@
 import {loadPartial} from "./core/dom.js";
 import {showErrorToast} from "./core/toast.js";
 import {initUsersPage} from "./pages/users.js";
-import {initServicesPage} from "./pages/services.js";
+import {initServiceDetailPage, initServicesPage} from "./pages/services.js";
 import {initSystemPage} from "./pages/system.js";
 import {initSystemUserPage} from "./pages/system_user.js";
 import {initNginxPage} from "./pages/nginx.js";
@@ -38,6 +38,18 @@ function systemUserFromPage(page) {
     return validSystemUsername(username) ? username : null;
 }
 
+function servicePageKey(unit) {
+    return `service:${unit}`;
+}
+
+function serviceUnitFromPage(page) {
+    if (!page.startsWith("service:")) {
+        return null;
+    }
+    const unit = page.slice("service:".length);
+    return /^[A-Za-z0-9._@-]{1,128}\.service$/.test(unit) ? unit : null;
+}
+
 function normalizePage(page) {
     if (typeof page !== "string" || !page) {
         return "dashboard";
@@ -45,6 +57,10 @@ function normalizePage(page) {
     const systemUsername = systemUserFromPage(page);
     if (systemUsername) {
         return systemUserPageKey(systemUsername);
+    }
+    const serviceUnit = serviceUnitFromPage(page);
+    if (serviceUnit) {
+        return servicePageKey(serviceUnit);
     }
     return pageInitializers.has(page) || page === "dashboard" ? page : "dashboard";
 }
@@ -83,6 +99,7 @@ function extractFailureMessage(rawText, fallbackMessage) {
 export async function loadPage(page) {
     const normalizedPage = normalizePage(page);
     const systemUsername = systemUserFromPage(normalizedPage);
+    const serviceUnit = serviceUnitFromPage(normalizedPage);
     const content = document.getElementById("content");
     content.innerHTML = "<div>Loading...</div>";
     let response;
@@ -91,6 +108,24 @@ export async function loadPage(page) {
         const candidateUrls = [
             `/api/system/users/${encodeURIComponent(systemUsername)}/page`,
             `/api/page/system-user/${encodeURIComponent(systemUsername)}`
+        ];
+        for (const url of candidateUrls) {
+            response = await fetch(url);
+            if (response.ok || response.status === 401) {
+                break;
+            }
+            try {
+                const payload = await response.clone().json();
+                failureMessage = payload.error || payload.output || failureMessage;
+            } catch {
+                const text = await response.clone().text();
+                failureMessage = extractFailureMessage(text, failureMessage);
+            }
+        }
+    } else if (serviceUnit) {
+        const candidateUrls = [
+            `/api/services/${encodeURIComponent(serviceUnit)}/page`,
+            `/api/page/service/${encodeURIComponent(serviceUnit)}`
         ];
         for (const url of candidateUrls) {
             response = await fetch(url);
@@ -132,6 +167,8 @@ export async function loadPage(page) {
         try {
             if (systemUsername) {
                 await initSystemUserPage(systemUsername);
+            } else if (serviceUnit) {
+                await initServiceDetailPage(serviceUnit);
             } else {
                 const initializer = pageInitializers.get(normalizedPage);
                 if (initializer) {
@@ -147,7 +184,7 @@ export async function loadPage(page) {
     }
 
     document.querySelectorAll("[data-page]").forEach((button) => {
-        const activePage = systemUsername ? "system" : normalizedPage;
+        const activePage = systemUsername ? "system" : (serviceUnit ? "services" : normalizedPage);
         button.classList.toggle("active", button.dataset.page === activePage);
     });
 

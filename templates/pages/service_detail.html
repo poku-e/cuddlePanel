@@ -1,0 +1,100 @@
+<div id="serviceDetailPageState" data-can-manage="{{can_manage_services}}" data-unit="{{selected_unit}}" data-name="{{selected_name}}"></div>
+
+<section class="cp-card">
+    <div class="cp-toolbar">
+        <div>
+            <h2 class="mb-1">Service management</h2>
+            <div class="small">Review and control host service <code>{{selected_unit}}</code> from one place.</div>
+        </div>
+        <div class="cp-toolbar-actions">
+            <button class="btn btn-outline-secondary btn-sm" id="serviceDetailBackButton" type="button">Back to services</button>
+            <button class="btn btn-outline-secondary btn-sm" id="serviceDetailRefreshButton" type="button">Refresh</button>
+        </div>
+    </div>
+
+    {{view_only_note}}
+
+    <ul class="nav nav-tabs cp-nav-tabs mt-3" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" id="service-detail-overview-tab" data-bs-toggle="tab" data-bs-target="#service-detail-overview-panel" type="button" role="tab" aria-controls="service-detail-overview-panel" aria-selected="true">Overview</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="service-detail-runtime-tab" data-bs-toggle="tab" data-bs-target="#service-detail-runtime-panel" type="button" role="tab" aria-controls="service-detail-runtime-panel" aria-selected="false">Runtime</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="service-detail-unit-tab" data-bs-toggle="tab" data-bs-target="#service-detail-unit-panel" type="button" role="tab" aria-controls="service-detail-unit-panel" aria-selected="false">Unit</button></li>
+    </ul>
+
+    <div class="tab-content pt-3">
+        <div class="tab-pane fade show active" id="service-detail-overview-panel" role="tabpanel" aria-labelledby="service-detail-overview-tab" tabindex="0">
+            <div class="row g-3">
+                <div class="col-12 col-xl-7">
+                    <section class="cp-subpanel h-100">
+                        <h3 class="h6 mb-3">Service summary</h3>
+                        <div class="system-user-privileges-grid">
+                            <article class="system-user-privilege-card">
+                                <div class="system-user-privilege-label">Display name</div>
+                                <div class="system-user-privilege-value" id="serviceDetailName">{{selected_name}}</div>
+                                <div class="system-user-privilege-note" id="serviceDetailDescription">Loading service description...</div>
+                            </article>
+                            <article class="system-user-privilege-card">
+                                <div class="system-user-privilege-label">Active state</div>
+                                <div class="system-user-privilege-value" id="serviceDetailState">Loading...</div>
+                                <div class="system-user-privilege-note" id="serviceDetailSubState">Loading runtime state...</div>
+                            </article>
+                            <article class="system-user-privilege-card">
+                                <div class="system-user-privilege-label">Enablement</div>
+                                <div class="system-user-privilege-value" id="serviceDetailEnabledState">Loading...</div>
+                                <div class="system-user-privilege-note" id="serviceDetailLoadState">Loading unit load state...</div>
+                            </article>
+                            <article class="system-user-privilege-card">
+                                <div class="system-user-privilege-label">Unit file</div>
+                                <div class="system-user-privilege-value"><code id="serviceDetailUnit">{{selected_unit}}</code></div>
+                                <div class="system-user-privilege-note" id="serviceDetailFragmentPath">Loading fragment path...</div>
+                            </article>
+                        </div>
+                    </section>
+                </div>
+                <div class="col-12 col-xl-5">
+                    <section class="cp-subpanel h-100">
+                        <h3 class="h6 mb-3">Quick actions</h3>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-success service-detail-action-button" data-action="start" type="button"{{disabled_attr}}>Start</button>
+                            <button class="btn btn-outline-warning service-detail-action-button" data-action="restart" type="button"{{disabled_attr}}>Restart</button>
+                            <button class="btn btn-outline-secondary service-detail-action-button" data-action="stop" type="button"{{disabled_attr}}>Stop</button>
+                            <button class="btn btn-outline-primary service-detail-action-button" data-action="enable" type="button"{{disabled_attr}}>Enable</button>
+                            <button class="btn btn-outline-dark service-detail-action-button" data-action="disable" type="button"{{disabled_attr}}>Disable</button>
+                        </div>
+                        <div class="system-user-privileges-callout mt-3">
+                            <div class="system-user-privileges-callout-title">Scope</div>
+                            <div class="small">Actions are executed directly through <code>systemctl</code> for this discovered <code>.service</code> unit only.</div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="service-detail-runtime-panel" role="tabpanel" aria-labelledby="service-detail-runtime-tab" tabindex="0">
+            <section class="cp-subpanel">
+                <div class="cp-toolbar">
+                    <div>
+                        <h3 class="h6 mb-1">Recent service output</h3>
+                        <div class="small">Runtime and enablement command output for this service appears here.</div>
+                    </div>
+                </div>
+                <div id="serviceDetailRuntimeMeta" class="small mt-3">Run an action to capture service output.</div>
+                <pre id="serviceDetailRuntimeOutput" class="service-output mt-3">No runtime output yet.</pre>
+            </section>
+        </div>
+
+        <div class="tab-pane fade" id="service-detail-unit-panel" role="tabpanel" aria-labelledby="service-detail-unit-tab" tabindex="0">
+            <section class="cp-subpanel">
+                <h3 class="h6 mb-3">Unit metadata</h3>
+                <dl class="cp-summary-list">
+                    <div><dt>Unit</dt><dd><code id="serviceDetailUnitMetadata">{{selected_unit}}</code></dd></div>
+                    <div><dt>Description</dt><dd id="serviceDetailDescriptionMetadata">Loading...</dd></div>
+                    <div><dt>Fragment path</dt><dd id="serviceDetailFragmentMetadata">Loading...</dd></div>
+                    <div><dt>Load state</dt><dd id="serviceDetailLoadMetadata">Loading...</dd></div>
+                    <div><dt>Active state</dt><dd id="serviceDetailStateMetadata">Loading...</dd></div>
+                    <div><dt>Sub-state</dt><dd id="serviceDetailSubStateMetadata">Loading...</dd></div>
+                    <div><dt>Enablement</dt><dd id="serviceDetailEnablementMetadata">Loading...</dd></div>
+                </dl>
+            </section>
+        </div>
+    </div>
+</section>

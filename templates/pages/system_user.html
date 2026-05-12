@@ -239,36 +239,56 @@
 
         <div class="tab-pane fade" id="system-user-files-panel" role="tabpanel" aria-labelledby="system-user-files-tab" tabindex="0">
             <div class="row g-3">
-                <div class="col-12 col-xl-7">
+                <div class="col-12 col-xl-8">
                     <section class="cp-subpanel h-100">
                         <div class="cp-toolbar">
                             <div>
-                                <h3 class="h6 mb-1">Ownership and mode</h3>
-                                <div class="small">Run constrained file actions for this account or another allowlisted path.</div>
+                                <h3 class="h6 mb-1">File browser</h3>
+                                <div class="small">Browse allowed roots, inspect the current directory, and run constrained file operations from a context menu.</div>
                             </div>
-                            <button class="btn btn-outline-secondary btn-sm" id="systemUserUseHomePathButton" type="button">Use home path</button>
+                            <div class="cp-toolbar-actions">
+                                <button class="btn btn-outline-secondary btn-sm" id="systemUserUseHomePathButton" type="button">Home</button>
+                                <button class="btn btn-outline-secondary btn-sm" id="systemUserFilesReloadButton" type="button">Reload</button>
+                            </div>
                         </div>
-                        <form id="systemUserFilesForm" class="vstack gap-3 mt-3">
-                            <input type="hidden" name="audit_user" value="{{selected_username}}">
-                            <label class="cp-label">Action<select class="cp-input cp-select" id="systemUserFilesAction" name="action"{{disabled_attr}}><option value="chown">chown</option><option value="chmod">chmod</option></select></label>
-                            <label class="cp-label">Path<input class="cp-input" id="systemUserFilesPath" name="path" required maxlength="512"{{disabled_attr}}></label>
-                            <label class="cp-label">Owner<input class="cp-input" id="systemUserFilesOwner" name="owner" maxlength="64" placeholder="deploy"{{disabled_attr}}></label>
-                            <label class="cp-label">Group<input class="cp-input" id="systemUserFilesGroup" name="group" maxlength="64" placeholder="www-data"{{disabled_attr}}></label>
-                            <label class="cp-label">Mode<input class="cp-input" id="systemUserFilesMode" name="mode" maxlength="4" placeholder="755"{{disabled_attr}}></label>
-                            <label class="cp-toggle"><input type="checkbox" id="systemUserFilesRecursive" name="recursive"{{disabled_attr}}> <span>Apply recursively</span></label>
-                            <div id="systemUserFilesMessage" class="small"></div>
-                            <div><button class="btn btn-primary" type="submit"{{disabled_attr}}>Run file action</button></div>
-                        </form>
-                        <pre id="systemUserFilesOutput" class="service-output mt-3">Path action output will appear here.</pre>
+                        <div id="systemUserFilesMessage" class="small mt-3">Loading file browser...</div>
+                        <div class="system-user-files-browser mt-3">
+                            <div class="system-user-files-browser-bar">
+                                <button class="btn btn-outline-secondary btn-sm" id="systemUserFilesUpButton" type="button">Up</button>
+                                <div class="system-user-files-breadcrumb" id="systemUserFilesBreadcrumb">Loading directory...</div>
+                            </div>
+                            <div class="table-responsive cp-table-wrap system-user-files-table-wrap mt-3">
+                                <table class="table table-hover align-middle cp-table system-user-files-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Name</th>
+                                            <th scope="col">Type</th>
+                                            <th scope="col">Mode</th>
+                                            <th scope="col">Size</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="systemUserFilesBrowserHost">
+                                        <tr><td colspan="4">Loading directory...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <pre id="systemUserFilesOutput" class="service-output mt-3">File operation output will appear here.</pre>
                     </section>
                 </div>
-                <div class="col-12 col-xl-5">
+                <div class="col-12 col-xl-4">
                     <section class="cp-subpanel h-100">
-                        <h3 class="h6 mb-3">Home directory context</h3>
+                        <h3 class="h6 mb-3">Browser context</h3>
                         <dl class="cp-summary-list">
                             <div><dt>Home path</dt><dd id="systemUserFilesHomePath">Loading...</dd></div>
+                            <div><dt>Current directory</dt><dd id="systemUserFilesCurrentPath">Loading...</dd></div>
+                            <div><dt>Clipboard</dt><dd id="systemUserFilesClipboardState">Clipboard is empty.</dd></div>
                             <div><dt>Allowed roots</dt><dd>{{roots_note}}</dd></div>
                         </dl>
+                        <div class="system-user-files-callout mt-3">
+                            <div class="system-user-privileges-callout-title">Supported actions</div>
+                            <div class="small">Right-click or use the keyboard menu key on a row to rename, copy, paste, zip, unzip, chown, or chmod within allowed roots.</div>
+                        </div>
                     </section>
                 </div>
             </div>
@@ -322,6 +342,49 @@
                 <div class="modal-footer">
                     <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
                     <button class="btn btn-danger" type="submit"{{disabled_attr}}>Delete account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="systemUserFilesContextMenu" class="system-user-files-context-menu" hidden>
+    <button class="system-user-files-context-action" data-action="rename" type="button">Rename</button>
+    <button class="system-user-files-context-action" data-action="copy" type="button">Copy</button>
+    <button class="system-user-files-context-action" data-action="paste" type="button">Paste Here</button>
+    <button class="system-user-files-context-action" data-action="zip" type="button">Zip</button>
+    <button class="system-user-files-context-action" data-action="unzip" type="button">Unzip Here</button>
+    <button class="system-user-files-context-action" data-action="chown" type="button">Chown</button>
+    <button class="system-user-files-context-action" data-action="chmod" type="button">Chmod</button>
+</div>
+
+<div class="modal fade" id="systemUserFileActionModal" tabindex="-1" aria-labelledby="systemUserFileActionModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title h5 mb-1" id="systemUserFileActionModalTitle">File action</h3>
+                    <div class="small" id="systemUserFileActionModalSubtitle">Review and confirm the selected file operation.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="systemUserFileActionForm">
+                <div class="modal-body vstack gap-3">
+                    <input type="hidden" name="audit_user" value="{{selected_username}}">
+                    <input type="hidden" name="action" id="systemUserFileActionType">
+                    <input type="hidden" name="path" id="systemUserFileActionPath">
+                    <input type="hidden" name="destination_path" id="systemUserFileActionDestinationPath">
+                    <label class="cp-label">Selected path<input class="cp-input" id="systemUserFileActionPathDisplay" type="text" readonly></label>
+                    <label class="cp-label" id="systemUserFileActionNewNameField">New name<input class="cp-input" id="systemUserFileActionNewName" name="new_name" maxlength="255" placeholder="renamed-file"></label>
+                    <label class="cp-label" id="systemUserFileActionOwnerField">Owner<input class="cp-input" id="systemUserFileActionOwner" name="owner" maxlength="64" placeholder="deploy"></label>
+                    <label class="cp-label" id="systemUserFileActionGroupField">Group<input class="cp-input" id="systemUserFileActionGroup" name="group" maxlength="64" placeholder="www-data"></label>
+                    <label class="cp-label" id="systemUserFileActionModeField">Mode<input class="cp-input" id="systemUserFileActionMode" name="mode" maxlength="4" placeholder="755"></label>
+                    <label class="cp-toggle" id="systemUserFileActionRecursiveField"><input type="checkbox" id="systemUserFileActionRecursive" name="recursive"> <span>Apply recursively</span></label>
+                    <div id="systemUserFileActionMessage" class="small"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit" id="systemUserFileActionSubmitButton"{{disabled_attr}}>Run action</button>
                 </div>
             </form>
         </div>

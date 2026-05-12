@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -36,6 +37,22 @@ struct SystemUserLogFile {
     bool truncated = false;
 };
 
+struct SystemFileEntry {
+    std::string name;
+    std::string path;
+    std::string type;
+    std::string mode;
+    std::uintmax_t size = 0;
+    bool directory = false;
+    bool symlink = false;
+};
+
+struct SystemFileBrowserListing {
+    std::string current_path;
+    std::string parent_path;
+    std::vector<SystemFileEntry> entries;
+};
+
 class SystemAdmin {
 public:
     SystemAdmin(std::string passwd_path, std::string group_path, std::string shadow_path);
@@ -62,12 +79,22 @@ public:
     SystemActionResult read_authorized_keys(const std::string& username, std::string* content_out) const;
     SystemActionResult read_user_logfiles(const std::string& username,
                                           std::vector<SystemUserLogFile>* files_out) const;
+    SystemActionResult browse_files(const std::string& path,
+                                    SystemFileBrowserListing* listing_out) const;
     SystemActionResult write_authorized_keys(const std::string& username, const std::string& content) const;
     SystemActionResult run_user_action(const std::string& username,
                                        const std::string& action,
                                        bool delete_home) const;
     SystemActionResult run_path_action(const std::string& action,
                                        const std::string& path,
+                                       const std::string& owner,
+                                       const std::string& group,
+                                       const std::string& mode,
+                                       bool recursive) const;
+    SystemActionResult run_file_action(const std::string& action,
+                                       const std::string& path,
+                                       const std::string& destination_path,
+                                       const std::string& new_name,
                                        const std::string& owner,
                                        const std::string& group,
                                        const std::string& mode,

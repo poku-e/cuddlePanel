@@ -131,4 +131,24 @@ HttpResponse handle_system_user_page(const RequestContext& ctx, const std::strin
     return response;
 }
 
+HttpResponse handle_service_page(const RequestContext& ctx, const std::string& unit) {
+    if (auto err = ctx.require_permission("services", PermissionLevel::View)) return *err;
+    const auto service = discover_service(unit);
+    if (!service) {
+        return json_response(404, "{\"error\":\"service not found\"}");
+    }
+
+    const bool can_manage = ctx.users.has_permission(*ctx.username, "services", PermissionLevel::Manage);
+    HttpResponse response;
+    response.content_type = "text/html; charset=utf-8";
+    response.body = template_panel("Service Management", "templates/pages/service_detail.html", {
+        {"can_manage_services", can_manage ? "1" : "0"},
+        {"disabled_attr",       can_manage ? "" : " disabled"},
+        {"view_only_note",      can_manage ? "" : "<p class=\"small mt-3 mb-0\">You have view access to this page, but service changes require `services:manage`.</p>"},
+        {"selected_unit",       html_escape(service->unit)},
+        {"selected_name",       html_escape(service->name)}
+    });
+    return response;
+}
+
 } // namespace cuddle

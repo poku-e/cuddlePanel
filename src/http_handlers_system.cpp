@@ -232,6 +232,31 @@ std::string system_user_logfiles_json(const std::vector<SystemUserLogFile>& file
     return out.str();
 }
 
+std::string system_file_listing_json(const SystemFileBrowserListing& listing,
+                                     const std::string& output) {
+    std::ostringstream out;
+    out << "{\"currentPath\":\"" << json_escape(listing.current_path)
+        << "\",\"parentPath\":\"" << json_escape(listing.parent_path)
+        << "\",\"entries\":[";
+    bool first = true;
+    for (const auto& entry : listing.entries) {
+        if (!first) {
+            out << ",";
+        }
+        first = false;
+        out << "{\"name\":\"" << json_escape(entry.name)
+            << "\",\"path\":\"" << json_escape(entry.path)
+            << "\",\"type\":\"" << json_escape(entry.type)
+            << "\",\"mode\":\"" << json_escape(entry.mode)
+            << "\",\"size\":" << entry.size
+            << ",\"directory\":" << (entry.directory ? "true" : "false")
+            << ",\"symlink\":" << (entry.symlink ? "true" : "false")
+            << "}";
+    }
+    out << "],\"output\":\"" << json_escape(output) << "\"}";
+    return out.str();
+}
+
 } // anonymous namespace
 
 HttpResponse handle_system_users(const RequestContext& ctx, const std::string&) {
@@ -377,6 +402,60 @@ HttpResponse handle_system_user_logfiles(const RequestContext& ctx, const std::s
     std::vector<SystemUserLogFile> files;
     const auto result = ctx.system_admin.read_user_logfiles(username, &files);
     return json_response(result.ok ? 200 : 400, system_user_logfiles_json(files, result.output));
+}
+
+HttpResponse handle_system_files_browse(const RequestContext& ctx, const std::string&) {
+    if (ctx.request.method != "POST") {
+        return json_response(404, "{\"error\":\"not found\"}");
+    }
+    if (auto err = ctx.require_permission("system", PermissionLevel::View)) return *err;
+    auto form = parse_form(ctx.request.body);
+    SystemFileBrowserListing listing;
+    const auto result = ctx.system_admin.browse_files(form["path"], &listing);
+    return json_response(result.ok ? 200 : 400, system_file_listing_json(listing, result.output));
+}
+
+HttpResponse handle_system_files_action(const RequestContext& ctx, const std::string&) {
+    if (ctx.request.method != "POST") {
+        return json_response(404, "{\"error\":\"not found\"}");
+    }
+    if (auto err = ctx.require_permission("system", PermissionLevel::Manage)) return *err;
+    auto form = parse_form(ctx.request.body);
+    const bool recursive = form["recursive"] == "on";
+    const auto result = ctx.system_admin.run_file_action(
+        form["action"],
+        form["path"],
+        form["destination_path"],
+        form["new_name"],
+        form["owner"],
+        form["group"],
+        form["mode"],
+        recursive);
+    if (result.ok && valid_system_username(form["audit_user"])) {
+        std::ostringstream detail;
+        detail << "path=" << form["path"];
+        if (!form["destination_path"].empty()) {
+            detail << ", destination_path=" << form["destination_path"];
+        }
+        if (!form["new_name"].empty()) {
+            detail << ", new_name=" << form["new_name"];
+        }
+        if (!form["owner"].empty()) {
+            detail << ", owner=" << form["owner"];
+        }
+        if (!form["group"].empty()) {
+            detail << ", group=" << form["group"];
+        }
+        if (!form["mode"].empty()) {
+            detail << ", mode=" << form["mode"];
+        }
+        detail << ", recursive=" << (recursive ? "yes" : "no");
+        append_system_audit_event(*ctx.username, form["audit_user"], "file_" + form["action"], detail.str());
+    }
+    std::ostringstream out;
+    out << "{\"ok\":" << (result.ok ? "true" : "false")
+        << ",\"output\":\"" << json_escape(result.output) << "\"}";
+    return json_response(result.ok ? 200 : 400, out.str());
 }
 
 HttpResponse handle_system_user_audit(const RequestContext& ctx, const std::string& username) {

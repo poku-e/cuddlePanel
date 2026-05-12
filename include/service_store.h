@@ -23,6 +23,17 @@ struct ServiceActionResult {
     std::string output;
 };
 
+struct DiscoveredService {
+    std::string name;
+    std::string unit;
+    std::string description;
+    std::string active_state;
+    std::string sub_state;
+    std::string unit_file_state;
+    std::string load_state;
+    std::string fragment_path;
+};
+
 class ServiceStore {
 public:
     explicit ServiceStore(std::string path);
@@ -48,6 +59,8 @@ bool valid_service_unit(const std::string& unit);
 std::string normalize_service_description(const std::string& description);
 bool valid_service_description(const std::string& description);
 
+std::vector<DiscoveredService> discover_services();
+std::optional<DiscoveredService> discover_service(const std::string& unit);
 ServiceStatus query_service_status(const std::string& unit);
 ServiceActionResult run_service_action(const std::string& unit, const std::string& action);
 
