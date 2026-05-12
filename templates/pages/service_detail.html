@@ -84,8 +84,23 @@
                     </div>
                 </div>
                 <div id="serviceManageMessage" class="small mt-3">Loading structured service configuration...</div>
-                <div class="small mt-2">Structured saves rewrite the unit with a normalized layout. Use `Advanced` when you need exact hand-edited formatting or comments.</div>
-                <div class="service-manage-grid mt-3" id="serviceManageSections"></div>
+                <div class="service-manage-layout mt-3">
+                    <div class="service-manage-main">
+                        <div class="service-manage-overview" id="serviceManageOverview"></div>
+                        <div class="small mt-3">Structured saves rewrite the unit with a normalized layout. Use `Advanced` when you need exact hand-edited formatting or comments.</div>
+                        <div class="service-manage-grid mt-3" id="serviceManageSections"></div>
+                    </div>
+                    <aside class="service-manage-aside">
+                        <section class="service-manage-aside-card">
+                            <h4 class="h6 mb-2">How To Use This</h4>
+                            <div class="small">Open only the directive family you need, save from this tab, and check `Runtime` if `daemon-reload` reports a problem.</div>
+                        </section>
+                        <section class="service-manage-aside-card">
+                            <h4 class="h6 mb-2">Best Fit</h4>
+                            <div class="small">Use `Manage Service` for clean, normalized config changes. Use `Advanced` when you need comments, exact spacing, or hand-written directives.</div>
+                        </section>
+                    </aside>
+                </div>
             </section>
         </div>
 

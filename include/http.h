@@ -22,6 +22,7 @@ namespace cuddle {
 struct HttpRequest {
     std::string method;
     std::string path;
+    std::string query_string;
     std::map<std::string, std::string> headers;
     std::string body;
 };
@@ -42,6 +43,7 @@ HttpResponse page_response(const std::string& file);
 std::string json_escape(const std::string& value);
 std::string html_escape(const std::string& value);
 std::string url_decode(const std::string& value);
+std::string normalize_request_path(const std::string& raw_path);
 std::map<std::string, std::string> parse_form(const std::string& body);
 
 struct SessionState {

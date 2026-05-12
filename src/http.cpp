@@ -118,6 +118,12 @@ HttpRequest parse_request(const std::string& raw) {
     auto header_end = raw.find("\r\n\r\n");
     std::stringstream head(raw.substr(0, header_end));
     head >> request.method >> request.path;
+    const std::string raw_target = request.path;
+    const auto query_pos = raw_target.find('?');
+    if (query_pos != std::string::npos && query_pos + 1 < raw_target.size()) {
+        request.query_string = raw_target.substr(query_pos + 1);
+    }
+    request.path = normalize_request_path(raw_target);
 
     std::string line;
     std::getline(head, line);
@@ -236,6 +242,14 @@ std::string url_decode(const std::string& value) {
         }
     }
     return out;
+}
+
+std::string normalize_request_path(const std::string& raw_path) {
+    const auto query_pos = raw_path.find('?');
+    if (query_pos == std::string::npos) {
+        return raw_path;
+    }
+    return raw_path.substr(0, query_pos);
 }
 
 std::map<std::string, std::string> parse_form(const std::string& body) {
@@ -486,6 +500,9 @@ HttpResponse App::handle(const HttpRequest& request) {
         return users_.has_users() ? redirect_response("/login") : page_response("templates/onboarding.html");
     }
     if (request.method == "GET" && request.path == "/login") {
+        if (!request.query_string.empty()) {
+            return redirect_response("/login");
+        }
         return users_.has_users() ? page_response("templates/login.html") : redirect_response("/onboarding");
     }
 

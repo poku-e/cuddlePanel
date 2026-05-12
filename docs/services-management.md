@@ -18,7 +18,7 @@ Workflow:
 - Clicking a service name or `Manage` opens a dedicated service detail page for that unit.
 - The detail page is tabbed:
   - `Overview`: summary cards plus quick `start`, `stop`, `restart`, `enable`, and `disable` actions.
-  - `Manage Service`: a structured editor for common `Unit`, `Service`, and `Install` directives. Saving this tab rewrites the unit with a normalized layout.
+  - `Manage Service`: a structured editor for common `Unit`, `Service`, and `Install` directives, grouped into accordion sections so operators can open one directive family at a time. Saving this tab rewrites the unit with a normalized layout.
   - `Advanced`: direct editing of the discovered service unit file content with a code-style textarea.
   - `Runtime`: most recent command output for that service.
   - `Unit`: read-only metadata such as fragment path, load state, active state, sub-state, and enablement.

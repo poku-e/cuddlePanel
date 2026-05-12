@@ -68,6 +68,9 @@ Workflow:
 - Additional users are created without a confirmed TOTP secret and are forced through TOTP setup on their first successful password login.
 - Dashboard navigation uses AJAX calls to `/api/page/<page>`; page content is returned without a full reload.
 - Dashboard navigation keeps the current page in browser state, so refreshes and revisits reopen the last selected admin page instead of always dropping back to the dashboard root.
+- Login now strips any accidental `username` or `password` query params from the browser address bar before submission and preserves only a safe dashboard hash target for post-auth navigation.
+- HTTP routing now ignores URL query strings when matching page paths, and `GET /login?...` is actively redirected to a clean `/login` URL so leaked credential-style query params are removed before the login page is served.
+- If a remembered or deep-linked service or system-user page no longer exists, the dashboard falls back to the parent list page instead of leaving the operator on a hard 404 after login.
 - Dashboard page bodies are rendered from `templates/pages/*.html`, while `static/app.js` now boots a set of smaller `static/js/*` frontend modules after injection.
 - Auth screens and dashboard actions now use a shared toast notification layer for success and error feedback in addition to any inline status text.
 - All privileged pages are checked on the server before content is returned.

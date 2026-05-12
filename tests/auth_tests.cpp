@@ -1,5 +1,11 @@
 #include "auth.h"
+#include "codex_chat.h"
+#include "deploy_runner.h"
 #include "http.h"
+#include "nginx_store.h"
+#include "service_store.h"
+#include "system_admin.h"
+#include "terminal_manager.h"
 #include "totp.h"
 #include "user_store.h"
 
@@ -76,6 +82,39 @@ int main() {
     auto form = cuddle::parse_form("username=admin&password=VeryStrong%21Pass123");
     assert(form["username"] == "admin");
     assert(form["password"] == "VeryStrong!Pass123");
+    assert(cuddle::normalize_request_path("/login?username=admin&password=secret") == "/login");
+    assert(cuddle::normalize_request_path("/dashboard?page=services") == "/dashboard");
+    assert(cuddle::normalize_request_path("/api/services/nginx.service/page") == "/api/services/nginx.service/page");
+
+    cuddle::ServiceStore service_store("tmp-test-data/services.db");
+    assert(service_store.load());
+    cuddle::NginxStore nginx_store("tmp-test-data/nginx.db", "tmp-test-data/nginx-available", "tmp-test-data/nginx-enabled");
+    assert(nginx_store.load());
+    cuddle::SystemAdmin system_admin("/etc/passwd", "/etc/group", "/etc/shadow");
+    cuddle::TerminalManager terminal_manager;
+    cuddle::CodexProjectStore codex_projects("tmp-test-data/codex-projects.db");
+    assert(codex_projects.load());
+    cuddle::CodexConversationManager codex_conversations(codex_projects, "tmp-test-data/codex-conversations.db");
+    assert(codex_conversations.load());
+    cuddle::SessionStore app_sessions;
+    cuddle::App app(store,
+                    service_store,
+                    nginx_store,
+                    system_admin,
+                    terminal_manager,
+                    codex_projects,
+                    codex_conversations,
+                    app_sessions);
+    const cuddle::HttpRequest login_with_query{
+        "GET",
+        "/login",
+        "username=admin&password=secret",
+        {},
+        ""
+    };
+    const auto login_response = app.handle(login_with_query);
+    assert(login_response.status == 302);
+    assert(login_response.headers.at("Location") == "/login");
 
     cuddle::SessionStore sessions;
     auto session_token = sessions.create("admin", true);

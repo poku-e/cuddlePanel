@@ -2,18 +2,60 @@ import {postForm, requestJson} from "./core/api.js";
 import {escapeHtml} from "./core/dom.js";
 import {showErrorToast, showSuccessToast} from "./core/toast.js";
 
+function currentDashboardHash() {
+    return window.location.hash.startsWith("#page=") ? window.location.hash : "";
+}
+
+function scrubLoginUrl() {
+    if (document.body?.dataset.view !== "login") {
+        return;
+    }
+    const url = new URL(window.location.href);
+    let changed = false;
+    ["username", "password"].forEach((key) => {
+        if (url.searchParams.has(key)) {
+            url.searchParams.delete(key);
+            changed = true;
+        }
+    });
+    if (!changed) {
+        return;
+    }
+    const next = `${url.pathname}${url.search}${currentDashboardHash()}`;
+    window.history.replaceState({}, "", next);
+}
+
+function postAuthDestination(nextPath) {
+    const hash = currentDashboardHash();
+    if (!hash) {
+        return nextPath;
+    }
+    if (nextPath === "/dashboard") {
+        return `/dashboard${hash}`;
+    }
+    if (nextPath === "/2fa/setup") {
+        try {
+            window.sessionStorage.setItem("cp_post_auth_hash", hash);
+        } catch (error) {
+            // Best-effort only; login flow still works without preserved page state.
+        }
+    }
+    return nextPath;
+}
+
 export function bindAuthForm(formId, url, nextPath) {
     const form = document.getElementById(formId);
     if (!form) {
         return;
     }
+    scrubLoginUrl();
     const message = document.getElementById("message");
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         message.textContent = "";
         try {
             const payload = await postForm(url, form);
-            window.location.assign(payload.next || nextPath);
+            window.location.assign(postAuthDestination(payload.next || nextPath));
         } catch (error) {
             message.textContent = error.message;
             showErrorToast(error.message);
@@ -105,7 +147,19 @@ export async function bootTotpSetup() {
         message.textContent = "";
         try {
             const payload = await postForm("/api/2fa/confirm", form);
-            window.location.assign(payload.next || "/dashboard");
+            let next = payload.next || "/dashboard";
+            if (next === "/dashboard") {
+                try {
+                    const pendingHash = window.sessionStorage.getItem("cp_post_auth_hash") || "";
+                    if (pendingHash.startsWith("#page=")) {
+                        next = `/dashboard${pendingHash}`;
+                    }
+                    window.sessionStorage.removeItem("cp_post_auth_hash");
+                } catch (error) {
+                    // Ignore storage failures and continue with the safe default destination.
+                }
+            }
+            window.location.assign(next);
         } catch (error) {
             message.textContent = error.message;
             showErrorToast(error.message);

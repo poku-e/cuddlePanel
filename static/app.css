@@ -675,6 +675,63 @@ body {
     line-height: 1.35;
 }
 
+.service-manage-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.75fr) minmax(260px, 0.75fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.service-manage-main {
+    min-width: 0;
+}
+
+.service-manage-aside {
+    display: grid;
+    gap: 12px;
+}
+
+.service-manage-aside-card {
+    border: 1px solid #dbe2f0;
+    border-radius: 14px;
+    background: #f8fafc;
+    padding: 14px;
+}
+
+.service-manage-overview {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.service-manage-overview-card {
+    border: 1px solid #dbe2f0;
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(247, 250, 252, 0.95) 100%);
+    padding: 14px;
+}
+
+.service-manage-overview-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #667085;
+}
+
+.service-manage-overview-value {
+    margin-top: 6px;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #101828;
+}
+
+.service-manage-overview-note {
+    margin-top: 4px;
+    font-size: 0.84rem;
+    color: #667085;
+}
+
 .service-manage-grid {
     display: grid;
     gap: 18px;
@@ -688,7 +745,72 @@ body {
 }
 
 .service-manage-section-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
     margin-bottom: 14px;
+}
+
+.service-manage-section-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: #667085;
+}
+
+.service-manage-section-meta span {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 9px;
+    border: 1px solid #dbe2f0;
+    border-radius: 999px;
+    background: #fff;
+}
+
+.service-manage-accordion {
+    display: grid;
+    gap: 10px;
+}
+
+.service-manage-accordion-item {
+    border: 1px solid #dbe2f0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.service-manage-accordion-button {
+    background: #fff;
+    color: #101828;
+    box-shadow: none;
+}
+
+.service-manage-accordion-button:not(.collapsed) {
+    background: #eef4ff;
+    color: #0f172a;
+    box-shadow: none;
+}
+
+.service-manage-accordion-button:focus {
+    box-shadow: none;
+}
+
+.service-manage-accordion-title {
+    display: block;
+    font-weight: 600;
+}
+
+.service-manage-accordion-note {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.84rem;
+    color: #667085;
+}
+
+.service-manage-accordion .accordion-body {
+    background: #fbfcfe;
 }
 
 .service-manage-fields {
@@ -1005,6 +1127,19 @@ body {
 
     .services-results-meta {
         white-space: normal;
+    }
+
+    .service-manage-layout,
+    .service-manage-overview {
+        grid-template-columns: 1fr;
+    }
+
+    .service-manage-section-head {
+        flex-direction: column;
+    }
+
+    .service-manage-section-meta {
+        justify-content: flex-start;
     }
 
     .service-manage-fields {

@@ -156,6 +156,18 @@ export async function loadPage(page) {
         window.location.assign("/login");
         return;
     }
+    if (!response.ok && response.status === 404) {
+        if (serviceUnit) {
+            showErrorToast(`Service ${serviceUnit} was not found. Opening the Services list instead.`);
+            await loadPage("services");
+            return;
+        }
+        if (systemUsername) {
+            showErrorToast(`System user ${systemUsername} was not found. Opening the System page instead.`);
+            await loadPage("system");
+            return;
+        }
+    }
     content.innerHTML = response.ok
         ? await response.text()
         : `<div class="alert alert-danger">${failureMessage}</div>`;

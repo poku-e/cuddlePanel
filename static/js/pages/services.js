@@ -10,6 +10,11 @@ const SERVICE_MANAGE_SCHEMA = [
         section: "Unit",
         title: "Unit relationships",
         description: "High-level identity, ordering, dependencies, and start-rate behavior.",
+        groups: [
+            {title: "Identity and docs", description: "Core naming and reference material.", keys: ["Description", "Documentation"]},
+            {title: "Dependencies and order", description: "Boot order, relationships, and failure links.", keys: ["Wants", "Requires", "Requisite", "BindsTo", "PartOf", "Conflicts", "Before", "After", "OnFailure", "OnSuccess"]},
+            {title: "Limits and conditions", description: "Rate limiting and startup checks.", keys: ["StartLimitIntervalSec", "StartLimitBurst", "ConditionPathExists", "ConditionPathIsDirectory", "ConditionUser", "ConditionGroup", "AssertPathExists"]}
+        ],
         fields: [
             {key: "Description", label: "Description", type: "text", placeholder: "Human-friendly summary"},
             {key: "Documentation", label: "Documentation", type: "textarea", placeholder: "https://docs.example.com/service"},
@@ -36,6 +41,14 @@ const SERVICE_MANAGE_SCHEMA = [
         section: "Service",
         title: "Service runtime",
         description: "Execution model, commands, user context, retries, timeouts, environment, and sandboxing.",
+        groups: [
+            {title: "Startup and commands", description: "Primary execution flow and lifecycle hooks.", keys: ["Type", "ExecCondition", "ExecStartPre", "ExecStart", "ExecStartPost", "ExecReload", "ExecStop", "ExecStopPost"]},
+            {title: "Restart and timing", description: "Recovery behavior and watchdog or timeout controls.", keys: ["Restart", "RestartSec", "TimeoutStartSec", "TimeoutStopSec", "TimeoutAbortSec", "WatchdogSec"]},
+            {title: "Identity and environment", description: "User context, working directory, env files, and standard streams.", keys: ["User", "Group", "DynamicUser", "SupplementaryGroups", "WorkingDirectory", "RootDirectory", "Environment", "EnvironmentFile", "PassEnvironment", "UMask", "Nice", "StandardInput", "StandardOutput", "StandardError", "SyslogIdentifier", "PIDFile"]},
+            {title: "Directories and paths", description: "Managed runtime directories and filesystem path allowances.", keys: ["RuntimeDirectory", "StateDirectory", "CacheDirectory", "LogsDirectory", "ConfigurationDirectory", "ReadWritePaths", "ReadOnlyPaths", "InaccessiblePaths", "BindPaths", "BindReadOnlyPaths"]},
+            {title: "Isolation and hardening", description: "Namespace, protection, capabilities, and device restrictions.", keys: ["PrivateTmp", "PrivateDevices", "PrivateNetwork", "PrivateUsers", "ProtectSystem", "ProtectHome", "ProtectKernelTunables", "ProtectKernelModules", "ProtectControlGroups", "ProtectProc", "ProcSubset", "NoNewPrivileges", "CapabilityBoundingSet", "AmbientCapabilities", "DevicePolicy"]},
+            {title: "Resource controls", description: "Kernel resource and cgroup limits.", keys: ["LimitNOFILE", "LimitNPROC", "MemoryMax", "TasksMax", "CPUQuota"]}
+        ],
         fields: [
             {key: "Type", label: "Service Type", type: "select", options: ["simple", "exec", "forking", "oneshot", "dbus", "notify", "notify-reload", "idle"]},
             {key: "ExecCondition", label: "ExecCondition", type: "textarea", placeholder: "/usr/bin/test -f /srv/app/.env"},
@@ -103,6 +116,9 @@ const SERVICE_MANAGE_SCHEMA = [
         section: "Install",
         title: "Install targets",
         description: "Enablement and aliasing directives used by systemctl enable/disable.",
+        groups: [
+            {title: "Targets and aliases", description: "Enablement targets and linked units.", keys: ["WantedBy", "RequiredBy", "Alias", "Also", "DefaultInstance"]}
+        ],
         fields: [
             {key: "WantedBy", label: "Wanted By", type: "textarea", placeholder: "multi-user.target"},
             {key: "RequiredBy", label: "Required By", type: "textarea", placeholder: "app-stack.target"},
@@ -307,6 +323,9 @@ function additionalDirectiveBlock(sectionName, knownKeys) {
 }
 
 function renderField(sectionName, field) {
+    if (!field) {
+        return "";
+    }
     const inputId = `service-field-${sectionName}-${field.key}`;
     const escapedId = escapeHtml(inputId);
     const escapedLabel = escapeHtml(field.label);
@@ -340,26 +359,97 @@ function renderField(sectionName, field) {
     `;
 }
 
+function sectionFieldMap(sectionConfig) {
+    return new Map(sectionConfig.fields.map((field) => [field.key, field]));
+}
+
+function sectionFieldCount(sectionConfig) {
+    return sectionConfig.fields.length;
+}
+
+function sectionFilledCount(sectionConfig) {
+    return sectionConfig.fields.filter((field) => directiveValue(sectionConfig.section, field.key).trim()).length;
+}
+
+function renderManageOverview() {
+    const host = document.getElementById("serviceManageOverview");
+    if (!host || !serviceUnitConfigCache) {
+        return;
+    }
+    host.innerHTML = SERVICE_MANAGE_SCHEMA.map((sectionConfig) => {
+        const groupCount = sectionConfig.groups.length;
+        const filledCount = sectionFilledCount(sectionConfig);
+        return `
+            <article class="service-manage-overview-card">
+                <div class="service-manage-overview-label">${escapeHtml(sectionConfig.section)}</div>
+                <div class="service-manage-overview-value">${filledCount}/${sectionFieldCount(sectionConfig)}</div>
+                <div class="service-manage-overview-note">${groupCount} accordion ${groupCount === 1 ? "group" : "groups"} in ${escapeHtml(sectionConfig.title.toLowerCase())}</div>
+            </article>
+        `;
+    }).join("");
+}
+
 function renderManageSections() {
     const host = document.getElementById("serviceManageSections");
     if (!host || !serviceUnitConfigCache) {
         return;
     }
+    renderManageOverview();
     host.innerHTML = SERVICE_MANAGE_SCHEMA.map((sectionConfig) => {
+        const fieldMap = sectionFieldMap(sectionConfig);
         const knownKeys = new Set(sectionConfig.fields.map((field) => field.key));
         const extraLines = additionalDirectiveBlock(sectionConfig.section, knownKeys);
+        const accordionId = `service-manage-accordion-${sectionConfig.section.toLowerCase()}`;
         return `
             <section class="service-manage-section">
                 <div class="service-manage-section-head">
-                    <h4 class="h6 mb-1">${escapeHtml(sectionConfig.title)}</h4>
-                    <div class="small">${escapeHtml(sectionConfig.description)}</div>
+                    <div>
+                        <h4 class="h6 mb-1">${escapeHtml(sectionConfig.title)}</h4>
+                        <div class="small">${escapeHtml(sectionConfig.description)}</div>
+                    </div>
+                    <div class="service-manage-section-meta">
+                        <span>${sectionFilledCount(sectionConfig)} populated</span>
+                        <span>${sectionFieldCount(sectionConfig)} fields</span>
+                    </div>
                 </div>
-                <div class="service-manage-fields">
-                    ${sectionConfig.fields.map((field) => renderField(sectionConfig.section, field)).join("")}
-                    <label class="cp-label service-manage-field service-manage-field-wide">
-                        <span>Additional ${escapeHtml(sectionConfig.section)} directives</span>
-                        <textarea class="cp-input cp-textarea service-manage-textarea" data-service-extra="${escapeHtml(sectionConfig.section)}" placeholder="Directive=Value&#10;AnotherDirective=Value"${canManageDetail() ? "" : " disabled"}>${escapeHtml(extraLines)}</textarea>
-                    </label>
+                <div class="accordion service-manage-accordion" id="${escapeHtml(accordionId)}">
+                    ${sectionConfig.groups.map((group, index) => `
+                        <div class="accordion-item service-manage-accordion-item">
+                            <h5 class="accordion-header">
+                                <button class="accordion-button ${index === 0 ? "" : "collapsed"} service-manage-accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#${escapeHtml(`${accordionId}-${index}`)}" aria-expanded="${index === 0 ? "true" : "false"}" aria-controls="${escapeHtml(`${accordionId}-${index}`)}">
+                                    <span>
+                                        <span class="service-manage-accordion-title">${escapeHtml(group.title)}</span>
+                                        <span class="service-manage-accordion-note">${escapeHtml(group.description)}</span>
+                                    </span>
+                                </button>
+                            </h5>
+                            <div id="${escapeHtml(`${accordionId}-${index}`)}" class="accordion-collapse collapse ${index === 0 ? "show" : ""}" data-bs-parent="#${escapeHtml(accordionId)}">
+                                <div class="accordion-body">
+                                    <div class="service-manage-fields">
+                                        ${group.keys.map((key) => renderField(sectionConfig.section, fieldMap.get(key))).join("")}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join("")}
+                    <div class="accordion-item service-manage-accordion-item">
+                        <h5 class="accordion-header">
+                            <button class="accordion-button collapsed service-manage-accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#${escapeHtml(`${accordionId}-extra`)}" aria-expanded="false" aria-controls="${escapeHtml(`${accordionId}-extra`)}">
+                                <span>
+                                    <span class="service-manage-accordion-title">Additional directives</span>
+                                    <span class="service-manage-accordion-note">Use raw `Key=Value` lines for directives not covered above.</span>
+                                </span>
+                            </button>
+                        </h5>
+                        <div id="${escapeHtml(`${accordionId}-extra`)}" class="accordion-collapse collapse" data-bs-parent="#${escapeHtml(accordionId)}">
+                            <div class="accordion-body">
+                                <label class="cp-label service-manage-field service-manage-field-wide">
+                                    <span>Additional ${escapeHtml(sectionConfig.section)} directives</span>
+                                    <textarea class="cp-input cp-textarea service-manage-textarea" data-service-extra="${escapeHtml(sectionConfig.section)}" placeholder="Directive=Value&#10;AnotherDirective=Value"${canManageDetail() ? "" : " disabled"}>${escapeHtml(extraLines)}</textarea>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
         `;

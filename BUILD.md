@@ -336,6 +336,19 @@
 
 - Added `Manage Service` and `Advanced` tabs to the per-service detail page so operators can either edit a structured set of unit directives or work directly on the discovered service file.
 - Added constrained service-unit file APIs that only edit discovered fragment paths under approved systemd roots, write atomically, and run `systemctl daemon-reload` after saving.
+- Reworked the `Manage Service` tab into an accordion-driven editor with summary cards and a cleaner split layout so the large directive set is easier to scan and operate.
+
+## Login And Deep-Link Hardening
+
+- Stripped accidental `username` and `password` query params from the login URL before submission while still preserving safe dashboard hash navigation after auth and TOTP setup.
+- Normalized request paths server-side so query strings no longer break route matching for pages like `/login` or `/dashboard`.
+- Added a server-side redirect for `GET /login?...` so the browser is pushed back to a clean `/login` URL before rendering the login page.
+- Added fallback routing so stale `service:` and `system-user:` deep links land on their parent list pages instead of leaving operators on a `not found` error right after login.
+
+## Agent Debugging Guidance
+
+- Added a dedicated Chinese debugging section to `AGENTS.md` that requires exact reproduction, failing-layer identification, root-cause-only fixes, regression coverage, and explicit verification for bug work.
+- Included a reusable Chinese prompt template in `AGENTS.md` so future debugging requests push the agent toward proof-first diagnosis instead of speculative patches.
 
 ## Codex CLI Flag Compatibility
 
