@@ -47,7 +47,18 @@
                     <div class="col-12 col-lg-6">
                         <div class="border rounded p-3 h-100">
                             <h4 class="h6">Banned IPs</h4>
-                            <div id="fail2banBannedIps" class="small mb-3">No jail selected.</div>
+                            <div class="cp-table-wrap fail2ban-ip-table-wrap mb-3">
+                                <table class="table table-sm table-hover align-middle cp-table mb-0 fail2ban-ip-table">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">IP address</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fail2banBannedIps">
+                                        <tr><td class="small">No jail selected.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
                             <form id="fail2banBanForm" class="vstack gap-2">
                                 <label class="cp-label mb-0">Ban IP<input class="cp-input" name="ip" maxlength="80" placeholder="203.0.113.5"{{disabled_attr}}></label>
                                 <div class="d-flex gap-2">

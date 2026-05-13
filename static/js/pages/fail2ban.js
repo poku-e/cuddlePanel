@@ -22,7 +22,7 @@ function runningBadge(running) {
         : '<span class="badge text-bg-secondary">stopped</span>';
 }
 
-function setListHtml(hostId, items, emptyMessage, buttonClass) {
+function setIgnoredListHtml(hostId, items, emptyMessage, buttonClass) {
     const host = document.getElementById(hostId);
     if (!items.length) {
         host.textContent = emptyMessage;
@@ -37,6 +37,20 @@ function setListHtml(hostId, items, emptyMessage, buttonClass) {
     host.innerHTML = items.map((ip) =>
         `<button class="btn btn-outline-secondary btn-sm ${buttonClass}" data-ip="${escapeHtml(ip)}" type="button">${escapeHtml(ip)}</button>`
     ).join(" ");
+}
+
+function setBannedTableHtml(items, emptyMessage) {
+    const host = document.getElementById("fail2banBannedIps");
+    if (!items.length) {
+        host.innerHTML = `<tr><td class="small">${escapeHtml(emptyMessage)}</td></tr>`;
+        return;
+    }
+
+    host.innerHTML = items.map((ip) => `
+        <tr class="fail2ban-banned-row" data-ip="${escapeHtml(ip)}" tabindex="0" role="button" aria-label="Use IP ${escapeHtml(ip)}">
+            <td><code>${escapeHtml(ip)}</code></td>
+        </tr>
+    `).join("");
 }
 
 function renderJails() {
@@ -119,8 +133,8 @@ async function refreshJailDetail() {
     const detailMeta = document.getElementById("fail2banDetailMeta");
     if (!selectedJail) {
         detailMeta.textContent = "No jail selected.";
-        setListHtml("fail2banBannedIps", [], "No jail selected.");
-        setListHtml("fail2banIgnoredIps", [], "No jail selected.");
+        setBannedTableHtml([], "No jail selected.");
+        setIgnoredListHtml("fail2banIgnoredIps", [], "No jail selected.");
         return;
     }
 
@@ -128,23 +142,31 @@ async function refreshJailDetail() {
         const payload = await requestJson(`/api/fail2ban/jails/${encodeURIComponent(selectedJail)}`);
         const jail = payload.jail;
         detailMeta.textContent = `${jail.name}: failed ${jail.currentlyFailed}, banned ${jail.currentlyBanned}`;
-        setListHtml("fail2banBannedIps", jail.bannedIps || [], "No banned IPs.", "fail2ban-banned-chip");
-        setListHtml("fail2banIgnoredIps", jail.ignoredIps || [], "No ignored IPs.", "fail2ban-ignored-chip");
-        wireIpChips();
+        setBannedTableHtml(jail.bannedIps || [], "No banned IPs.");
+        setIgnoredListHtml("fail2banIgnoredIps", jail.ignoredIps || [], "No ignored IPs.", "fail2ban-ignored-chip");
+        wireIpSelectors();
     } catch (error) {
         detailMeta.textContent = error.message;
-        setListHtml("fail2banBannedIps", [], "Unable to load banned IPs.");
-        setListHtml("fail2banIgnoredIps", [], "Unable to load ignored IPs.");
+        setBannedTableHtml([], "Unable to load banned IPs.");
+        setIgnoredListHtml("fail2banIgnoredIps", [], "Unable to load ignored IPs.");
     }
 }
 
-function wireIpChips() {
+function wireIpSelectors() {
     const banInput = document.querySelector("#fail2banBanForm [name='ip']");
     const ignoreInput = document.querySelector("#fail2banIgnoreForm [name='ip']");
 
-    document.querySelectorAll(".fail2ban-banned-chip").forEach((button) => {
-        button.addEventListener("click", () => {
-            banInput.value = button.dataset.ip;
+    document.querySelectorAll(".fail2ban-banned-row").forEach((row) => {
+        const selectBannedIp = () => {
+            banInput.value = row.dataset.ip;
+        };
+
+        row.addEventListener("click", selectBannedIp);
+        row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                selectBannedIp();
+            }
         });
     });
 

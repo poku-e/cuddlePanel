@@ -17,6 +17,7 @@ Workflow:
 - The page opens with two tabs: Jails and Logs.
 - Jails tab loads the active fail2ban jail list and summary counters (currently failed and currently banned).
 - Selecting a jail loads detail data for that jail, including banned IPs and ignore IPs.
+- The banned IP list is shown in a fixed-height scrollable table; selecting a row copies that IP into the ban/unban input.
 - Operators can ban and unban specific IPs in the selected jail.
 - Operators can add or remove ignore IP entries in the selected jail.
 - Operators can run jail-level start, stop, and reload actions, plus global reload and restart actions.

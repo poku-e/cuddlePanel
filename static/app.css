@@ -1039,6 +1039,30 @@ body {
     gap: 14px;
 }
 
+.fail2ban-ip-table-wrap {
+    max-height: 220px;
+    overflow: auto;
+}
+
+.fail2ban-ip-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.fail2ban-banned-row {
+    cursor: pointer;
+}
+
+.fail2ban-banned-row:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.18);
+    outline-offset: -3px;
+}
+
+.fail2ban-banned-row:active td {
+    background: #eef3ff;
+}
+
 .deploy-cloudflare-fields {
     display: grid;
     gap: 14px;

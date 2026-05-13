@@ -259,6 +259,16 @@
 - Updated the shared AJAX API helpers to surface backend `output` messages on non-2xx responses instead of collapsing system-action failures into the generic `Request failed`.
 - This keeps host-account delete failures actionable in the dashboard by showing the underlying `userdel` reason directly in the modal and toast flow.
 
+## Fail2ban Banned IP Table Selection
+
+- Reworked the Fail2ban `Banned IPs` card UI from button chips to a fixed-height, scrollable table with one IP per row.
+- Added row click and keyboard (`Enter`/`Space`) selection so operators can populate the ban/unban IP input directly from the selected banned row.
+- Kept ignore IP interactions unchanged while preserving the existing jail-detail fetch and refresh flow.
+
+## HTTP Fail2banStore Include Fix
+
+- Fixed a compile break by adding the missing `fail2ban_store.h` include in `include/http.h`, where `RequestContext` and `App` store `Fail2banStore` references.
+
 ## Health-First Dashboard Home
 
 - Replaced the dashboard home body with a focused `What needs attention now.` view that renders red, yellow, and green health cards with `Fix it` actions.

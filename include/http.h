@@ -2,6 +2,7 @@
 
 #include "deploy_runner.h"
 #include "codex_chat.h"
+#include "fail2ban_store.h"
 #include "nginx_store.h"
 #include "service_store.h"
 #include "setup.h"
