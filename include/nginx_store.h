@@ -44,7 +44,7 @@ public:
                      const std::string& filename,
                      const std::string& description,
                      const std::string& content);
-    bool set_enabled(const std::string& name, bool enabled);
+    bool set_enabled(const std::string& name, bool enabled, std::string* error = nullptr);
 
     const std::string& available_dir() const;
     const std::string& enabled_dir() const;

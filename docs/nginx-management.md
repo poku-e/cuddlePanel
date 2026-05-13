@@ -41,4 +41,5 @@ Gotchas and debugging:
 - Renaming a filename must preserve the enabled state when possible by moving the symlink target.
 - Legacy `data/nginx.db` rows that only contain `name<TAB>filename` are still loaded; missing descriptions are normalized to empty strings.
 - If a metadata row points to a missing file, it is ignored until the file exists in `sites-available`.
+- Enable/disable filesystem failures (for example read-only filesystems or permission errors) are returned as action output instead of surfacing as internal server errors.
 - Do not let this workflow browse arbitrary nginx directories; stay within the configured available/enabled roots.

@@ -104,7 +104,11 @@ std::string nginx_reload_service() {
 }
 
 bool path_exists_or_link(const std::string& path) {
-    const auto status = std::filesystem::symlink_status(path);
+    std::error_code ec;
+    const auto status = std::filesystem::symlink_status(path, ec);
+    if (ec) {
+        return false;
+    }
     return status.type() != std::filesystem::file_type::not_found;
 }
 
@@ -327,33 +331,55 @@ bool NginxStore::update_site(const std::string& current_name,
     return save();
 }
 
-bool NginxStore::set_enabled(const std::string& name, bool enabled) {
+bool NginxStore::set_enabled(const std::string& name, bool enabled, std::string* error) {
+    auto set_error = [error](const std::string& message) {
+        if (error) {
+            *error = message;
+        }
+    };
+
     std::optional<NginxSiteEntry> entry;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         entry = resolve_site_locked(name);
     }
     if (!entry) {
+        set_error("site not found");
         return false;
     }
 
     auto available_path = site_available_path(entry->filename);
     auto enabled_path = site_enabled_path(entry->filename);
     if (!available_path || !enabled_path || !std::filesystem::exists(*available_path)) {
+        set_error("site file does not exist in sites-available");
         return false;
     }
 
-    std::filesystem::create_directories(enabled_dir_);
+    std::error_code ec;
+    std::filesystem::create_directories(enabled_dir_, ec);
+    if (ec) {
+        set_error("unable to prepare sites-enabled directory: " + ec.message());
+        return false;
+    }
+
     if (enabled) {
         if (path_exists_or_link(*enabled_path)) {
             return true;
         }
-        std::filesystem::create_symlink(std::filesystem::absolute(*available_path), *enabled_path);
+        std::filesystem::create_symlink(std::filesystem::absolute(*available_path), *enabled_path, ec);
+        if (ec) {
+            set_error("unable to enable site: " + ec.message());
+            return false;
+        }
         return true;
     }
 
     if (path_exists_or_link(*enabled_path)) {
-        std::filesystem::remove(*enabled_path);
+        const bool removed = std::filesystem::remove(*enabled_path, ec);
+        if (ec || !removed) {
+            set_error("unable to disable site: " + (ec ? ec.message() : std::string("remove failed")));
+            return false;
+        }
     }
     return true;
 }

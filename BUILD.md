@@ -33,11 +33,12 @@
 
 ## Phase 4 Nginx Management
 
-- Added `docs/nginx-management.md` to define the allowlisted nginx site workflow, directory constraints, and runtime validation rules.
-- Implemented a persisted nginx site registry in `data/nginx.db` plus constrained file writes under configured `sites-available` and `sites-enabled` roots.
-- Added nginx APIs and a dashboard Nginx page for creating/editing site configs, enabling or disabling symlinks, and running config test and reload actions.
-- Hardened dashboard card rendering by escaping dynamic content before injecting user, service, and nginx data into HTML.
-- Added focused nginx tests for filename validation, config persistence, symlink enable/disable behavior, and rename handling.
+
+## Nginx Disable Error Handling
+
+- Hardened nginx enable/disable filesystem operations to use non-throwing error-code paths so filesystem failures no longer bubble up as internal server errors.
+- Updated nginx action responses to surface concrete backend failure reasons (for example read-only filesystem and permission failures).
+- Added a regression test that forces disable-path filesystem removal failure and verifies the operation returns a handled error instead of throwing.
 
 ## Phase 5 Deploy Helper
 

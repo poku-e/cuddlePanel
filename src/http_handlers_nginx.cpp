@@ -65,12 +65,13 @@ HttpResponse handle_nginx_action(const RequestContext& ctx, const std::string& n
     auto form = parse_form(ctx.request.body);
     const std::string action = form["action"];
     NginxActionResult result;
+    std::string store_error;
     if (action == "enable") {
-        result.ok     = ctx.nginx.set_enabled(name, true);
-        result.output = result.ok ? "site enabled" : "unable to enable site";
+        result.ok     = ctx.nginx.set_enabled(name, true, &store_error);
+        result.output = result.ok ? "site enabled" : (store_error.empty() ? "unable to enable site" : store_error);
     } else if (action == "disable") {
-        result.ok     = ctx.nginx.set_enabled(name, false);
-        result.output = result.ok ? "site disabled" : "unable to disable site";
+        result.ok     = ctx.nginx.set_enabled(name, false, &store_error);
+        result.output = result.ok ? "site disabled" : (store_error.empty() ? "unable to disable site" : store_error);
     } else if (action == "test") {
         result = nginx_test_config();
     } else if (action == "reload") {

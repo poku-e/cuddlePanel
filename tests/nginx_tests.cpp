@@ -91,6 +91,15 @@ int main() {
     assert(renamed_site->enabled);
     assert(renamed_site->description == "Imported");
     assert(renamed_site->content == "server { listen 9091; }\n");
+
+    std::filesystem::create_directories("tmp-nginx-discovery/sites-enabled/renamed-discovered.conf");
+    {
+        std::ofstream nested("tmp-nginx-discovery/sites-enabled/renamed-discovered.conf/nested", std::ios::trunc);
+        nested << "x";
+    }
+    std::string disable_error;
+    assert(!discovered_store.set_enabled("renamed-discovered.conf", false, &disable_error));
+    assert(!disable_error.empty());
     std::filesystem::remove_all("tmp-nginx-discovery");
 
     std::cout << "nginx tests passed" << std::endl;
