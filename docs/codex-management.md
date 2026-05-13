@@ -54,5 +54,6 @@ Gotchas and debugging:
 - Because the page now runs interactive Codex sessions, output may contain terminal control sequences from the CLI.
 - If the host Codex CLI is not logged in, the streamed output will usually show the authentication failure directly.
 - Older or different Codex CLI builds may not support `--skip-git-repo-check`; cuddlePanel now probes `codex --help` and only adds the flag when it is actually available.
+- The PTY child normalizes `TERM` away from `dumb` before launching Codex, otherwise newer Codex builds can stop at a startup confirmation prompt and the conversation appears to exit immediately.
 - Session recovery depends on the host Codex CLI session index. If cuddlePanel cannot detect a session id when the conversation starts, the metadata still persists, but restart-time resume may not be available for that specific thread.
 - Codex conversation starts and other runner diagnostics are written to `data/server.log`.

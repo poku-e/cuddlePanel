@@ -16,6 +16,9 @@ body {
 .content-stage {
     position: relative;
     min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
 }
 
 .cp-loading-overlay {
@@ -340,6 +343,7 @@ body {
 
 .content-region {
     padding: 18px 22px 22px;
+    min-height: 0;
 }
 
 .cp-panel {

@@ -59,6 +59,10 @@ int main() {
     write_file(fake_codex,
                "#!/bin/sh\n"
                "set -eu\n"
+               "if [ \"${TERM:-}\" = \"dumb\" ] || [ -z \"${TERM:-}\" ]; then\n"
+               "  printf 'TERM is too limited for interactive Codex\\n' >&2\n"
+               "  exit 2\n"
+               "fi\n"
                "CODEX_HOME_DIR=\"${CODEX_HOME:-$HOME/.codex}\"\n"
                "mkdir -p \"$CODEX_HOME_DIR\"\n"
                "SESSION_INDEX=\"$CODEX_HOME_DIR/session_index.jsonl\"\n"
@@ -97,6 +101,7 @@ int main() {
     setenv("CUDDLEPANEL_CODEX_BIN", fake_codex.c_str(), 1);
     setenv("CUDDLEPANEL_CODEX_WORKDIR", temp_root.c_str(), 1);
     setenv("CODEX_HOME", (temp_root / "codex-home").c_str(), 1);
+    setenv("TERM", "dumb", 1);
 
     cuddle::CodexProjectStore projects((temp_root / "projects.db").string());
     assert(projects.load());

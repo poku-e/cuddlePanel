@@ -82,6 +82,13 @@ bool valid_message(const std::string& value) {
     return !value.empty() && value.size() <= 16000 && value.find('\0') == std::string::npos;
 }
 
+void normalize_codex_term_env() {
+    const char* term = std::getenv("TERM");
+    if (term == nullptr || term[0] == '\0' || std::strcmp(term, "dumb") == 0) {
+        setenv("TERM", "xterm-256color", 1);
+    }
+}
+
 std::string derive_project_name(const std::string& root) {
     const auto path = std::filesystem::path(root);
     const auto name = path.filename().string();
@@ -498,6 +505,7 @@ std::optional<std::string> CodexConversationManager::spawn_session_locked(const 
         if (chdir(conversation.working_directory.c_str()) != 0) {
             _exit(126);
         }
+        normalize_codex_term_env();
         std::vector<char*> argv;
         argv.reserve(args.size() + 1);
         for (const auto& arg : args) {

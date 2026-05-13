@@ -33,3 +33,5 @@ coverage/
 .env
 data/users.db
 data/codex_conversations.db
+data/
+logs/

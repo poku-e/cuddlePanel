@@ -372,9 +372,17 @@
 - Added a shared full-screen dashboard loading overlay with a dark translucent backdrop, animated spinner, and loading message while AJAX page fetches and page initializers are still running.
 - Hooked the overlay into both initial dashboard boot and later `loadPage()` navigation so page transitions no longer flash plain `Loading...` text.
 - Scoped the overlay to the main content region so the sidebar, header, and footer remain visible while page content is loading.
+- Adjusted the overlay scope so it now covers the main content region and footer together, while still leaving the sidebar and header visible.
+- Restored the footer’s bottom-pinned layout by making the new content-stage wrapper manage its own `content + footer` grid rows.
 
 ## Codex CLI Flag Compatibility
 
 - Hardened Codex conversation startup and resume so cuddlePanel only passes `--skip-git-repo-check` when the configured host Codex CLI advertises support for that flag.
 - Expanded the Codex chat test fixture to mimic CLIs that reject the flag, covering the compatibility path behind the dashboard Codex page.
 - Updated the Codex management doc to document the runtime probe and the debugging clue for hosts running older or different Codex CLI builds.
+
+## Codex TERM Normalization
+
+- Hardened interactive Codex conversation startup so the PTY child forces a usable `TERM` when the server environment inherits `TERM=dumb`, preventing the CLI from stopping at a startup confirmation prompt.
+- Expanded the Codex chat regression test to simulate a CLI that exits when launched under `TERM=dumb`, proving the dashboard conversation path now repairs that environment before exec.
+- Updated the Codex management doc with the new debugging clue for immediate-exit conversations caused by limited terminal environments.
