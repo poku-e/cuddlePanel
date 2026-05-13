@@ -20,6 +20,7 @@ cuddlePanel is an internal server administration panel built in C++ with a Boots
 - Project-scoped Codex conversations with maintenance-mode fallback, streamed output, in-thread approvals, transcript export, and restart-time resume
 - Native stack-aware deploy workflow for Node.js, Golang, Streamlit, and Python + Vite, with optional Cloudflare DNS updates
 - PTY-backed browser terminal with fresh OTP verification
+- Health-first dashboard home that highlights immediate issues using red/yellow/green attention cards with one-click fix actions
 - Dashboard page state that survives refreshes, plus safer destructive-action prompts on admin workflows
 
 ## Stack

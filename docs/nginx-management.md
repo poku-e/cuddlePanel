@@ -39,4 +39,5 @@ Hidden dependencies and configuration:
 Gotchas and debugging:
 - A saved config file can still fail `nginx -t`; surface command output so operators can fix syntax errors quickly.
 - Renaming a filename must preserve the enabled state when possible by moving the symlink target.
+- Legacy `data/nginx.db` rows that only contain `name<TAB>filename` are still loaded; missing descriptions are normalized to empty strings.
 - Do not let this workflow browse arbitrary nginx directories; stay within the configured available/enabled roots.

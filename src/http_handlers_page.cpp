@@ -8,6 +8,21 @@
 namespace cuddle {
 namespace {
 
+std::string dashboard_health_item(const std::string& id,
+                                  const std::string& severity,
+                                  const std::string& title,
+                                  const std::string& detail,
+                                  bool can_autofix) {
+    std::ostringstream out;
+    out << "{\"id\":\"" << json_escape(id)
+        << "\",\"severity\":\"" << json_escape(severity)
+        << "\",\"title\":\"" << json_escape(title)
+        << "\",\"detail\":\"" << json_escape(detail)
+        << "\",\"canAutoFix\":" << (can_autofix ? "true" : "false")
+        << "}";
+    return out.str();
+}
+
 std::string page_shell(const std::string& title, const std::string& body) {
     return "<section class=\"cp-panel\"><h1>" + html_escape(title) + "</h1>" + body + "</section>";
 }
@@ -149,6 +164,106 @@ HttpResponse handle_service_page(const RequestContext& ctx, const std::string& u
         {"selected_name",       html_escape(service->name)}
     });
     return response;
+}
+
+HttpResponse handle_dashboard_health(const RequestContext& ctx, const std::string&) {
+    if (auto err = ctx.require_permission("dashboard", PermissionLevel::View)) return *err;
+
+    const bool can_manage_nginx = ctx.users.has_permission(*ctx.username, "nginx", PermissionLevel::Manage);
+
+    std::vector<std::string> items;
+
+    const NginxActionResult nginx_check = nginx_test_config();
+    if (nginx_check.ok) {
+        items.push_back(dashboard_health_item(
+            "nginx-config",
+            "green",
+            "Nginx config is healthy",
+            nginx_check.output,
+            can_manage_nginx));
+    } else {
+        items.push_back(dashboard_health_item(
+            "nginx-config",
+            "red",
+            "Nginx config invalid",
+            nginx_check.output,
+            can_manage_nginx));
+    }
+
+    size_t site_count = 0;
+    size_t enabled_count = 0;
+    for (const auto& site : ctx.nginx.sites()) {
+        auto record = ctx.nginx.read_site(site.name);
+        if (!record) {
+            continue;
+        }
+        site_count += 1;
+        if (record->enabled) {
+            enabled_count += 1;
+        }
+    }
+
+    if (site_count == 0) {
+        items.push_back(dashboard_health_item(
+            "nginx-sites",
+            "yellow",
+            "No nginx sites registered",
+            "Add a site to avoid deploy-time routing issues.",
+            false));
+    } else if (enabled_count == 0) {
+        items.push_back(dashboard_health_item(
+            "nginx-sites",
+            "yellow",
+            "Nginx has no enabled site",
+            "All registered nginx sites are currently disabled.",
+            false));
+    } else {
+        std::ostringstream detail;
+        detail << enabled_count << " enabled of " << site_count << " registered site";
+        if (site_count != 1) {
+            detail << "s";
+        }
+        detail << ".";
+        items.push_back(dashboard_health_item(
+            "nginx-sites",
+            "green",
+            "Nginx site coverage looks good",
+            detail.str(),
+            false));
+    }
+
+    std::ostringstream response_body;
+    response_body << "{\"items\":[";
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (i > 0) {
+            response_body << ",";
+        }
+        response_body << items[i];
+    }
+    response_body << "]}";
+    return json_response(200, response_body.str());
+}
+
+HttpResponse handle_dashboard_nginx_autofix(const RequestContext& ctx, const std::string&) {
+    if (auto err = ctx.require_permission("dashboard", PermissionLevel::View)) return *err;
+    if (!ctx.users.has_permission(*ctx.username, "nginx", PermissionLevel::Manage)) {
+        return json_response(403, "{\"error\":\"permission denied\"}");
+    }
+
+    const NginxActionResult test_result = nginx_test_config();
+    if (!test_result.ok) {
+        std::ostringstream out;
+        out << "{\"error\":\"auto-fix could not repair nginx config\",\"output\":\""
+            << json_escape(test_result.output)
+            << "\"}";
+        return json_response(400, out.str());
+    }
+
+    const NginxActionResult reload_result = nginx_reload();
+    std::ostringstream out;
+    out << "{\"ok\":" << (reload_result.ok ? "true" : "false")
+        << ",\"output\":\"" << json_escape(reload_result.output) << "\"}";
+    return json_response(reload_result.ok ? 200 : 400, out.str());
 }
 
 } // namespace cuddle

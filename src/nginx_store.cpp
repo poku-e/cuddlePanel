@@ -126,10 +126,10 @@ bool NginxStore::load() {
     std::string line;
     while (std::getline(file, line)) {
         auto parts = split(line, '\t');
-        if (parts.size() != 3) {
+        if (parts.size() != 2 && parts.size() != 3) {
             continue;
         }
-        const std::string description = normalize_nginx_description(parts[2]);
+        const std::string description = normalize_nginx_description(parts.size() == 3 ? parts[2] : "");
         if (!valid_nginx_site_name(parts[0]) || !valid_nginx_filename(parts[1]) || !valid_nginx_description(description)) {
             continue;
         }

@@ -15,6 +15,8 @@ Routes and access:
 - `POST /api/logout`: requires a valid session.
 - `GET /dashboard`: requires a session.
 - `GET /api/page/<page>`: requires a session and page permission.
+- `GET /api/dashboard/health`: requires `dashboard:view`.
+- `POST /api/dashboard/health/nginx/auto-fix`: requires `dashboard:view` and `nginx:manage`.
 - `GET /api/users`: requires `users:view`.
 - `POST /api/users`: requires `users:manage`.
 - `POST /api/users/<username>/permissions`: requires `users:manage`.
@@ -72,6 +74,8 @@ Workflow:
 - HTTP routing now ignores URL query strings when matching page paths, and `GET /login?...` is actively redirected to a clean `/login` URL so leaked credential-style query params are removed before the login page is served.
 - If a remembered or deep-linked service or system-user page no longer exists, the dashboard falls back to the parent list page instead of leaving the operator on a hard 404 after login.
 - Dashboard page bodies are rendered from `templates/pages/*.html`, while `static/app.js` now boots a set of smaller `static/js/*` frontend modules after injection.
+- The dashboard home now renders a health-first `What needs attention now.` surface with red, yellow, and green cards backed by `/api/dashboard/health`.
+- Each health card includes `Fix it` actions: nginx health cards can attempt `Auto-fix` via `/api/dashboard/health/nginx/auto-fix` and always provide `Open guided repair` navigation to the nginx page.
 - Dashboard page loads now show a shared loading overlay with a spinner and status message over the main content region and footer while AJAX page fetches and page initializers are still running.
 - Auth screens and dashboard actions now use a shared toast notification layer for success and error feedback in addition to any inline status text.
 - All privileged pages are checked on the server before content is returned.

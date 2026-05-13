@@ -8,8 +8,10 @@ import {initNginxPage} from "./pages/nginx.js";
 import {initDeployPage} from "./pages/deploy.js";
 import {initCodexPage} from "./pages/codex.js";
 import {initTerminalPage, setTerminalReloader} from "./pages/terminal.js";
+import {initDashboardPage} from "./pages/dashboard_home.js";
 
 const pageInitializers = new Map([
+    ["dashboard", initDashboardPage],
     ["users", initUsersPage],
     ["services", initServicesPage],
     ["system", initSystemPage],

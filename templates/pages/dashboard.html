@@ -1,8 +1,24 @@
-<div class="row g-3">
-    <div class="col-md-4">
-        <div class="metric">Authenticated</div>
+<div id="dashboardHealthState" class="d-grid gap-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h2 class="h5 mb-0">What needs attention now.</h2>
+        <button id="refreshDashboardHealthButton" type="button" class="btn btn-sm btn-outline-secondary">Refresh</button>
     </div>
-    <div class="col-md-4">
-        <div class="metric">Server controls locked behind manage checks</div>
+    <div id="dashboardHealthMessage" class="small"></div>
+    <div id="dashboardHealthCards" class="row g-3" aria-live="polite"></div>
+    <template id="dashboardHealthCardTemplate">
+        <div class="col-12 col-lg-6">
+            <article class="cp-health-card" data-severity="green">
+                <div class="cp-health-card-badge">Green</div>
+                <h3 class="h6 mb-2"></h3>
+                <p class="small mb-3"></p>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm btn-danger" data-action="auto-fix">Auto-fix</button>
+                    <button type="button" class="btn btn-sm btn-outline-dark" data-action="guided-repair">Open guided repair</button>
+                </div>
+            </article>
+        </div>
+    </template>
+    <div id="dashboardNoAttention" class="alert alert-success mb-0" hidden>
+        No urgent issues detected right now.
     </div>
 </div>

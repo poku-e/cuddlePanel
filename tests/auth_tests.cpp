@@ -116,6 +116,35 @@ int main() {
     assert(login_response.status == 302);
     assert(login_response.headers.at("Location") == "/login");
 
+    const auto admin_token = app_sessions.create("admin", false);
+    const cuddle::HttpRequest dashboard_health_request{
+        "GET",
+        "/api/dashboard/health",
+        "",
+        {{"cookie", "cp_session=" + admin_token}},
+        ""
+    };
+    const auto dashboard_health_response = app.handle(dashboard_health_request);
+    assert(dashboard_health_response.status == 200);
+    assert(dashboard_health_response.body.find("\"items\":") != std::string::npos);
+
+    assert(store.create_user("viewer1",
+                             "ViewerStrong!Pass123",
+                             "operator",
+                             {{"dashboard", cuddle::PermissionLevel::View},
+                              {"nginx", cuddle::PermissionLevel::View}}));
+    assert(store.confirm_totp("viewer1"));
+    const auto viewer_token = app_sessions.create("viewer1", false);
+    const cuddle::HttpRequest dashboard_autofix_request{
+        "POST",
+        "/api/dashboard/health/nginx/auto-fix",
+        "",
+        {{"cookie", "cp_session=" + viewer_token}},
+        ""
+    };
+    const auto dashboard_autofix_response = app.handle(dashboard_autofix_request);
+    assert(dashboard_autofix_response.status == 403);
+
     cuddle::SessionStore sessions;
     auto session_token = sessions.create("admin", true);
     assert(sessions.pending_totp_setup(session_token));

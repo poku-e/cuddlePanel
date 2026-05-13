@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 
 int main() {
@@ -37,6 +38,27 @@ int main() {
     assert(site && !site->enabled);
     assert(!store.create_site("bad", "../bad.conf", "Nope", "server {}\n"));
     std::filesystem::remove_all("tmp-nginx-data");
+
+    std::filesystem::remove_all("tmp-nginx-legacy");
+    std::filesystem::create_directories("tmp-nginx-legacy/sites-available");
+    {
+        std::ofstream legacy_db("tmp-nginx-legacy/nginx.db", std::ios::trunc);
+        legacy_db << "legacy-main\tlegacy-main.conf\n";
+    }
+    {
+        std::ofstream legacy_conf("tmp-nginx-legacy/sites-available/legacy-main.conf", std::ios::trunc);
+        legacy_conf << "server { listen 8080; }\n";
+    }
+    cuddle::NginxStore legacy_store(
+        "tmp-nginx-legacy/nginx.db",
+        "tmp-nginx-legacy/sites-available",
+        "tmp-nginx-legacy/sites-enabled");
+    assert(legacy_store.load());
+    auto legacy_site = legacy_store.read_site("legacy-main");
+    assert(legacy_site);
+    assert(legacy_site->description.empty());
+    assert(legacy_site->content == "server { listen 8080; }\n");
+    std::filesystem::remove_all("tmp-nginx-legacy");
 
     std::cout << "nginx tests passed" << std::endl;
     return 0;

@@ -356,6 +356,8 @@ HttpResponse handle_terminal_totp_verify(const RequestContext&, const std::strin
 HttpResponse handle_api_page(const RequestContext&, const std::string&);
 HttpResponse handle_system_user_page(const RequestContext&, const std::string&);
 HttpResponse handle_service_page(const RequestContext&, const std::string&);
+HttpResponse handle_dashboard_health(const RequestContext&, const std::string&);
+HttpResponse handle_dashboard_nginx_autofix(const RequestContext&, const std::string&);
 
 HttpResponse handle_users(const RequestContext&, const std::string&);
 HttpResponse handle_user_permissions(const RequestContext&, const std::string&);
@@ -437,6 +439,8 @@ void App::build_routes() {
     routes_.push_back({"GET",  "/api/page/system-user/",     "",                 false, handle_system_user_page});
     routes_.push_back({"GET",  "/api/page/service/",         "",                 false, handle_service_page});
     routes_.push_back({"GET",  "/api/page/",                "",                 false, handle_api_page});
+    routes_.push_back({"GET",  "/api/dashboard/health",     "",                 true,  handle_dashboard_health});
+    routes_.push_back({"POST", "/api/dashboard/health/nginx/auto-fix", "",       true,  handle_dashboard_nginx_autofix});
     // users
     routes_.push_back({"",     "/api/users",                "",                 true,  handle_users});
     routes_.push_back({"",     "/api/users/",               "/permissions",     false, handle_user_permissions});

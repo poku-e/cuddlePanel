@@ -364,6 +364,40 @@ body {
     font-weight: 700;
 }
 
+.cp-health-card {
+    border: 1px solid var(--cp-line);
+    border-radius: 10px;
+    background: #fff;
+    padding: 16px;
+}
+
+.cp-health-card[data-severity="red"] {
+    border-left: 5px solid #dc3545;
+    background: linear-gradient(180deg, #fff5f5 0%, #ffffff 100%);
+}
+
+.cp-health-card[data-severity="yellow"] {
+    border-left: 5px solid #ffc107;
+    background: linear-gradient(180deg, #fffdf1 0%, #ffffff 100%);
+}
+
+.cp-health-card[data-severity="green"] {
+    border-left: 5px solid #198754;
+    background: linear-gradient(180deg, #f4fff7 0%, #ffffff 100%);
+}
+
+.cp-health-card-badge {
+    display: inline-block;
+    margin-bottom: 8px;
+    padding: 0.16rem 0.55rem;
+    border: 1px solid #d0d5dd;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
 .cp-card {
     border: 1px solid var(--cp-line);
     border-radius: 6px;

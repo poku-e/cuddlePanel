@@ -258,6 +258,24 @@
 - Updated the shared AJAX API helpers to surface backend `output` messages on non-2xx responses instead of collapsing system-action failures into the generic `Request failed`.
 - This keeps host-account delete failures actionable in the dashboard by showing the underlying `userdel` reason directly in the modal and toast flow.
 
+## Health-First Dashboard Home
+
+- Replaced the dashboard home body with a focused `What needs attention now.` view that renders red, yellow, and green health cards with `Fix it` actions.
+- Added dashboard health APIs: `GET /api/dashboard/health` for card data and `POST /api/dashboard/health/nginx/auto-fix` for a constrained nginx auto-fix attempt (test + reload only when safe).
+- Wired the frontend dashboard initializer to fetch and render health cards, trigger `Auto-fix`, and route `Open guided repair` directly to the nginx page.
+- Added focused styling for severity cards and updated auth/admin and README documentation to capture the new workflow and routes.
+- Extended auth tests to cover the new dashboard health route and enforce permission denial for nginx auto-fix when the user lacks `nginx:manage`.
+
+## AGENTS Beginner-First Goal
+
+- Updated the AGENTS repository goal statement to explicitly target absolute-beginner-friendly server administration while maintaining uncompromising default security expectations.
+
+## Nginx Legacy DB Compatibility
+
+- Fixed nginx site loading to accept legacy `data/nginx.db` entries with two columns (`name` and `filename`) in addition to the newer three-column format.
+- Added a regression test that seeds a legacy nginx db record and verifies the site still appears with an empty normalized description and readable config content.
+- This preserves visibility of previously registered nginx sites after upgrading to the description-aware schema.
+
 ## Serialized Account Mutations
 
 - Serialized System-page account creation and account-mutation commands inside the backend so overlapping dashboard requests cannot race for `/etc/passwd` or `/etc/group` locks.
