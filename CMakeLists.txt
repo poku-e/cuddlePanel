@@ -29,10 +29,12 @@ add_library(cuddle_core
     src/codex_chat.cpp
     src/codex_runner.cpp
     src/deploy_runner.cpp
+    src/fail2ban_store.cpp
     src/http.cpp
     src/http_handlers_auth.cpp
     src/http_handlers_codex.cpp
     src/http_handlers_deploy.cpp
+    src/http_handlers_fail2ban.cpp
     src/http_handlers_nginx.cpp
     src/http_handlers_page.cpp
     src/http_handlers_services.cpp
@@ -120,3 +122,7 @@ add_test(NAME system_admin_tests COMMAND system_admin_tests)
 add_executable(setup_tests tests/setup_tests.cpp)
 target_link_libraries(setup_tests PRIVATE cuddle_core)
 add_test(NAME setup_tests COMMAND setup_tests)
+
+add_executable(fail2ban_tests tests/fail2ban_tests.cpp)
+target_link_libraries(fail2ban_tests PRIVATE cuddle_core)
+add_test(NAME fail2ban_tests COMMAND fail2ban_tests)

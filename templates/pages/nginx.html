@@ -7,7 +7,7 @@
         </div>
         <div class="cp-toolbar-actions">
             <button class="btn btn-outline-secondary btn-sm" id="refreshNginxButton" type="button">Refresh</button>
-            <button class="btn btn-primary btn-sm" id="openCreateNginxModalButton" type="button"{{disabled_attr}}>Register site</button>
+            <button class="btn btn-primary btn-sm" id="openCreateNginxModalButton" type="button"{{disabled_attr}}>Create site file</button>
         </div>
     </div>
     <div id="nginxMessage" class="small mb-3"></div>
@@ -48,8 +48,8 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div>
-                    <h3 class="modal-title h5 mb-1" id="nginxEditorModalTitle">Register site</h3>
-                    <div class="small" id="nginxEditorModalMeta">Create or edit an allowlisted nginx site configuration.</div>
+                    <h3 class="modal-title h5 mb-1" id="nginxEditorModalTitle">Create site file</h3>
+                    <div class="small" id="nginxEditorModalMeta">Create or edit a site configuration from the allowlisted nginx directories.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -58,10 +58,10 @@
                     <input type="hidden" name="original_name">
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
-                            <label class="cp-label">Panel name<input class="cp-input" name="name" required minlength="3" maxlength="64"{{disabled_attr}}></label>
+                            <label class="cp-label">Display name (optional)<input class="cp-input" name="name" minlength="3" maxlength="64"{{disabled_attr}}></label>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="cp-label">Filename<input class="cp-input" name="filename" placeholder="example.conf" required maxlength="128"{{disabled_attr}}></label>
+                            <label class="cp-label">Filename<input class="cp-input" name="filename" placeholder="example.com" required maxlength="128"{{disabled_attr}}></label>
                         </div>
                     </div>
                     <label class="cp-label">Description<input class="cp-input" name="description" maxlength="200"{{disabled_attr}}></label>

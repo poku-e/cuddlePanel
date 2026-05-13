@@ -1,5 +1,6 @@
 #include "system_admin.h"
 #include "http.h"
+#include "fail2ban_store.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -161,6 +162,7 @@ int main() {
         cuddle::NginxStore nginx((temp_root / "nginx.db").string(),
                                  (temp_root / "sites-available").string(),
                                  (temp_root / "sites-enabled").string());
+        cuddle::Fail2banStore fail2ban("/usr/bin/fail2ban-client", (temp_root / "fail2ban.log").string());
         cuddle::TerminalManager terminal;
         cuddle::CodexProjectStore projects((temp_root / "codex-projects.db").string());
         cuddle::CodexConversationManager conversations(projects, (temp_root / "codex-conversations.db").string());
@@ -175,6 +177,7 @@ int main() {
             panel_users,
             services,
             nginx,
+            fail2ban,
             admin,
             terminal,
             projects,

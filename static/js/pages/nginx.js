@@ -23,11 +23,11 @@ function renderNginxSites(payload) {
 
     const host = document.getElementById("nginxSitesHost");
     if (!payload.sites.length) {
-        host.innerHTML = '<tr><td colspan="5">No allowlisted nginx sites yet.</td></tr>';
+        host.innerHTML = '<tr><td colspan="5">No nginx site files found in the configured available directory.</td></tr>';
         return;
     }
     host.innerHTML = payload.sites.map((site) => `
-        <tr data-nginx-name="${escapeHtml(site.name)}">
+        <tr data-nginx-id="${escapeHtml(site.filename)}">
             <td>${escapeHtml(site.name)}</td>
             <td><code>${escapeHtml(site.filename)}</code></td>
             <td>${enabledBadge(site.enabled)}</td>
@@ -65,7 +65,7 @@ async function refreshNginxPage() {
 }
 
 function draftFor(site) {
-    return nginxDrafts.get(site.name) || {
+    return nginxDrafts.get(site.filename) || {
         name: site.name,
         filename: site.filename,
         description: site.description,
@@ -79,15 +79,15 @@ function openNginxModal(site = null) {
     const draft = site ? draftFor(site) : {name: "", filename: "", description: "", content: ""};
     form.reset();
     message.textContent = "";
-    form.querySelector('[name="original_name"]').value = site?.name || "";
+    form.querySelector('[name="original_name"]').value = site?.filename || "";
     form.querySelector('[name="name"]').value = draft.name;
     form.querySelector('[name="filename"]').value = draft.filename;
     form.querySelector('[name="description"]').value = draft.description;
     form.querySelector('[name="content"]').value = draft.content;
-    document.getElementById("nginxEditorModalTitle").textContent = site ? `Edit site: ${site.name}` : "Register site";
+    document.getElementById("nginxEditorModalTitle").textContent = site ? `Edit site: ${site.filename}` : "Create site file";
     document.getElementById("nginxEditorModalMeta").textContent = site
-        ? "Edit the stored metadata and config without losing unsaved drafts."
-        : "Create an allowlisted nginx site entry.";
+        ? "Edit the discovered config file and optional metadata without losing unsaved drafts."
+        : "Create a config file in the allowlisted sites-available directory.";
     nginxModal.show();
 }
 
@@ -107,23 +107,24 @@ function captureEditorDraft(form) {
 function wireNginxRows() {
     document.querySelectorAll(".edit-nginx-button").forEach((button) => {
         button.addEventListener("click", () => {
-            const row = button.closest("[data-nginx-name]");
-            openNginxModal(nginxSitesCache.find((site) => site.name === row.dataset.nginxName) || null);
+            const row = button.closest("[data-nginx-id]");
+            openNginxModal(nginxSitesCache.find((site) => site.filename === row.dataset.nginxId) || null);
         });
     });
 
     document.querySelectorAll(".nginx-action-button").forEach((button) => {
         button.addEventListener("click", async () => {
-            const row = button.closest("[data-nginx-name]");
+            const row = button.closest("[data-nginx-id]");
+            const targetId = row.dataset.nginxId;
             try {
-                const payload = await postParams(`/api/nginx/sites/${encodeURIComponent(row.dataset.nginxName)}/action`, {
+                const payload = await postParams(`/api/nginx/sites/${encodeURIComponent(targetId)}/action`, {
                     action: button.dataset.action
                 });
-                setNginxOutput(`${row.dataset.nginxName}: ${button.dataset.action}`, payload.output);
-                showSuccessToast(payload.output || `Nginx action completed for ${row.dataset.nginxName}.`);
+                setNginxOutput(`${targetId}: ${button.dataset.action}`, payload.output);
+                showSuccessToast(payload.output || `Nginx action completed for ${targetId}.`);
                 await refreshNginxPage();
             } catch (error) {
-                setNginxOutput(`${row.dataset.nginxName}: ${button.dataset.action}`, error.message);
+                setNginxOutput(`${targetId}: ${button.dataset.action}`, error.message);
                 showErrorToast(error.message);
             }
         });
@@ -159,10 +160,10 @@ export async function initNginxPage() {
                     content: form.querySelector('[name="content"]').value
                 });
                 nginxDrafts.delete(original);
-                showSuccessToast(`Saved nginx site ${original}.`);
+                showSuccessToast(`Saved nginx site ${form.querySelector('[name="filename"]').value}.`);
             } else {
                 await postForm("/api/nginx/sites", form);
-                showSuccessToast("Nginx site added.");
+                showSuccessToast("Nginx site file created.");
             }
             nginxModal.hide();
             await refreshNginxPage();

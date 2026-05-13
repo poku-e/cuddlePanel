@@ -1,5 +1,6 @@
 #include "nginx_store.h"
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstdlib>
@@ -107,6 +108,13 @@ bool path_exists_or_link(const std::string& path) {
     return status.type() != std::filesystem::file_type::not_found;
 }
 
+std::string site_name_from_filename(const std::string& filename) {
+    if (filename.size() > 5 && filename.rfind(".conf") == filename.size() - 5) {
+        return filename.substr(0, filename.size() - 5);
+    }
+    return filename;
+}
+
 }
 
 NginxStore::NginxStore(std::string db_path, std::string available_dir, std::string enabled_dir)
@@ -158,21 +166,20 @@ bool NginxStore::save() const {
 
 std::vector<NginxSiteEntry> NginxStore::sites() const {
     std::lock_guard<std::mutex> lock(mutex_);
-    return sites_;
+    return discover_sites_locked();
 }
 
 std::optional<NginxSiteEntry> NginxStore::find_site(const std::string& name) const {
     std::lock_guard<std::mutex> lock(mutex_);
-    for (const auto& site : sites_) {
-        if (site.name == name) {
-            return site;
-        }
-    }
-    return std::nullopt;
+    return resolve_site_locked(name);
 }
 
 std::optional<NginxSiteRecord> NginxStore::read_site(const std::string& name) const {
-    auto entry = find_site(name);
+    std::optional<NginxSiteEntry> entry;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        entry = resolve_site_locked(name);
+    }
     if (!entry) {
         return std::nullopt;
     }
@@ -202,7 +209,8 @@ bool NginxStore::create_site(const std::string& name,
                              const std::string& description,
                              const std::string& content) {
     const std::string normalized = normalize_nginx_description(description);
-    if (!valid_nginx_site_name(name) || !valid_nginx_filename(filename) ||
+    const std::string chosen_name = name.empty() ? site_name_from_filename(filename) : name;
+    if (!valid_nginx_site_name(chosen_name) || !valid_nginx_filename(filename) ||
         !valid_nginx_description(normalized) || !valid_nginx_content(content)) {
         return false;
     }
@@ -215,16 +223,19 @@ bool NginxStore::create_site(const std::string& name,
     {
         std::lock_guard<std::mutex> lock(mutex_);
         for (const auto& site : sites_) {
-            if (site.name == name || site.filename == filename) {
+            if (site.name == chosen_name || site.filename == filename) {
                 return false;
             }
+        }
+        if (std::filesystem::exists(*available_path)) {
+            return false;
         }
         std::filesystem::create_directories(available_dir_);
         std::filesystem::create_directories(enabled_dir_);
         if (!write_text_file(*available_path, content)) {
             return false;
         }
-        sites_.push_back(NginxSiteEntry{name, filename, normalized});
+        sites_.push_back(NginxSiteEntry{chosen_name, filename, normalized});
     }
     return save();
 }
@@ -235,42 +246,35 @@ bool NginxStore::update_site(const std::string& current_name,
                              const std::string& description,
                              const std::string& content) {
     const std::string normalized = normalize_nginx_description(description);
-    if (!valid_nginx_site_name(current_name) || !valid_nginx_site_name(new_name) ||
+    const std::string chosen_name = new_name.empty() ? site_name_from_filename(filename) : new_name;
+    if (!valid_nginx_site_name(chosen_name) ||
         !valid_nginx_filename(filename) || !valid_nginx_description(normalized) ||
         !valid_nginx_content(content)) {
         return false;
     }
 
-    bool updated = false;
-    std::string old_filename;
-    bool was_enabled = false;
+    std::optional<NginxSiteEntry> current;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        for (const auto& site : sites_) {
-            if (site.name == new_name && site.name != current_name) {
-                return false;
-            }
-            if (site.filename == filename && site.name != current_name) {
-                return false;
-            }
+        current = resolve_site_locked(current_name);
+        if (!current) {
+            return false;
         }
-
-        for (auto& site : sites_) {
-            if (site.name != current_name) {
-                continue;
+        for (const auto& site : sites_) {
+            if (site.filename != current->filename && site.filename == filename) {
+                return false;
             }
-            old_filename = site.filename;
-            auto old_enabled = site_enabled_path(site.filename);
-            was_enabled = old_enabled && path_exists_or_link(*old_enabled);
-            site.name = new_name;
-            site.filename = filename;
-            site.description = normalized;
-            updated = true;
-            break;
+            if (site.filename != current->filename && site.name == chosen_name) {
+                return false;
+            }
         }
     }
-    if (!updated) {
-        return false;
+
+    const std::string old_filename = current->filename;
+    bool was_enabled = false;
+    {
+        auto old_enabled = site_enabled_path(old_filename);
+        was_enabled = old_enabled && path_exists_or_link(*old_enabled);
     }
 
     auto new_available = site_available_path(filename);
@@ -283,6 +287,9 @@ bool NginxStore::update_site(const std::string& current_name,
 
     std::filesystem::create_directories(available_dir_);
     std::filesystem::create_directories(enabled_dir_);
+    if (old_filename != filename && std::filesystem::exists(*new_available)) {
+        return false;
+    }
     if (old_filename != filename && std::filesystem::exists(*old_available)) {
         std::filesystem::rename(*old_available, *new_available);
     }
@@ -299,11 +306,33 @@ bool NginxStore::update_site(const std::string& current_name,
         std::filesystem::create_symlink(std::filesystem::absolute(*new_available), *new_enabled);
     }
 
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        bool metadata_updated = false;
+        for (auto& site : sites_) {
+            if (site.filename != old_filename) {
+                continue;
+            }
+            site.name = chosen_name;
+            site.filename = filename;
+            site.description = normalized;
+            metadata_updated = true;
+            break;
+        }
+        if (!metadata_updated) {
+            sites_.push_back(NginxSiteEntry{chosen_name, filename, normalized});
+        }
+    }
+
     return save();
 }
 
 bool NginxStore::set_enabled(const std::string& name, bool enabled) {
-    auto entry = find_site(name);
+    std::optional<NginxSiteEntry> entry;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        entry = resolve_site_locked(name);
+    }
     if (!entry) {
         return false;
     }
@@ -351,6 +380,90 @@ std::optional<std::string> NginxStore::site_enabled_path(const std::string& file
     return (std::filesystem::path(enabled_dir_) / filename).string();
 }
 
+std::optional<NginxSiteEntry> NginxStore::metadata_for_filename_locked(const std::string& filename) const {
+    for (const auto& site : sites_) {
+        if (site.filename == filename) {
+            return site;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<NginxSiteEntry> NginxStore::resolve_site_locked(const std::string& identifier) const {
+    if (identifier.empty()) {
+        return std::nullopt;
+    }
+
+    auto build_entry_from_filename = [this](const std::string& filename) -> std::optional<NginxSiteEntry> {
+        auto available_path = site_available_path(filename);
+        if (!available_path || !std::filesystem::exists(*available_path)) {
+            return std::nullopt;
+        }
+        if (auto metadata = metadata_for_filename_locked(filename)) {
+            return metadata;
+        }
+        return NginxSiteEntry{site_name_from_filename(filename), filename, ""};
+    };
+
+    if (valid_nginx_filename(identifier)) {
+        if (auto entry = build_entry_from_filename(identifier)) {
+            return entry;
+        }
+    }
+
+    for (const auto& site : sites_) {
+        if (site.name != identifier) {
+            continue;
+        }
+        auto available_path = site_available_path(site.filename);
+        if (available_path && std::filesystem::exists(*available_path)) {
+            return site;
+        }
+    }
+
+    const std::string candidate_filename = identifier + ".conf";
+    if (valid_nginx_filename(candidate_filename)) {
+        return build_entry_from_filename(candidate_filename);
+    }
+    return std::nullopt;
+}
+
+std::vector<NginxSiteEntry> NginxStore::discover_sites_locked() const {
+    std::vector<NginxSiteEntry> discovered;
+    std::error_code ec;
+    if (!std::filesystem::exists(available_dir_, ec) || ec) {
+        return discovered;
+    }
+
+    std::filesystem::directory_iterator end;
+    for (std::filesystem::directory_iterator it(available_dir_, ec); !ec && it != end; it.increment(ec)) {
+        std::error_code status_ec;
+        const auto type = it->symlink_status(status_ec).type();
+        if (status_ec || (type != std::filesystem::file_type::regular && type != std::filesystem::file_type::symlink)) {
+            continue;
+        }
+
+        const std::string filename = it->path().filename().string();
+        if (!valid_nginx_filename(filename)) {
+            continue;
+        }
+
+        if (auto metadata = metadata_for_filename_locked(filename)) {
+            discovered.push_back(*metadata);
+        } else {
+            discovered.push_back(NginxSiteEntry{site_name_from_filename(filename), filename, ""});
+        }
+    }
+
+    std::sort(discovered.begin(), discovered.end(), [](const NginxSiteEntry& a, const NginxSiteEntry& b) {
+        if (a.filename == b.filename) {
+            return a.name < b.name;
+        }
+        return a.filename < b.filename;
+    });
+    return discovered;
+}
+
 bool valid_nginx_site_name(const std::string& name) {
     if (name.size() < 3 || name.size() > 64) {
         return false;
@@ -364,16 +477,16 @@ bool valid_nginx_site_name(const std::string& name) {
 }
 
 bool valid_nginx_filename(const std::string& filename) {
-    if (filename.size() < 6 || filename.size() > 128) {
-        return false;
-    }
-    if (filename.rfind(".conf") != filename.size() - 5) {
+    if (filename.empty() || filename.size() > 128) {
         return false;
     }
     for (unsigned char c : filename) {
         if (!(std::isalnum(c) || c == '.' || c == '_' || c == '-')) {
             return false;
         }
+    }
+    if (filename == "." || filename == "..") {
+        return false;
     }
     return filename.find("..") == std::string::npos;
 }

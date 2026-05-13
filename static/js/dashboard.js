@@ -5,6 +5,7 @@ import {initServiceDetailPage, initServicesPage} from "./pages/services.js";
 import {initSystemPage} from "./pages/system.js";
 import {initSystemUserPage} from "./pages/system_user.js";
 import {initNginxPage} from "./pages/nginx.js";
+import {initFail2banPage} from "./pages/fail2ban.js";
 import {initDeployPage} from "./pages/deploy.js";
 import {initCodexPage} from "./pages/codex.js";
 import {initTerminalPage, setTerminalReloader} from "./pages/terminal.js";
@@ -16,6 +17,7 @@ const pageInitializers = new Map([
     ["services", initServicesPage],
     ["system", initSystemPage],
     ["nginx", initNginxPage],
+    ["fail2ban", initFail2banPage],
     ["codex", initCodexPage],
     ["deploy", initDeployPage],
     ["terminal", initTerminalPage]

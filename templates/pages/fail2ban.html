@@ -1,0 +1,101 @@
+<section class="cp-card">
+    <div id="fail2banPageState" data-can-manage="{{can_manage_fail2ban}}"></div>
+    <div class="cp-toolbar">
+        <div>
+            <h2 class="mb-1">Fail2ban</h2>
+            <div class="small">Monitor jails, manage bans and ignore lists, and run fail2ban reload actions.</div>
+        </div>
+        <div class="cp-toolbar-actions">
+            <button class="btn btn-outline-secondary btn-sm" id="refreshFail2banButton" type="button">Refresh</button>
+            <button class="btn btn-outline-primary btn-sm" id="reloadFail2banButton" type="button"{{disabled_attr}}>Reload</button>
+            <button class="btn btn-outline-warning btn-sm" id="restartFail2banButton" type="button"{{disabled_attr}}>Restart</button>
+        </div>
+    </div>
+    <div id="fail2banMessage" class="small mb-3"></div>
+    {{view_only_note}}
+
+    <ul class="nav nav-tabs mt-3" id="fail2banTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="fail2ban-jails-tab" data-bs-toggle="tab" data-bs-target="#fail2ban-jails" type="button" role="tab" aria-controls="fail2ban-jails" aria-selected="true">Jails</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="fail2ban-logs-tab" data-bs-toggle="tab" data-bs-target="#fail2ban-logs" type="button" role="tab" aria-controls="fail2ban-logs" aria-selected="false">Logs</button>
+        </li>
+    </ul>
+
+    <div class="tab-content pt-3">
+        <div class="tab-pane fade show active" id="fail2ban-jails" role="tabpanel" aria-labelledby="fail2ban-jails-tab" tabindex="0">
+            <div class="table-responsive cp-table-wrap">
+                <table class="table table-sm table-hover align-middle cp-table mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Jail</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Failed</th>
+                            <th scope="col">Banned</th>
+                            <th scope="col" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fail2banJailsHost"></tbody>
+                </table>
+            </div>
+
+            <div class="mt-4">
+                <h3 class="h6 mb-2">Jail details</h3>
+                <div id="fail2banDetailMeta" class="small mb-2">Select a jail to load banned and ignored IP lists.</div>
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <div class="border rounded p-3 h-100">
+                            <h4 class="h6">Banned IPs</h4>
+                            <div id="fail2banBannedIps" class="small mb-3">No jail selected.</div>
+                            <form id="fail2banBanForm" class="vstack gap-2">
+                                <label class="cp-label mb-0">Ban IP<input class="cp-input" name="ip" maxlength="80" placeholder="203.0.113.5"{{disabled_attr}}></label>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit"{{disabled_attr}}>Ban IP</button>
+                                    <button class="btn btn-sm btn-outline-secondary" id="fail2banUnbanButton" type="button"{{disabled_attr}}>Unban Entered IP</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="border rounded p-3 h-100">
+                            <h4 class="h6">Ignore IPs</h4>
+                            <div id="fail2banIgnoredIps" class="small mb-3">No jail selected.</div>
+                            <form id="fail2banIgnoreForm" class="vstack gap-2">
+                                <label class="cp-label mb-0">Ignore IP<input class="cp-input" name="ip" maxlength="80" placeholder="198.51.100.0/24"{{disabled_attr}}></label>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-primary" type="button" id="fail2banIgnoreAddButton"{{disabled_attr}}>Add ignore IP</button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" id="fail2banIgnoreRemoveButton"{{disabled_attr}}>Remove ignore IP</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="fail2ban-logs" role="tabpanel" aria-labelledby="fail2ban-logs-tab" tabindex="0">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <div class="small">Recent fail2ban log output from the configured log path.</div>
+                <button class="btn btn-outline-secondary btn-sm" id="refreshFail2banLogsButton" type="button">Refresh logs</button>
+            </div>
+            <pre id="fail2banLogsOutput" class="service-output mt-0">No logs loaded yet.</pre>
+        </div>
+    </div>
+
+    <div class="accordion mt-4" id="fail2banOutputAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#fail2banOutputPanel" aria-expanded="true" aria-controls="fail2banOutputPanel">
+                    Recent fail2ban command output
+                </button>
+            </h2>
+            <div id="fail2banOutputPanel" class="accordion-collapse collapse show" data-bs-parent="#fail2banOutputAccordion">
+                <div class="accordion-body">
+                    <div id="fail2banOutputMeta" class="small mb-2">No fail2ban command has been run yet.</div>
+                    <pre id="fail2banOutput" class="service-output mt-0">No output yet.</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

@@ -276,6 +276,13 @@
 - Added a regression test that seeds a legacy nginx db record and verifies the site still appears with an empty normalized description and readable config content.
 - This preserves visibility of previously registered nginx sites after upgrading to the description-aware schema.
 
+## Nginx Filesystem Discovery
+
+- Switched nginx site listing to discover `*.conf` files directly from the configured `sites-available` directory instead of requiring pre-registration in `data/nginx.db`.
+- Kept `data/nginx.db` as optional metadata storage only (`name` and `description` overrides) so existing unmanaged files are still visible and manageable.
+- Updated nginx edit/action resolution so endpoints can target discovered files by filename or inferred site name, and added tests for discovery-only files with enable and rename behavior.
+- Updated the nginx page copy to reflect a file-centric workflow and changed row actions to use filename as the stable frontend identifier.
+
 ## Serialized Account Mutations
 
 - Serialized System-page account creation and account-mutation commands inside the backend so overlapping dashboard requests cannot race for `/etc/passwd` or `/etc/group` locks.
@@ -404,3 +411,11 @@
 - Hardened interactive Codex conversation startup so the PTY child forces a usable `TERM` when the server environment inherits `TERM=dumb`, preventing the CLI from stopping at a startup confirmation prompt.
 - Expanded the Codex chat regression test to simulate a CLI that exits when launched under `TERM=dumb`, proving the dashboard conversation path now repairs that environment before exec.
 - Updated the Codex management doc with the new debugging clue for immediate-exit conversations caused by limited terminal environments.
+
+## Fail2ban Management Page
+
+- Added a new Fail2ban dashboard page with jail status, per-jail details, banned IP controls, ignore IP controls, and global reload and restart actions.
+- Implemented a new fail2ban backend store that wraps fail2ban-client through direct exec calls with jail and IP validation plus bounded log tailing.
+- Added fail2ban HTTP handlers and routes for jail listing, jail detail reads, jail actions, ban and unban operations, whitelist edits, global actions, and recent log retrieval.
+- Integrated fail2ban into app wiring, request context, permission page keys, sidebar navigation, and dashboard frontend page loading.
+- Added focused fail2ban tests and dedicated documentation covering routes, workflow, validation rules, configuration, and operational gotchas.

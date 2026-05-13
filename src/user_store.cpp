@@ -306,7 +306,7 @@ bool UserStore::has_permission(const std::string& username, const std::string& p
 }
 
 std::set<std::string> known_pages() {
-    return {"codex", "dashboard", "deploy", "nginx", "services", "system", "terminal", "users"};
+    return {"codex", "dashboard", "deploy", "fail2ban", "nginx", "services", "system", "terminal", "users"};
 }
 
 std::set<std::string> allowed_roles() {

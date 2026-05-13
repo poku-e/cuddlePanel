@@ -52,6 +52,9 @@ public:
 private:
     std::optional<std::string> site_available_path(const std::string& filename) const;
     std::optional<std::string> site_enabled_path(const std::string& filename) const;
+    std::optional<NginxSiteEntry> metadata_for_filename_locked(const std::string& filename) const;
+    std::optional<NginxSiteEntry> resolve_site_locked(const std::string& identifier) const;
+    std::vector<NginxSiteEntry> discover_sites_locked() const;
 
     std::string db_path_;
     std::string available_dir_;

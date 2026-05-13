@@ -78,6 +78,13 @@ HttpResponse handle_api_page(const RequestContext& ctx, const std::string& page_
             {"disabled_attr",    can_manage ? "" : " disabled"},
             {"view_only_note",   can_manage ? "" : "<p class=\"small text-secondary mt-3 mb-0\">You have view access to this page, but nginx changes require `nginx:manage`.</p>"}
         });
+    } else if (page_name == "fail2ban") {
+        const bool can_manage = ctx.users.has_permission(*ctx.username, "fail2ban", PermissionLevel::Manage);
+        response.body = template_panel("Fail2ban", "templates/pages/fail2ban.html", {
+            {"can_manage_fail2ban", can_manage ? "1" : "0"},
+            {"disabled_attr",       can_manage ? "" : " disabled"},
+            {"view_only_note",      can_manage ? "" : "<p class=\"small text-secondary mt-3 mb-0\">You have view access to this page, but fail2ban changes require `fail2ban:manage`.</p>"}
+        });
     } else if (page_name == "terminal") {
         if (!ctx.sessions.terminal_totp_recently_verified(ctx.session_token, std::time(nullptr), 30 * 60)) {
             response.body = template_panel("Terminal Verification", "templates/pages/terminal_gate.html");

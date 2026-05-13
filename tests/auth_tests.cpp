@@ -1,6 +1,7 @@
 #include "auth.h"
 #include "codex_chat.h"
 #include "deploy_runner.h"
+#include "fail2ban_store.h"
 #include "http.h"
 #include "nginx_store.h"
 #include "service_store.h"
@@ -90,6 +91,7 @@ int main() {
     assert(service_store.load());
     cuddle::NginxStore nginx_store("tmp-test-data/nginx.db", "tmp-test-data/nginx-available", "tmp-test-data/nginx-enabled");
     assert(nginx_store.load());
+    cuddle::Fail2banStore fail2ban_store("/usr/bin/fail2ban-client", "tmp-test-data/fail2ban.log");
     cuddle::SystemAdmin system_admin("/etc/passwd", "/etc/group", "/etc/shadow");
     cuddle::TerminalManager terminal_manager;
     cuddle::CodexProjectStore codex_projects("tmp-test-data/codex-projects.db");
@@ -100,6 +102,7 @@ int main() {
     cuddle::App app(store,
                     service_store,
                     nginx_store,
+                    fail2ban_store,
                     system_admin,
                     terminal_manager,
                     codex_projects,

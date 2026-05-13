@@ -385,6 +385,15 @@ HttpResponse handle_nginx_sites(const RequestContext&, const std::string&);
 HttpResponse handle_update_nginx_site(const RequestContext&, const std::string&);
 HttpResponse handle_nginx_action(const RequestContext&, const std::string&);
 
+HttpResponse handle_fail2ban_jails(const RequestContext&, const std::string&);
+HttpResponse handle_fail2ban_jail_detail(const RequestContext&, const std::string&);
+HttpResponse handle_fail2ban_jail_action(const RequestContext&, const std::string&);
+HttpResponse handle_fail2ban_ban(const RequestContext&, const std::string&);
+HttpResponse handle_fail2ban_unban(const RequestContext&, const std::string&);
+HttpResponse handle_fail2ban_whitelist(const RequestContext&, const std::string&);
+HttpResponse handle_fail2ban_action(const RequestContext&, const std::string&);
+HttpResponse handle_fail2ban_logs(const RequestContext&, const std::string&);
+
 HttpResponse handle_codex_projects(const RequestContext&, const std::string&);
 HttpResponse handle_codex_conversations(const RequestContext&, const std::string&);
 HttpResponse handle_codex_conversation_read(const RequestContext&, const std::string&);
@@ -409,6 +418,7 @@ HttpResponse handle_terminal_close(const RequestContext&, const std::string&);
 App::App(UserStore& users,
          ServiceStore& services,
          NginxStore& nginx,
+         Fail2banStore& fail2ban,
          SystemAdmin& system_admin,
          TerminalManager& terminal,
          CodexProjectStore& codex_projects,
@@ -417,6 +427,7 @@ App::App(UserStore& users,
     : users_(users),
       services_(services),
       nginx_(nginx),
+            fail2ban_(fail2ban),
       system_admin_(system_admin),
       terminal_(terminal),
       codex_projects_(codex_projects),
@@ -469,6 +480,15 @@ void App::build_routes() {
     routes_.push_back({"",     "/api/nginx/sites",          "",                 true,  handle_nginx_sites});
     routes_.push_back({"",     "/api/nginx/sites/",         "/action",          false, handle_nginx_action});
     routes_.push_back({"",     "/api/nginx/sites/",         "",                 false, handle_update_nginx_site});
+    // fail2ban
+    routes_.push_back({"GET",  "/api/fail2ban/jails",       "",                 true,  handle_fail2ban_jails});
+    routes_.push_back({"POST", "/api/fail2ban/jails/",      "/action",          false, handle_fail2ban_jail_action});
+    routes_.push_back({"POST", "/api/fail2ban/jails/",      "/ban",             false, handle_fail2ban_ban});
+    routes_.push_back({"POST", "/api/fail2ban/jails/",      "/unban",           false, handle_fail2ban_unban});
+    routes_.push_back({"POST", "/api/fail2ban/jails/",      "/whitelist",       false, handle_fail2ban_whitelist});
+    routes_.push_back({"GET",  "/api/fail2ban/jails/",      "",                 false, handle_fail2ban_jail_detail});
+    routes_.push_back({"POST", "/api/fail2ban/action",      "",                 true,  handle_fail2ban_action});
+    routes_.push_back({"GET",  "/api/fail2ban/logs",        "",                 true,  handle_fail2ban_logs});
     // codex
     routes_.push_back({"",     "/api/codex/projects",       "",                 true,  handle_codex_projects});
     routes_.push_back({"",     "/api/codex/conversations",  "",                 true,  handle_codex_conversations});
@@ -553,6 +573,7 @@ HttpResponse App::handle(const HttpRequest& request) {
         users_,
         services_,
         nginx_,
+        fail2ban_,
         system_admin_,
         terminal_,
         codex_projects_,

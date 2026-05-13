@@ -8,6 +8,7 @@ const pageKeys = [
     "services",
     "system",
     "nginx",
+    "fail2ban",
     "terminal",
     "codex",
     "deploy"

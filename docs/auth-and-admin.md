@@ -42,6 +42,14 @@ Routes and access:
 - `POST /api/nginx/sites`: requires `nginx:manage`.
 - `POST /api/nginx/sites/<name>`: requires `nginx:manage`.
 - `POST /api/nginx/sites/<name>/action`: requires `nginx:manage`.
+- `GET /api/fail2ban/jails`: requires `fail2ban:view`.
+- `GET /api/fail2ban/jails/<jail>`: requires `fail2ban:view`.
+- `POST /api/fail2ban/jails/<jail>/action`: requires `fail2ban:manage`.
+- `POST /api/fail2ban/jails/<jail>/ban`: requires `fail2ban:manage`.
+- `POST /api/fail2ban/jails/<jail>/unban`: requires `fail2ban:manage`.
+- `POST /api/fail2ban/jails/<jail>/whitelist`: requires `fail2ban:manage`.
+- `POST /api/fail2ban/action`: requires `fail2ban:manage`.
+- `GET /api/fail2ban/logs`: requires `fail2ban:view`.
 - `GET /api/codex/projects`: requires `codex:view`.
 - `POST /api/codex/projects`: requires `codex:manage`.
 - `GET /api/codex/conversations`: requires `codex:view`.
@@ -85,6 +93,7 @@ Workflow:
 - The System page loads host accounts into a table, uses Bootstrap tabs for account vs. file workflows, manages account edits, password and lifecycle controls, a richer privilege posture view with group-based sudo actions, and account deletion through AJAX, and constrains path ownership and mode changes to configured roots.
 - The System page also provides an `authorized_keys` editor, a read-only `Logfiles` tab for supported shell history files under each login user's resolved home directory, and a constrained file browser for allowed roots.
 - The Nginx page loads allowlisted site configs into a table, edits full config content in a Bootstrap modal, and performs file updates, enable/disable, config tests, and reloads through AJAX.
+- The Fail2ban page loads jail status, per-jail banned and ignored IP data, supports ban and unban flows plus ignore-list edits, and exposes reload and restart controls through AJAX.
 - The Deploy page now runs a native stack-aware deploy engine through `/api/deploy/run`, writing systemd and nginx configuration directly and optionally creating or updating a Cloudflare DNS record.
 - The Codex page now manages project-scoped conversations, starts an interactive Codex CLI session in the selected project root or maintenance workdir, persists transcript and audit data, and resumes the same Codex thread after a panel restart when a stored session id is available.
 - The Terminal page requires a fresh TOTP verification every 30 minutes before access is granted.
@@ -137,6 +146,7 @@ Implemented page keys:
 - `services`
 - `system`
 - `nginx`
+- `fail2ban`
 - `terminal`
 - `codex`
 - `deploy`

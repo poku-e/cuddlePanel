@@ -1,5 +1,6 @@
 #include "auth.h"
 #include "codex_chat.h"
+#include "fail2ban_store.h"
 #include "http.h"
 #include "log.h"
 #include "nginx_store.h"
@@ -106,6 +107,16 @@ int main() {
         return 1;
     }
 
+    std::string fail2ban_client_bin = "/usr/bin/fail2ban-client";
+    if (const char* configured = std::getenv("CUDDLEPANEL_FAIL2BAN_CLIENT_BIN")) {
+        fail2ban_client_bin = configured;
+    }
+    std::string fail2ban_log_path = "/var/log/fail2ban.log";
+    if (const char* configured = std::getenv("CUDDLEPANEL_FAIL2BAN_LOG")) {
+        fail2ban_log_path = configured;
+    }
+    cuddle::Fail2banStore fail2ban(fail2ban_client_bin, fail2ban_log_path);
+
     int port = 8080;
     if (const char* configured = std::getenv("CUDDLEPANEL_PORT")) {
         port = std::atoi(configured);
@@ -130,7 +141,7 @@ int main() {
         return 1;
     }
     cuddle::SessionStore sessions;
-    cuddle::App app(users, services, nginx, system_admin, terminal, codex_projects, codex_conversations, sessions);
+    cuddle::App app(users, services, nginx, fail2ban, system_admin, terminal, codex_projects, codex_conversations, sessions);
     cuddle::log_message(cuddle::LogLevel::Info, "starting HTTP server on 0.0.0.0:" + std::to_string(port));
     const bool started = cuddle::run_server(app, port);
     if (!started) {

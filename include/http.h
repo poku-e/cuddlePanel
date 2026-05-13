@@ -2,6 +2,7 @@
 
 #include "deploy_runner.h"
 #include "codex_chat.h"
+#include "fail2ban_store.h"
 #include "nginx_store.h"
 #include "service_store.h"
 #include "setup.h"
@@ -79,6 +80,7 @@ struct RequestContext {
     UserStore&                     users;
     ServiceStore&                  services;
     NginxStore&                    nginx;
+    Fail2banStore&                 fail2ban;
     SystemAdmin&                   system_admin;
     TerminalManager&               terminal;
     CodexProjectStore&             codex_projects;
@@ -116,6 +118,7 @@ public:
     App(UserStore& users,
         ServiceStore& services,
         NginxStore& nginx,
+        Fail2banStore& fail2ban,
         SystemAdmin& system_admin,
         TerminalManager& terminal,
         CodexProjectStore& codex_projects,
@@ -128,6 +131,7 @@ private:
     UserStore&                  users_;
     ServiceStore&               services_;
     NginxStore&                 nginx_;
+    Fail2banStore&              fail2ban_;
     SystemAdmin&                system_admin_;
     TerminalManager&            terminal_;
     CodexProjectStore&          codex_projects_;
